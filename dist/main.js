@@ -11,13 +11,26 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const discord_js_1 = __importDefault(require("discord.js"));
+const mysql_1 = __importDefault(require("mysql"));
 const config_json_1 = require("./config.json");
 const generalevents = __importStar(require("./events/generalevents"));
 const generalcommands = __importStar(require("./commands/generalcmds"));
 exports.client = { c: new discord_js_1.default.Client() };
 exports.client.commands = new discord_js_1.default.Collection();
+//setup SQL connection as an export
+exports.con = mysql_1.default.createConnection({
+    host: config_json_1.mysql_host,
+    user: config_json_1.mysql_user,
+    password: config_json_1.mysql_pass,
+    database: config_json_1.mysql_dbname
+});
 //Setup commands
 generalcommands.SetupCommands();
 //Setup events
 generalevents.SetupEvents();
 exports.client.c.login(config_json_1.token);
+//functions:
+function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+exports.capitalizeFirstLetter = capitalizeFirstLetter;

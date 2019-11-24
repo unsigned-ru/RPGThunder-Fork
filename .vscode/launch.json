@@ -12,6 +12,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
+            "preLaunchTask": "npm: compile",
             "program": "${workspaceFolder}\\dist\\main.js"
         }
     ]
