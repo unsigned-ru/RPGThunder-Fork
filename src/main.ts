@@ -16,7 +16,8 @@ export const con = mysql.createConnection({
   host: mysql_host,
   user: mysql_user,
   password: mysql_pass,
-  database: mysql_dbname
+  database: mysql_dbname,
+  multipleStatements: true
 });
 
 //Setup commands

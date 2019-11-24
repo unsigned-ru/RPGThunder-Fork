@@ -23,7 +23,7 @@ export const commands = [
 		description: 'Registers user!',
 		execute(msg: Discord.Message, args: string[]) {
 			//Check if user already in database.
-			con.query(`SELECT * FROM users WHERE userID='${msg.author.id}'`,function(err,result: object[])
+			con.query(`SELECT * FROM users WHERE user_id='${msg.author.id}'`,function(err,result: object[])
 			{
 				if (result.length != 0)
 				{
@@ -53,33 +53,25 @@ export const commands = [
 						msg.reply("Could not find a class with that name.");
 						return;
 				}	
-
-				var insertUser = `INSERT INTO users(userID,classID,datetimeJoined) VALUES ('${msg.author.id}',${classID},${con.escape(new Date())});`
-				var insertStats = `INSERT INTO user_stats(userID) VALUES ('${msg.author.id}');`
+				con.query(`SELECT base_hp FROM classes WHERE id=${classID}`,function(err,result){
+					var sql = `INSERT INTO users(user_id,class_id,datetime_joined) VALUES ('${msg.author.id}',${classID},${con.escape(new Date())});` +
+					 `INSERT INTO user_stats(user_id,current_hp) VALUES ('${msg.author.id}', ${result[0].base_hp});` +
+					 `INSERT INTO user_equipment(user_id) VALUES ('${msg.author.id}');`
 			
-				con.query(insertUser, (err: MysqlError,result) => {
-					if (err)
+					con.query(sql, (err: MysqlError,result) => 
 					{
-						msg.reply("An error occured while comminicating with the database, please try again. If the error persists please open a ticket.");
-						console.log(err);
-						return;
-					}
-
-					con.query(insertStats, (err: MysqlError,result) => {
 						if (err)
 						{
 							msg.reply("An error occured while comminicating with the database, please try again. If the error persists please open a ticket.");
 							console.log(err);
 							return;
 						}
-						
-						var classStr = capitalizeFirstLetter(args[0].toLowerCase());
-						msg.reply("You have successfully registered as an "+ classStr+" !");
-					});
-
+						else
+						{
+							msg.reply(`You have sucessfully registered as an ${capitalizeFirstLetter(args[0].toLowerCase())}`);
+						}
+					});	
 				});
-				
-				
 			});
 		},
 	}

@@ -22,7 +22,8 @@ exports.con = mysql_1.default.createConnection({
     host: config_json_1.mysql_host,
     user: config_json_1.mysql_user,
     password: config_json_1.mysql_pass,
-    database: config_json_1.mysql_dbname
+    database: config_json_1.mysql_dbname,
+    multipleStatements: true
 });
 //Setup commands
 generalcommands.SetupCommands();

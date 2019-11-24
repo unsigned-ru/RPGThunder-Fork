@@ -23,7 +23,7 @@ exports.commands = [
         description: 'Registers user!',
         execute(msg, args) {
             //Check if user already in database.
-            main_1.con.query(`SELECT * FROM users WHERE userID='${msg.author.id}'`, function (err, result) {
+            main_1.con.query(`SELECT * FROM users WHERE user_id='${msg.author.id}'`, function (err, result) {
                 if (result.length != 0) {
                     msg.reply("You have already registered.");
                     return;
@@ -47,22 +47,19 @@ exports.commands = [
                         msg.reply("Could not find a class with that name.");
                         return;
                 }
-                var insertUser = `INSERT INTO users(userID,classID,datetimeJoined) VALUES ('${msg.author.id}',${classID},${main_1.con.escape(new Date())});`;
-                var insertStats = `INSERT INTO user_stats(userID) VALUES ('${msg.author.id}');`;
-                main_1.con.query(insertUser, (err, result) => {
-                    if (err) {
-                        msg.reply("An error occured while comminicating with the database, please try again. If the error persists please open a ticket.");
-                        console.log(err);
-                        return;
-                    }
-                    main_1.con.query(insertStats, (err, result) => {
+                main_1.con.query(`SELECT base_hp FROM classes WHERE id=${classID}`, function (err, result) {
+                    var sql = `INSERT INTO users(user_id,class_id,datetime_joined) VALUES ('${msg.author.id}',${classID},${main_1.con.escape(new Date())});` +
+                        `INSERT INTO user_stats(user_id,current_hp) VALUES ('${msg.author.id}', ${result[0].base_hp});` +
+                        `INSERT INTO user_equipment(user_id) VALUES ('${msg.author.id}');`;
+                    main_1.con.query(sql, (err, result) => {
                         if (err) {
                             msg.reply("An error occured while comminicating with the database, please try again. If the error persists please open a ticket.");
                             console.log(err);
                             return;
                         }
-                        var classStr = main_1.capitalizeFirstLetter(args[0].toLowerCase());
-                        msg.reply("You have successfully registered as an " + classStr + " !");
+                        else {
+                            msg.reply(`You have sucessfully registered as an ${main_1.capitalizeFirstLetter(args[0].toLowerCase())}`);
+                        }
                     });
                 });
             });
