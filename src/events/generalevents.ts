@@ -42,6 +42,7 @@ function onUserJoin(user: Discord.GuildMember)
     if (user == null)return;
     //send user a welcome message and some information in an embedd
     const embed = new Discord.RichEmbed()
+    
     .setColor('#fcf403')
     .setTitle(`Pssst ${user.displayName}...`)
     .setDescription(`**Welcome to _${user.guild.name}_! I happen to be in the server you just joined, and I can let you in on a great deal! Please hear me out!**`)
@@ -63,10 +64,9 @@ function onUserJoin(user: Discord.GuildMember)
     "Summary of archer"
     ,true)
 
-	.setThumbnail('https://i.imgur.com/wSTFkRM.png')
-	.setImage('https://i.imgur.com/wSTFkRM.png')
+	.setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
 	.setTimestamp()
-    .setFooter("Catch phrase!", 'https://i.imgur.com/wSTFkRM.png');
-
+    .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+    
     user.send(embed);
 }

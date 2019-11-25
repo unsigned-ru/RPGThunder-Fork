@@ -52,9 +52,8 @@ function onUserJoin(user) {
         .addField(" ឵឵", " ឵឵\n\n" +
         "Summary of swordsman\n" +
         "Summary of archer", true)
-        .setThumbnail('https://i.imgur.com/wSTFkRM.png')
-        .setImage('https://i.imgur.com/wSTFkRM.png')
+        .setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
         .setTimestamp()
-        .setFooter("Catch phrase!", 'https://i.imgur.com/wSTFkRM.png');
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
     user.send(embed);
 }
