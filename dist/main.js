@@ -16,6 +16,7 @@ const config_json_1 = require("./config.json");
 const generalevents = __importStar(require("./events/generalevents"));
 const generalcommands = __importStar(require("./commands/generalcmds"));
 const usercommands = __importStar(require("./commands/usercmds"));
+const staticData = __importStar(require("./staticData"));
 exports.client = { c: new discord_js_1.default.Client() };
 exports.client.commands = new discord_js_1.default.Collection();
 //setup SQL connection as an export
@@ -26,14 +27,11 @@ exports.con = mysql_1.default.createConnection({
     database: config_json_1.mysql_dbname,
     multipleStatements: true
 });
+//Load static data from database
+staticData.LoadStaticDatabaseData();
 //Setup commands
 generalcommands.SetupCommands();
 usercommands.SetupCommands();
 //Setup events
 generalevents.SetupEvents();
 exports.client.c.login(config_json_1.token);
-//functions:
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-}
-exports.capitalizeFirstLetter = capitalizeFirstLetter;
