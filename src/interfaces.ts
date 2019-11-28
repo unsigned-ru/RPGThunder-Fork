@@ -24,7 +24,8 @@ export interface _class {
   starting_item_chest: number,
   starting_item_legs: number,
   starting_item_feet: number,
-  starting_item_trinket: number
+  starting_item_trinket: number,
+  allowed_item_types: string,
 }
 
 export interface _equipment_slot{

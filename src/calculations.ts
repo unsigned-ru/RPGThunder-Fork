@@ -107,3 +107,20 @@ export async function getInventory(user_id:string) : Promise<_item[] | undefined
     throw err;
   }
 }
+
+
+
+export async function getItemData(item_id:number) : Promise<_item | undefined>
+{
+  try
+  {
+    var item = (await queryPromise(`SELECT * FROM items WHERE id=${item_id}`))[0];
+    if (item == undefined) {throw "Did not find an item with that id."}
+    return item;
+  }
+  catch(err)
+  {
+    console.log(err);
+    throw err;
+  }
+}

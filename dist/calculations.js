@@ -105,3 +105,19 @@ function getInventory(user_id) {
     });
 }
 exports.getInventory = getInventory;
+function getItemData(item_id) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            var item = (yield utils_1.queryPromise(`SELECT * FROM items WHERE id=${item_id}`))[0];
+            if (item == undefined) {
+                throw "Did not find an item with that id.";
+            }
+            return item;
+        }
+        catch (err) {
+            console.log(err);
+            throw err;
+        }
+    });
+}
+exports.getItemData = getItemData;

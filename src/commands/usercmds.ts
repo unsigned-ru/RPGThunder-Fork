@@ -1,10 +1,11 @@
 import Discord from 'discord.js';
 import {client, con} from '../main';
-import {classes, equipment_slots, item_qualities} from '../staticData';
-import {_class,_user_data, _item} from '../interfaces';
+import {classes, equipment_slots, item_qualities, item_types} from '../staticData';
+import {_class,_user_data, _item, _item_type} from '../interfaces';
 import {currency_name} from "../config.json";
-import {capitalizeFirstLetter} from '../utils';
-import {getUserData,calculateReqExp, getInventory} from "../calculations";
+import {capitalizeFirstLetter, queryPromise} from '../utils';
+import {getUserData,calculateReqExp, getInventory, getItemData} from "../calculations";
+import { isNullOrUndefined } from 'util';
 export const commands = [
 	{
 		name: 'profile',
@@ -167,7 +168,7 @@ export const commands = [
 
 					var slotname = equipment_slots.find(slot => slot.id == item.slot)!.name;
 					var qualityName = item_qualities.find(quality => quality.id == item.quality)!.name;
-					infoString += `${qualityName} ${slotname}\n`;
+					infoString += `${qualityName} ${slotname} [id:${item.id}]\n`;
 				})
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -179,6 +180,144 @@ export const commands = [
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 				
 				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'itemdata',
+		description: 'TestCommand!',
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (args.length == 0 || parseInt(args[0]) == undefined){ throw "Please enter a valid id."}
+				const item  = await getItemData(parseInt(args[0]));
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`Item #${item!.id}: ${item!.name}`)
+				.addField("Desciption:", item!.description)
+
+				.addField("Info:",
+				`
+				**Quality:**
+				**Slot:**
+				**Type:**
+				**Level Req:**
+				`
+				,true)
+				.addField(" ឵឵",
+				`
+				${item_qualities.find(quality => quality.id == item!.quality)!.name}
+				${equipment_slots.find(slot => slot.id == item!.slot)!.name}
+				${item_types.find(type => type.id == item!.type)!.name}
+				${item!.level_req}
+				`
+				,true)
+
+				.addBlankField()
+				
+				.addField("Stats:",
+				`
+				**ATK:**
+				**DEF:**
+				**ACC:**
+				`
+				,true)
+
+				.addField(" ឵឵",
+				`
+				${item!.atk}
+				${item!.def}
+				${item!.acc}
+				`
+				,true)
+				.setThumbnail("http://159.89.133.235/DiscordBotImgs/logo.png")
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'equip',
+		description: 'TestCommand!',
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				var item_id = parseInt(args[0]);
+				if (args.length == 0 || item_id == undefined){ throw "Please enter a valid id."}
+				const userResult: any[] = await queryPromise(`SELECT class_id, FROM users WHERE user_id=${msg.author.id}`);
+				if (userResult.length == 0){throw "You must be registered to equip an item."}
+
+				const selectedClass :_class = classes.find(x => x.id == userResult[0].class_id)!
+				const itemCountResult  = (await queryPromise(`SELECT COUNT(*) FROM user_inventory WHERE item=${item_id} AND user_id=${msg.author.id}`))[0];
+				const itemCount = itemCountResult[Object.keys(itemCountResult)[0]];
+				if (itemCount == 0) {throw "You do not own that item."}
+
+				//user owns the item, equip it and remove it from the inventory.
+				const item = await getItemData(item_id);
+
+				//check if the users level is high enough
+				const currentLevel = (await queryPromise(`SELECT level FROM user_stats WHERE user_id=${msg.author.id}`))[0].level
+				if (item!.level_req > currentLevel) {throw "You are not high enough level to equip this item."}
+				//check if the user is allowed to wear this type.
+				if (!selectedClass.allowed_item_types.split(",").includes(item!.type.toString())) {throw "Your class is not allowed to wear that item's type!"}
+				console.log(selectedClass.allowed_item_types);
+				//Equip it in the correct slot.
+				var slot;
+				switch(equipment_slots.find(slot => slot.id == item!.slot)!.name.toLowerCase())
+				{
+					case "main hand":
+						slot = "main_hand"
+						break;
+					case "off hand":
+						slot = "off_hand"
+						break;
+					case "head":
+						slot = "head"
+						break;
+					case "chest":
+						slot = "chest"
+						break;
+					case "legs":
+						slot = "legs"
+						break;
+					case "feet":
+						slot = "feet"
+						break;
+					case "trinket":
+						slot = "trinket"
+						break;
+					
+					default:
+						throw "Error with finding correct equipment slot. Please contact an admin or open a ticket.";
+				}
+				//put the previous equipped item in the inventory.
+
+				const currentItem = (await queryPromise(`SELECT ${slot} FROM user_equipment WHERE user_id=${msg.author.id};`))[0]
+				console.log(currentItem)
+				const current_item_id = currentItem[Object.keys(currentItem)[0]];
+				if (current_item_id != null || current_item_id != undefined)
+				{
+					await queryPromise(`INSERT INTO user_inventory (user_id, item) VALUES ('${msg.author.id}', ${current_item_id})`);
+				}
+				//Equip it (send the query)
+				await queryPromise(`UPDATE user_equipment SET ${slot}=${item!.id} WHERE user_id=${msg.author.id};`)
+				
+				//Remove the item from the inventory
+				await queryPromise(`DELETE FROM user_inventory WHERE user_id=${msg.author.id} AND item=${item!.id} LIMIT 1`)
+
+				msg.channel.send(`You have sucessfully equipped: ${item!.name}! The replaced item was moved to your inventory.`);
 			}
 			catch(err)
 			{

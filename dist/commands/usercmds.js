@@ -147,7 +147,7 @@ exports.commands = [
                         invString += `${item.name}\n`;
                         var slotname = staticData_1.equipment_slots.find(slot => slot.id == item.slot).name;
                         var qualityName = staticData_1.item_qualities.find(quality => quality.id == item.quality).name;
-                        infoString += `${qualityName} ${slotname}\n`;
+                        infoString += `${qualityName} ${slotname} [id:${item.id}]\n`;
                     });
                     const embed = new discord_js_1.default.RichEmbed()
                         .setColor('#fcf403') //Yelow
@@ -158,6 +158,132 @@ exports.commands = [
                         .setTimestamp()
                         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
                     msg.channel.send(embed);
+                }
+                catch (err) {
+                    msg.channel.send(err);
+                }
+            });
+        },
+    },
+    {
+        name: 'itemdata',
+        description: 'TestCommand!',
+        execute(msg, args) {
+            return __awaiter(this, void 0, void 0, function* () {
+                try {
+                    if (args.length == 0 || parseInt(args[0]) == undefined) {
+                        throw "Please enter a valid id.";
+                    }
+                    const item = yield calculations_1.getItemData(parseInt(args[0]));
+                    const embed = new discord_js_1.default.RichEmbed()
+                        .setColor('#fcf403') //Yelow
+                        .setTitle(`Item #${item.id}: ${item.name}`)
+                        .addField("Desciption:", item.description)
+                        .addField("Info:", `
+				**Quality:**
+				**Slot:**
+				**Type:**
+				**Level Req:**
+				`, true)
+                        .addField(" ឵឵", `
+				${staticData_1.item_qualities.find(quality => quality.id == item.quality).name}
+				${staticData_1.equipment_slots.find(slot => slot.id == item.slot).name}
+				${staticData_1.item_types.find(type => type.id == item.type).name}
+				${item.level_req}
+				`, true)
+                        .addBlankField()
+                        .addField("Stats:", `
+				**ATK:**
+				**DEF:**
+				**ACC:**
+				`, true)
+                        .addField(" ឵឵", `
+				${item.atk}
+				${item.def}
+				${item.acc}
+				`, true)
+                        .setThumbnail("http://159.89.133.235/DiscordBotImgs/logo.png")
+                        .setTimestamp()
+                        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+                    msg.channel.send(embed);
+                }
+                catch (err) {
+                    msg.channel.send(err);
+                }
+            });
+        },
+    },
+    {
+        name: 'equip',
+        description: 'TestCommand!',
+        execute(msg, args) {
+            return __awaiter(this, void 0, void 0, function* () {
+                try {
+                    var item_id = parseInt(args[0]);
+                    if (args.length == 0 || item_id == undefined) {
+                        throw "Please enter a valid id.";
+                    }
+                    const userResult = yield utils_1.queryPromise(`SELECT class_id, FROM users WHERE user_id=${msg.author.id}`);
+                    if (userResult.length == 0) {
+                        throw "You must be registered to equip an item.";
+                    }
+                    const selectedClass = staticData_1.classes.find(x => x.id == userResult[0].class_id);
+                    const itemCountResult = (yield utils_1.queryPromise(`SELECT COUNT(*) FROM user_inventory WHERE item=${item_id} AND user_id=${msg.author.id}`))[0];
+                    const itemCount = itemCountResult[Object.keys(itemCountResult)[0]];
+                    if (itemCount == 0) {
+                        throw "You do not own that item.";
+                    }
+                    //user owns the item, equip it and remove it from the inventory.
+                    const item = yield calculations_1.getItemData(item_id);
+                    //check if the users level is high enough
+                    const currentLevel = (yield utils_1.queryPromise(`SELECT level FROM user_stats WHERE user_id=${msg.author.id}`))[0].level;
+                    if (item.level_req > currentLevel) {
+                        throw "You are not high enough level to equip this item.";
+                    }
+                    //check if the user is allowed to wear this type.
+                    if (!selectedClass.allowed_item_types.split(",").includes(item.type.toString())) {
+                        throw "Your class is not allowed to wear that item's type!";
+                    }
+                    console.log(selectedClass.allowed_item_types);
+                    //Equip it in the correct slot.
+                    var slot;
+                    switch (staticData_1.equipment_slots.find(slot => slot.id == item.slot).name.toLowerCase()) {
+                        case "main hand":
+                            slot = "main_hand";
+                            break;
+                        case "off hand":
+                            slot = "off_hand";
+                            break;
+                        case "head":
+                            slot = "head";
+                            break;
+                        case "chest":
+                            slot = "chest";
+                            break;
+                        case "legs":
+                            slot = "legs";
+                            break;
+                        case "feet":
+                            slot = "feet";
+                            break;
+                        case "trinket":
+                            slot = "trinket";
+                            break;
+                        default:
+                            throw "Error with finding correct equipment slot. Please contact an admin or open a ticket.";
+                    }
+                    //put the previous equipped item in the inventory.
+                    const currentItem = (yield utils_1.queryPromise(`SELECT ${slot} FROM user_equipment WHERE user_id=${msg.author.id};`))[0];
+                    console.log(currentItem);
+                    const current_item_id = currentItem[Object.keys(currentItem)[0]];
+                    if (current_item_id != null || current_item_id != undefined) {
+                        yield utils_1.queryPromise(`INSERT INTO user_inventory (user_id, item) VALUES ('${msg.author.id}', ${current_item_id})`);
+                    }
+                    //Equip it (send the query)
+                    yield utils_1.queryPromise(`UPDATE user_equipment SET ${slot}=${item.id} WHERE user_id=${msg.author.id};`);
+                    //Remove the item from the inventory
+                    yield utils_1.queryPromise(`DELETE FROM user_inventory WHERE user_id=${msg.author.id} AND item=${item.id} LIMIT 1`);
+                    msg.channel.send(`You have sucessfully equipped: ${item.name}! The replaced item was moved to your inventory.`);
                 }
                 catch (err) {
                     msg.channel.send(err);
