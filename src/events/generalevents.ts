@@ -2,6 +2,7 @@ import Discord from 'discord.js'
 import {client,con} from '../main';
 import {prefix} from '../config.json';
 import {classes} from "../staticData";
+import { queryPromise } from '../utils';
 
 export function SetupEvents()
 {
@@ -13,9 +14,14 @@ export function SetupEvents()
     console.log("Finished setting up events.");
 }
 
-function onReady()
+async function onReady()
 {
     console.log(`Logged in as ${client.c.user.tag}!`);
+    
+    var countResult = (await queryPromise("SELECT COUNT(*) from users"))
+    var registerCount = countResult[0][Object.keys(countResult[0])[0]]
+
+    client.c.user.setActivity(`${prefix}help | ${registerCount} registered users on ${client.c.guilds.size} servers`);
 }
 
 function onMSGReceived(msg: Discord.Message)

@@ -1,13 +1,15 @@
 //import Discord from 'discord.js';
 import mysql from 'mysql';
 import {con} from './main'
-import {_class,_item_type,_equipment_slot} from './interfaces';
+import {_class,_item_type,_equipment_slot, _item_quality} from './interfaces';
+import { queryPromise } from './utils';
 
 export var classes: _class[] = [];
 export var item_types: _item_type[] = [];
 export var equipment_slots: _equipment_slot[] = [];
+export var item_qualities: _item_quality[] = [];
 
-export function LoadStaticDatabaseData(){
+export async function LoadStaticDatabaseData(){
   //load classes
   var classQuery = "SELECT * FROM classes";
   con.query(classQuery, function(err, results){
@@ -51,4 +53,7 @@ export function LoadStaticDatabaseData(){
     });
     console.log("item_types loaded.");
   });
+  //load item qualities
+  item_qualities = (await queryPromise("SELECT * FROM item_qualities;"));
+  console.log("item_qualities loaded.");
 }

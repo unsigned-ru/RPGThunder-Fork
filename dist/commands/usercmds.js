@@ -23,29 +23,21 @@ exports.commands = [
         name: 'profile',
         description: 'Shows the users profile.',
         execute(msg, args) {
-            var user;
-            //check if there is a mentioned arg.
-            if (msg.mentions.members.size > 0) {
-                user = msg.mentions.members.first();
-            }
-            else {
-                user = msg.member;
-            }
-            //Get the users data from the database:
-            var sql = `SELECT * FROM users WHERE user_id=${user.id};SELECT * FROM user_stats WHERE user_id='${user.id}';`;
-            main_1.con.query(sql, function (err, results) {
-                return __awaiter(this, void 0, void 0, function* () {
-                    if (err) {
-                        return;
-                    }
-                    if (results[0].length == 0) {
-                        msg.channel.send("User is not registered.");
-                        return;
-                    }
-                    var stats = yield calculations_1.getUserStats(user.id);
+            return __awaiter(this, void 0, void 0, function* () {
+                var user;
+                //check if there is a mentioned arg.
+                if (msg.mentions.members.size > 0) {
+                    user = msg.mentions.members.first();
+                }
+                else {
+                    user = msg.member;
+                }
+                //Get UserData
+                try {
+                    var data = yield calculations_1.getUserData(user.id);
                     //Create an embedd with the profile data.
                     const embed = new discord_js_1.default.RichEmbed()
-                        .setColor('#fcf403') //TODO: change maybe
+                        .setColor('#fcf403') //Yelow
                         .setTitle(`User profile: ${user.displayName}`)
                         .addField("Info:", `
 				**Class:**
@@ -54,10 +46,10 @@ exports.commands = [
 				**${utils_1.capitalizeFirstLetter(config_json_1.currency_name)}:**
 				`, true)
                         .addField(" ឵឵", `
-				${staticData_1.classes.find(element => element.id.valueOf() == results[0][0].class_id).name}
-				${results[1][0].level}
-				${results[1][0].exp} / ${calculations_1.calculateReqExp(stats.level)}
-				${results[1][0].currency}
+				${data.class.name}
+				${data.level}
+				${data.exp} / ${calculations_1.calculateReqExp(data.level)}
+				${data.currency}
 
 				`, true)
                         .addBlankField(false)
@@ -68,16 +60,38 @@ exports.commands = [
 				**ACC:**
 				`, true)
                         .addField(" ឵឵", `
-				${stats.hp} / ${stats.max_hp}
-				${stats.total_atk}
-				${stats.total_def}
-				${stats.total_acc}
+				${data.current_hp} / ${data.max_hp}
+				${data.total_atk}
+				${data.total_def}
+				${data.total_acc}
+				`, true)
+                        .addBlankField(false)
+                        .addField("Equipment:", `
+				**Main Hand:**
+				**Off Hand:**
+				**Head:**
+				**Chest:**
+				**Legs:**
+				**Feet:**
+				**Trinket:**
+				`, true)
+                        .addField(" ឵឵", `
+				${data.main_hand == null ? "None" : data.main_hand.name}
+				${data.off_hand == null ? "None" : data.off_hand.name}
+				${data.head == null ? "None" : data.head.name}
+				${data.chest == null ? "None" : data.chest.name}
+				${data.legs == null ? "None" : data.legs.name}
+				${data.feet == null ? "None" : data.feet.name}
+				${data.trinket == null ? "None" : data.trinket.name}
 				`, true)
                         .setThumbnail(user.user.avatarURL)
                         .setTimestamp()
                         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
                     msg.channel.send(embed);
-                });
+                }
+                catch (err) {
+                    msg.channel.send(err);
+                }
             });
         },
     },
@@ -117,6 +131,37 @@ exports.commands = [
                         msg.reply(`You have sucessfully registered as an ${utils_1.capitalizeFirstLetter(args[0].toLowerCase())}`);
                     }
                 });
+            });
+        },
+    },
+    {
+        name: 'inventory',
+        description: 'TestCommand!',
+        execute(msg, args) {
+            return __awaiter(this, void 0, void 0, function* () {
+                try {
+                    const inv = yield calculations_1.getInventory(msg.author.id);
+                    var invString = "";
+                    var infoString = "";
+                    inv.forEach(item => {
+                        invString += `${item.name}\n`;
+                        var slotname = staticData_1.equipment_slots.find(slot => slot.id == item.slot).name;
+                        var qualityName = staticData_1.item_qualities.find(quality => quality.id == item.quality).name;
+                        infoString += `${qualityName} ${slotname}\n`;
+                    });
+                    const embed = new discord_js_1.default.RichEmbed()
+                        .setColor('#fcf403') //Yelow
+                        .setTitle(`User inventory: ${msg.member.displayName}`)
+                        .addField("Items:", invString, true)
+                        .addField(" ឵឵", infoString, true)
+                        .setThumbnail(msg.author.avatarURL)
+                        .setTimestamp()
+                        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+                    msg.channel.send(embed);
+                }
+                catch (err) {
+                    msg.channel.send(err);
+                }
             });
         },
     }

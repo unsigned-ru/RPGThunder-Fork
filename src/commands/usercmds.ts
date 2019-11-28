@@ -1,15 +1,16 @@
 import Discord from 'discord.js';
 import {client, con} from '../main';
-import {classes} from '../staticData';
-import {_class,_user_stats} from '../interfaces';
+import {classes, equipment_slots, item_qualities} from '../staticData';
+import {_class,_user_data, _item} from '../interfaces';
 import {currency_name} from "../config.json";
 import {capitalizeFirstLetter} from '../utils';
-import {getUserStats,calculateReqExp} from "../calculations";
+import {getUserData,calculateReqExp, getInventory} from "../calculations";
 export const commands = [
 	{
 		name: 'profile',
 		description: 'Shows the users profile.',
-		execute(msg: Discord.Message, args: string[]) {
+		async execute(msg: Discord.Message, args: string[]) 
+		{
 			var user: Discord.GuildMember;
 
 			//check if there is a mentioned arg.
@@ -21,23 +22,12 @@ export const commands = [
 			{
 				user = msg.member;
 			}
-			//Get the users data from the database:
-			var sql = `SELECT * FROM users WHERE user_id=${user.id};SELECT * FROM user_stats WHERE user_id='${user.id}';`;
-			con.query(sql, async function(err, results){
-				if (err) 
-				{
-					return;
-				}
-				if (results[0].length == 0)
-				{
-					msg.channel.send("User is not registered.");
-					return;
-				}
-				var stats = await getUserStats(user.id);
-				
+			//Get UserData
+			try {
+				var data = await getUserData(user.id);
 				//Create an embedd with the profile data.
 				const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //TODO: change maybe
+				.setColor('#fcf403') //Yelow
 				.setTitle(`User profile: ${user.displayName}`)
 				
 				.addField("Info:",
@@ -50,10 +40,10 @@ export const commands = [
 
 				.addField(" ឵឵",
 				`
-				${classes.find(element => element.id.valueOf() == results[0][0].class_id)!.name}
-				${results[1][0].level}
-				${results[1][0].exp} / ${calculateReqExp(stats!.level)}
-				${results[1][0].currency}
+				${data!.class!.name}
+				${data!.level}
+				${data!.exp} / ${calculateReqExp(data!.level)}
+				${data!.currency}
 
 				`,true)
 				.addBlankField(false)
@@ -68,21 +58,47 @@ export const commands = [
 
 				.addField(" ឵឵",
 				`
-				${stats!.hp} / ${stats!.max_hp}
-				${stats!.total_atk}
-				${stats!.total_def}
-				${stats!.total_acc}
+				${data!.current_hp} / ${data!.max_hp}
+				${data!.total_atk}
+				${data!.total_def}
+				${data!.total_acc}
 				`
 				, true)
 
+				.addBlankField(false)
+
+				.addField("Equipment:",
+				`
+				**Main Hand:**
+				**Off Hand:**
+				**Head:**
+				**Chest:**
+				**Legs:**
+				**Feet:**
+				**Trinket:**
+				`
+				,true)
+				.addField(" ឵឵",
+				`
+				${data!.main_hand == null ? "None" : data!.main_hand.name}
+				${data!.off_hand! == null ? "None" : data!.off_hand!.name}
+				${data!.head! == null ? "None" : data!.head!.name}
+				${data!.chest! == null ? "None" : data!.chest!.name}
+				${data!.legs! == null ? "None" : data!.legs!.name}
+				${data!.feet! == null ? "None" : data!.feet!.name}
+				${data!.trinket! == null ? "None" : data!.trinket!.name}
+				`
+				,true)
 				.setThumbnail(user.user.avatarURL)
 
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
 				msg.channel.send(embed);
-
-			});
+			}
+			catch(err){
+				msg.channel.send(err);
+			}
 		},
 	},
 	{
@@ -134,6 +150,40 @@ export const commands = [
 					}
 				});	
 			});
+		},
+	},
+	{
+		name: 'inventory',
+		description: 'TestCommand!',
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				const inv:_item[] | undefined = await getInventory(msg.author.id);
+				var invString = "";
+				var infoString = "";
+				inv!.forEach(item => {
+					invString += `${item.name}\n`
+
+					var slotname = equipment_slots.find(slot => slot.id == item.slot)!.name;
+					var qualityName = item_qualities.find(quality => quality.id == item.quality)!.name;
+					infoString += `${qualityName} ${slotname}\n`;
+				})
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`User inventory: ${msg.member.displayName}`)
+				.addField("Items:", invString, true)
+				.addField(" ឵឵", infoString, true)
+				.setThumbnail(msg.author.avatarURL)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				msg.channel.send(err);
+			}
 		},
 	}
 ]

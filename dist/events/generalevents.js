@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -7,6 +16,7 @@ const discord_js_1 = __importDefault(require("discord.js"));
 const main_1 = require("../main");
 const config_json_1 = require("../config.json");
 const staticData_1 = require("../staticData");
+const utils_1 = require("../utils");
 function SetupEvents() {
     console.log("Setting up events...");
     main_1.client.c.on('message', onMSGReceived);
@@ -16,7 +26,12 @@ function SetupEvents() {
 }
 exports.SetupEvents = SetupEvents;
 function onReady() {
-    console.log(`Logged in as ${main_1.client.c.user.tag}!`);
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log(`Logged in as ${main_1.client.c.user.tag}!`);
+        var countResult = (yield utils_1.queryPromise("SELECT COUNT(*) from users"));
+        var registerCount = countResult[0][Object.keys(countResult[0])[0]];
+        main_1.client.c.user.setActivity(`${config_json_1.prefix}help | ${registerCount} registered users on ${main_1.client.c.guilds.size} servers`);
+    });
 }
 function onMSGReceived(msg) {
     //Check if it starts with required refix

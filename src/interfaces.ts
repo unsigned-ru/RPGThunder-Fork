@@ -36,11 +36,18 @@ export interface _item_type{
   id: number,
   name: string
 }
-export class _user_stats{
+export interface _item_quality{
+  id: number,
+  name: string
+}
+export class _user_data{
+  class: _class | undefined;
   level: number = 0;
+  exp: number = 0;
+  currency: number = 0;
   max_hp: number = 0;
-  hp: number = 0;
-
+  current_hp: number = 0;
+  
   base_atk: number = 0;
   base_def: number = 0;
   base_acc: number = 0;
@@ -52,5 +59,25 @@ export class _user_stats{
   total_atk: number = 0;
   total_def: number = 0;
   total_acc: number = 0;
-}
 
+  main_hand: _item|null = null;
+  off_hand: _item|null = null;
+  head: _item|null = null;
+  chest: _item|null = null;
+  legs: _item|null = null;
+  feet: _item|null = null;
+  trinket: _item|null = null;
+}
+export interface _item{
+  id: number,
+  name: string,
+  description: string,
+  slot: number,
+  type: number,
+  atk: number,
+  def: number,
+  acc: number,
+  level_req: number,
+  sell_price: number,
+  quality: number,
+}
