@@ -34,6 +34,7 @@ function onMSGReceived(msg: Discord.Message)
     const command = args.shift()!.toLowerCase();
         
     if (!client.commands.has(command)) return;
+
     try 
     {
         client.commands.get(command).execute(msg, args);
@@ -46,12 +47,14 @@ function onMSGReceived(msg: Discord.Message)
     
 }
 
-function onUserJoin(user: Discord.GuildMember)
+async function onUserJoin(user: Discord.GuildMember)
 {
-    if (user == null)return;
-    
-    con.query(`SELECT * FROM users WHERE user_id='${user.id}'`,function(err,result: object[])
+    try
     {
+        if (user == null)return;
+
+        //TODO: change to count
+        const result = await queryPromise(`SELECT * FROM users WHERE user_id='${user.id}`).catch(err => {throw err});
         if (result.length != 0)
         {
             return;
@@ -90,5 +93,9 @@ function onUserJoin(user: Discord.GuildMember)
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
         
         user.send(embed);
-    });
+    }
+    catch(err)
+    {
+        console.log(err);
+    }
 }

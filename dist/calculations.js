@@ -15,60 +15,63 @@ const interfaces_js_1 = require("./interfaces.js");
 const staticData_1 = require("./staticData");
 function getUserData(id) {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            var data = new interfaces_js_1._user_data();
-            //Get userClassID & user_Equipment & currentHP
-            var sql = `SELECT class_id FROM users WHERE user_id='${id}';` +
-                `SELECT main_hand,off_hand,head,chest,legs,feet,trinket FROM user_equipment WHERE user_id='${id}';` +
-                `SELECT current_hp,level,exp,currency FROM user_stats WHERE user_id='${id}'`;
-            var query = yield utils_1.queryPromise(sql);
-            if (query[0].length == 0)
-                throw "User is not registered.";
-            data.class = staticData_1.classes.find(x => x.id == query[0][0].class_id);
-            data.level = query[2][0].level;
-            data.exp = query[2][0].exp;
-            data.currency = query[2][0].currency;
-            data.current_hp = query[2][0].current_hp;
-            data.base_atk = data.class.base_atk;
-            data.base_def = data.class.base_def;
-            data.base_acc = data.class.base_acc;
-            var sql = `SELECT * FROM items WHERE id=${query[1][0].main_hand} OR id=${query[1][0].off_hand} OR id=${query[1][0].head} OR id=${query[1][0].chest} OR id=${query[1][0].legs} OR id=${query[1][0].feet} OR id=${query[1][0].trinket};`;
-            var query = yield utils_1.queryPromise(sql);
-            query.forEach(function (element) {
-                data.equipment_atk += element.atk;
-                data.equipment_def += element.def;
-                data.equipment_acc += element.acc;
-                console.log(staticData_1.equipment_slots.find(slot => slot.id == element.slot).name);
-                switch (staticData_1.equipment_slots.find(slot => slot.id == element.slot).name.toLowerCase()) {
-                    case "main hand":
-                        data.main_hand = element;
-                        break;
-                    case "off hand":
-                        data.off_hand = element;
-                        break;
-                    case "head":
-                        data.head = element;
-                        break;
-                    case "legs":
-                        data.legs = element;
-                        break;
-                    case "feet":
-                        data.feet = element;
-                        break;
-                    case "trinket":
-                        data.trinket = element;
-                        break;
-                }
+        return new Promise(function (resolve, reject) {
+            return __awaiter(this, void 0, void 0, function* () {
+                var data = new interfaces_js_1._user_data();
+                //Get userClassID & user_Equipment & currentHP
+                var sql = `SELECT class_id FROM users WHERE user_id='${id}';` +
+                    `SELECT main_hand,off_hand,head,chest,legs,feet,trinket FROM user_equipment WHERE user_id='${id}';` +
+                    `SELECT current_hp,level,exp,currency FROM user_stats WHERE user_id='${id}'`;
+                var query = yield utils_1.queryPromise(sql).catch(err => reject(err));
+                if (query[0].length == 0)
+                    throw "User is not registered.";
+                data.class = staticData_1.classes.find(x => x.id == query[0][0].class_id);
+                if (!data.class)
+                    reject("Class not found.");
+                data.level = query[2][0].level;
+                data.exp = query[2][0].exp;
+                data.currency = query[2][0].currency;
+                data.current_hp = query[2][0].current_hp;
+                data.base_atk = data.class.base_atk;
+                data.base_def = data.class.base_def;
+                data.base_acc = data.class.base_acc;
+                var sql = `SELECT * FROM items WHERE id=${query[1][0].main_hand} OR id=${query[1][0].off_hand} OR id=${query[1][0].head} OR id=${query[1][0].chest} OR id=${query[1][0].legs} OR id=${query[1][0].feet} OR id=${query[1][0].trinket};`;
+                var query = yield utils_1.queryPromise(sql).catch(err => { reject(err); });
+                query.forEach(function (element) {
+                    data.equipment_atk += element.atk;
+                    data.equipment_def += element.def;
+                    data.equipment_acc += element.acc;
+                    switch (staticData_1.equipment_slots.find(slot => slot.id == element.slot).name.toLowerCase()) {
+                        case "main hand":
+                            data.main_hand = element;
+                            break;
+                        case "off hand":
+                            data.off_hand = element;
+                            break;
+                        case "head":
+                            data.head = element;
+                            break;
+                        case "chest":
+                            data.chest = element;
+                            break;
+                        case "legs":
+                            data.legs = element;
+                            break;
+                        case "feet":
+                            data.feet = element;
+                            break;
+                        case "trinket":
+                            data.trinket = element;
+                            break;
+                    }
+                });
+                data.max_hp = data.class.base_hp + ((data.level - 1) * data.class.hp_increase);
+                data.total_atk = data.base_atk + data.equipment_atk + ((data.level - 1) * data.class.atk_increase);
+                data.total_def = data.base_def + data.equipment_def + ((data.level - 1) * data.class.def_increase);
+                data.total_acc = data.base_acc + data.equipment_acc + ((data.level - 1) * data.class.acc_increase);
+                resolve(data);
             });
-            data.max_hp = data.class.base_hp + ((data.level - 1) * data.class.hp_increase);
-            data.total_atk = data.base_atk + data.equipment_atk + ((data.level - 1) * data.class.atk_increase);
-            data.total_def = data.base_def + data.equipment_def + ((data.level - 1) * data.class.def_increase);
-            data.total_acc = data.base_acc + data.equipment_acc + ((data.level - 1) * data.class.acc_increase);
-            return data;
-        }
-        catch (err) {
-            throw err;
-        }
+        });
     });
 }
 exports.getUserData = getUserData;
@@ -78,46 +81,38 @@ function calculateReqExp(level) {
 exports.calculateReqExp = calculateReqExp;
 function getInventory(user_id) {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            var inventoryResult = yield utils_1.queryPromise(`SELECT item FROM user_inventory WHERE user_id=${user_id}`);
-            if (inventoryResult.length == 0 || undefined) {
-                throw "No items found.";
-            }
-            var itemQuery = "SELECT * FROM items WHERE ";
-            var firstDone = false;
-            inventoryResult.forEach(row => {
-                if (!firstDone) {
-                    itemQuery += `id=${row.item} `;
-                    firstDone = true;
+        return new Promise(function (resolve, reject) {
+            return __awaiter(this, void 0, void 0, function* () {
+                var inventoryResult = yield utils_1.queryPromise(`SELECT item FROM user_inventory WHERE user_id=${user_id}`).catch(err => { reject(err); });
+                if (inventoryResult.length == 0 || undefined) {
+                    reject("No items found.");
                 }
-                else {
-                    itemQuery += `OR id=${row.item} `;
-                }
+                var itemQuery = "";
+                inventoryResult.forEach(row => {
+                    itemQuery += `SELECT * from items WHERE id=${row.item};`;
+                });
+                var inventory = [];
+                const ItemResult = yield utils_1.queryPromise(itemQuery).catch(err => { reject(err); });
+                ItemResult.forEach(rowdata => {
+                    inventory.push(rowdata[0]);
+                });
+                resolve(inventory);
             });
-            itemQuery += ";";
-            var inventory = yield utils_1.queryPromise(itemQuery);
-            return inventory;
-        }
-        catch (err) {
-            console.log(err);
-            throw err;
-        }
+        });
     });
 }
 exports.getInventory = getInventory;
 function getItemData(item_id) {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            var item = (yield utils_1.queryPromise(`SELECT * FROM items WHERE id=${item_id}`))[0];
-            if (item == undefined) {
-                throw "Did not find an item with that id.";
-            }
-            return item;
-        }
-        catch (err) {
-            console.log(err);
-            throw err;
-        }
+        return new Promise(function (resolve, reject) {
+            return __awaiter(this, void 0, void 0, function* () {
+                var item = (yield utils_1.queryPromise(`SELECT * FROM items WHERE id=${item_id}`).catch(err => { reject(err); }))[0];
+                if (item == undefined) {
+                    reject("Did not find an item with that id.");
+                }
+                resolve(item);
+            });
+        });
     });
 }
 exports.getItemData = getItemData;

@@ -2,14 +2,14 @@ import Discord from 'discord.js';
 import {client, con} from '../main';
 import {classes, equipment_slots, item_qualities, item_types} from '../staticData';
 import {_class,_user_data, _item, _item_type} from '../interfaces';
-import {currency_name} from "../config.json";
+import {currency_name,prefix} from "../config.json";
 import {capitalizeFirstLetter, queryPromise} from '../utils';
 import {getUserData,calculateReqExp, getInventory, getItemData} from "../calculations";
-import { isNullOrUndefined } from 'util';
 export const commands = [
 	{
 		name: 'profile',
-		description: 'Shows the users profile.',
+		description: 'Shows a user profile containing their class, stats and equipment.',
+		usage:`${prefix}profile [optional: @User]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			var user: Discord.GuildMember;
@@ -25,7 +25,7 @@ export const commands = [
 			}
 			//Get UserData
 			try {
-				var data = await getUserData(user.id);
+				var data = await getUserData(user.id).catch(err => {throw err;});
 				//Create an embedd with the profile data.
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -104,7 +104,8 @@ export const commands = [
 	},
 	{
 		name: 'register',
-		description: 'Registers user!',
+		description: 'Registers a user!',
+		usage: `${prefix}register [class]`,
 		execute(msg: Discord.Message, args: string[]) {
 			//Check if user already in database.
 			con.query(`SELECT * FROM users WHERE user_id='${msg.author.id}'`,function(err,result: object[])
@@ -155,11 +156,16 @@ export const commands = [
 	},
 	{
 		name: 'inventory',
-		description: 'TestCommand!',
+		description: 'Lists all items in your inventory and their respective ids.',
+		usage: `${prefix}inventory`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`).catch(err => {throw err;}))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount == 0) {throw "You must be registered to view your inventory."}
+
 				const inv:_item[] | undefined = await getInventory(msg.author.id);
 				var invString = "";
 				var infoString = "";
@@ -189,7 +195,8 @@ export const commands = [
 	},
 	{
 		name: 'itemdata',
-		description: 'TestCommand!',
+		description: 'Shows all the information about an item.',
+		usage: `${prefix}itemdata [itemID1], [itemID[2], ...`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -249,79 +256,115 @@ export const commands = [
 	},
 	{
 		name: 'equip',
-		description: 'TestCommand!',
-		async execute(msg: Discord.Message, args: string[]) 
+		description: 'Equips an item or a set of items from your inventory.',
+		usage: `${prefix}equip [itemID1] [itemID[2] ...`,
+		async execute(msg: Discord.Message, args: string[])
 		{
+			var sucess_output :string = "";
 			try
 			{
-				var item_id = parseInt(args[0]);
-				if (args.length == 0 || item_id == undefined){ throw "Please enter a valid id."}
-				const userResult: any[] = await queryPromise(`SELECT class_id, FROM users WHERE user_id=${msg.author.id}`);
-				if (userResult.length == 0){throw "You must be registered to equip an item."}
+				//Turn args into numbers and add them to array
+				var already_equipped_slots :number[] = []
+				var item_ids :number[] = [];
 
-				const selectedClass :_class = classes.find(x => x.id == userResult[0].class_id)!
-				const itemCountResult  = (await queryPromise(`SELECT COUNT(*) FROM user_inventory WHERE item=${item_id} AND user_id=${msg.author.id}`))[0];
-				const itemCount = itemCountResult[Object.keys(itemCountResult)[0]];
-				if (itemCount == 0) {throw "You do not own that item."}
+				//check if there are args
+				if (args.length == 0) {throw "Please enter the ids of the items you wish to equip."}
 
-				//user owns the item, equip it and remove it from the inventory.
-				const item = await getItemData(item_id);
-
-				//check if the users level is high enough
-				const currentLevel = (await queryPromise(`SELECT level FROM user_stats WHERE user_id=${msg.author.id}`))[0].level
-				if (item!.level_req > currentLevel) {throw "You are not high enough level to equip this item."}
-				//check if the user is allowed to wear this type.
-				if (!selectedClass.allowed_item_types.split(",").includes(item!.type.toString())) {throw "Your class is not allowed to wear that item's type!"}
-				console.log(selectedClass.allowed_item_types);
-				//Equip it in the correct slot.
-				var slot;
-				switch(equipment_slots.find(slot => slot.id == item!.slot)!.name.toLowerCase())
+				for (var arg of args)
 				{
-					case "main hand":
-						slot = "main_hand"
-						break;
-					case "off hand":
-						slot = "off_hand"
-						break;
-					case "head":
-						slot = "head"
-						break;
-					case "chest":
-						slot = "chest"
-						break;
-					case "legs":
-						slot = "legs"
-						break;
-					case "feet":
-						slot = "feet"
-						break;
-					case "trinket":
-						slot = "trinket"
-						break;
-					
-					default:
-						throw "Error with finding correct equipment slot. Please contact an admin or open a ticket.";
+					var id = parseInt(arg);
+					if (id != undefined)
+					{
+						item_ids.push(id);
+					}
+					else throw "One of the id's you entered was invallid.";
 				}
-				//put the previous equipped item in the inventory.
 
-				const currentItem = (await queryPromise(`SELECT ${slot} FROM user_equipment WHERE user_id=${msg.author.id};`))[0]
-				console.log(currentItem)
-				const current_item_id = currentItem[Object.keys(currentItem)[0]];
-				if (current_item_id != null || current_item_id != undefined)
-				{
-					await queryPromise(`INSERT INTO user_inventory (user_id, item) VALUES ('${msg.author.id}', ${current_item_id})`);
-				}
-				//Equip it (send the query)
-				await queryPromise(`UPDATE user_equipment SET ${slot}=${item!.id} WHERE user_id=${msg.author.id};`)
+				//Check if the user is registered.
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount == 0) {throw "You must be registered to equip an item."}
 				
-				//Remove the item from the inventory
-				await queryPromise(`DELETE FROM user_inventory WHERE user_id=${msg.author.id} AND item=${item!.id} LIMIT 1`)
+				//Get the users class
+				const userResult: any[] = await queryPromise(`SELECT class_id FROM users WHERE user_id=${msg.author.id}`);
+				const selectedClass :_class = classes.find(x => x.id == userResult[0].class_id)!
+				
+				//Iterate over each item_id
+				for (var item_id of item_ids)
+				{
+					//Check if user has the item in inventory.
+					const itemCountResult = (await queryPromise(`SELECT COUNT(*) FROM user_inventory WHERE item=${item_id} AND user_id=${msg.author.id}`))[0];
+					if (itemCountResult[Object.keys(itemCountResult)[0]] == 0) {throw "You do not own an item with the id: "+item_id}
 
-				msg.channel.send(`You have sucessfully equipped: ${item!.name}! The replaced item was moved to your inventory.`);
+					//get the item's data.
+					const item = await getItemData(item_id);
+					const slot = equipment_slots.find(slot => slot.id == item.slot)!;
+
+					//check if the user has already equipped an item of that slot
+					if (already_equipped_slots.includes(item!.slot)) { throw "You have already equipped an item in the slot: "+ slot.name}
+					
+					
+					//check if the users level is high enough
+					const currentLevel = (await queryPromise(`SELECT level FROM user_stats WHERE user_id=${msg.author.id}`))[0].level
+					if (item.level_req > currentLevel) {throw "You are not high enough level to equip item with id: "+item_id}
+
+					//check if the user is allowed to wear this type.
+					if (!selectedClass.allowed_item_types.split(",").includes(item!.type.toString())) {throw `You cannot equip item with id: ${item_id} because you class is not allowed to wear the type: ${item_types.find(type => type.id == item!.type)!.name}.`}
+
+					//convert the slot to a query string for table user_equipment.
+					var slotQueryString;
+					switch(slot.name.toLowerCase())
+					{
+						case "main hand":
+							slotQueryString = "main_hand"
+							break;
+						case "off hand":
+							slotQueryString = "off_hand"
+							break;
+						case "head":
+							slotQueryString = "head"
+							break;
+						case "chest":
+							slotQueryString = "chest"
+							break;
+						case "legs":
+							slotQueryString = "legs"
+							break;
+						case "feet":
+							slotQueryString = "feet"
+							break;
+						case "trinket":
+							slotQueryString = "trinket"
+							break;
+
+						default:
+							throw "Error with finding correct equipment slot. Please contact an admin or open a ticket.";
+					}
+
+					//put the previous equipped item in the inventory.
+					const currentItem = (await queryPromise(`SELECT ${slotQueryString} FROM user_equipment WHERE user_id=${msg.author.id};`))[0]
+					const current_item_id = currentItem[Object.keys(currentItem)[0]];
+					if (current_item_id != null || current_item_id != undefined)
+					{
+						await queryPromise(`INSERT INTO user_inventory (user_id, item) VALUES ('${msg.author.id}', ${current_item_id})`);
+					}
+
+					//Equip the new item in the correct slot.
+					await queryPromise(`UPDATE user_equipment SET ${slotQueryString}=${item!.id} WHERE user_id=${msg.author.id};`)
+					
+					//Remove the equipped item from inventory.
+					await queryPromise(`DELETE FROM user_inventory WHERE user_id=${msg.author.id} AND item=${item!.id} LIMIT 1`)
+
+					//add the equipped type to already_equipped_slots.
+					already_equipped_slots.push(item!.slot);
+					sucess_output += `You have sucessfully equipped: ${item!.name} in the slot: ${slot.name}!\n`
+				}
+				msg.channel.send(sucess_output);
 			}
 			catch(err)
 			{
-				msg.channel.send(err);
+				console.log(err);
+				msg.channel.send(sucess_output + err);
 			}
 		},
 	}
