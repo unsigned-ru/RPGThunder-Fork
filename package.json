@@ -1,0 +1,35 @@
+{
+  "name": "rpg-thunder",
+  "version": "1.0.0",
+  "description": "A Discord bot written in JS",
+  "main": "main.js",
+  "dependencies": {
+    "@types/mysql": "^2.15.8",
+    "concurrently": "^5.0.0",
+    "discord.js": "^11.5.1",
+    "express": "^4.17.1",
+    "mysql": "^2.17.1",
+    "ts-node": "^8.5.2",
+    "typescript": "^3.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.1"
+  },
+  "scripts": {
+    "start": "concurrently \"npm:compile\" \"npm:run\"",
+    "compile":"tsc",
+    "run":"node dist/main.js",
+    "dev": "nodemon src/main.ts",
+    "build": "tsc -p ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PurrPaws/RPG-Thunder.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PurrPaws/RPG-Thunder/issues"
+  },
+  "homepage": "https://github.com/PurrPaws/RPG-Thunder#readme"
+}
