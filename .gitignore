@@ -1,2 +1,7 @@
+dist/
 node_modules/
 *.json
+
+##Not ignored
+!.eslintrc.json
+!.vscode/launch.json
