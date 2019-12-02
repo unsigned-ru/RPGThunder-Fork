@@ -53,17 +53,14 @@ async function onUserJoin(user: Discord.GuildMember)
     {
         if (user == null)return;
 
-        //TODO: change to count
-        const result = await queryPromise(`SELECT * FROM users WHERE user_id='${user.id}`).catch(err => {throw err});
-        if (result.length != 0)
-        {
-            return;
-        }
+        const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${user.id}`))[0]
+        const userCount = userCountResult[Object.keys(userCountResult)[0]];
+        if (userCount != 0) throw "Skipping on join, user already registered.";
+
         var availableClassesNames: string = "";
         var availableClassesDescriptions: string = "";
 
         classes.forEach(element => {
-            console.log();
             availableClassesNames += `**${element.name}**\n`;
             availableClassesDescriptions += `${element.description}\n`;
         });

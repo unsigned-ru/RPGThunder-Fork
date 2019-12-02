@@ -1,9 +1,9 @@
 import Discord from 'discord.js';
-import {client, con} from '../main';
+import {client, con, cooldowns} from '../main';
 import {classes, equipment_slots, item_qualities, item_types} from '../staticData';
 import {_class,_user_data, _item, _item_type} from '../interfaces';
-import {currency_name,prefix} from "../config.json";
-import {capitalizeFirstLetter, queryPromise} from '../utils';
+import {currency_name,prefix, chop_wood_gain_min,chop_wood_gain_max, command_cooldown, mine_coin_gain_max,mine_coin_gain_min,mine_ore_gain_max,mine_ore_gain_min} from "../config.json";
+import {capitalizeFirstLetter, queryPromise, randomIntFromInterval} from '../utils';
 import {getUserData,calculateReqExp, getInventory, getItemData} from "../calculations";
 export const commands = [
 	{
@@ -25,7 +25,7 @@ export const commands = [
 			}
 			//Get UserData
 			try {
-				var data = await getUserData(user.id).catch(err => {throw err;});
+				var data = await getUserData(user.id);
 				//Create an embedd with the profile data.
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -36,18 +36,33 @@ export const commands = [
 				**Class:**
 				**Level:**
 				**Exp:**
-				**${capitalizeFirstLetter(currency_name)}:**
 				`,true)
 
 				.addField(" ឵឵",
 				`
 				${data!.class!.name}
 				${data!.level}
-				${data!.exp} / ${calculateReqExp(data!.level)}
-				${data!.currency}
+				${data!.exp} / ${calculateReqExp(data!.level)}`
+				,true)
 
-				`,true)
 				.addBlankField(false)
+
+				.addField("Currency:",
+				`
+				**${capitalizeFirstLetter(currency_name)}:**
+				**Wood:**
+				**Iron Ore:**
+				`,true)
+
+				.addField(" ឵឵",
+				`
+				${data!.coins}
+				${data!.wood}
+				${data!.iron_ore}
+				`,true)
+
+				.addBlankField(false)
+
 				.addField("Stats:",
 				`
 				**HP:**
@@ -106,52 +121,42 @@ export const commands = [
 		name: 'register',
 		description: 'Registers a user!',
 		usage: `${prefix}register [class]`,
-		execute(msg: Discord.Message, args: string[]) {
-			//Check if user already in database.
-			con.query(`SELECT * FROM users WHERE user_id='${msg.author.id}'`,function(err,result: object[])
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
 			{
-				if (result.length != 0)
-				{
-					msg.reply("You have already registered.");
-					return;
-				}
 				//note: can only be executed in DM with the bot.
-				if (msg.channel.type != 'dm') 
-				{
-					msg.reply("This command can only be executed in the DM with the bot.");
-					return;
-				}
+				if (msg.channel.type != 'dm') throw "This command can only be executed in the DM with the bot.";
+
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount != 0) throw "You have already registered.";
+
+				if (args.length == 0) throw "Please enter the class you wish to register as!"
 
 				const selectedClass = classes.find(element => element.name.toLowerCase() == args[0].toLowerCase());
-				if (selectedClass == undefined) 
-				{ 
-					msg.reply("Did not find a class with that name.")
-					return;
-				}
-				var sql = 
-				`INSERT INTO users(user_id,class_id,datetime_joined) VALUES ('${msg.author.id}',${selectedClass.id},${con.escape(new Date())});` +
+				if (!selectedClass) throw "Did not find a class with that name.";
 
-				`INSERT INTO user_stats(user_id,current_hp) VALUES ('${msg.author.id}', ${selectedClass.base_hp});` +
-						 
-				`INSERT INTO user_equipment(user_id,main_hand,off_hand,head,chest,legs,feet,trinket) VALUES 
-				('${msg.author.id}',${selectedClass.starting_item_main_hand},${selectedClass.starting_item_off_hand},
-				${selectedClass.starting_item_head},${selectedClass.starting_item_chest},${selectedClass.starting_item_legs},
-				${selectedClass.starting_item_feet},${selectedClass.starting_item_trinket});`
-			
-				con.query(sql, (err,result) => 
-				{
-					if (err)
-					{
-						msg.reply("An error occured while comminicating with the database, please try again. If the error persists please open a ticket.");
-						console.log(err);
-						return;
-					}
-					else
-					{
-						msg.reply(`You have sucessfully registered as an ${capitalizeFirstLetter(args[0].toLowerCase())}`);
-					}
-				});	
-			});
+				const sql = 
+				//user creation.
+				`INSERT INTO users(user_id,class_id,datetime_joined,current_hp) VALUES ('${msg.author.id}',${selectedClass.id},${con.escape(new Date())}, ${selectedClass.base_hp});` +
+				//user_equipment creation + asigning starter gear.
+				`INSERT INTO user_equipment(user_id,main_hand,off_hand,head,chest,legs,feet,trinket) VALUES`+
+				`('${msg.author.id}',${selectedClass.starting_item_main_hand},${selectedClass.starting_item_off_hand},`+
+				`${selectedClass.starting_item_head},${selectedClass.starting_item_chest},${selectedClass.starting_item_legs},`+
+				`${selectedClass.starting_item_feet},${selectedClass.starting_item_trinket});`+
+				//user_currencies creation.
+				`INSERT INTO user_currencies(user_id) VALUES ('${msg.author.id}');`
+
+				await queryPromise(sql);
+
+				msg.channel.send(`You have sucessfully registered as an ${capitalizeFirstLetter(args[0].toLowerCase())}`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.reply("An error occured: \n" + err);
+			}
 		},
 	},
 	{
@@ -305,7 +310,7 @@ export const commands = [
 					
 					
 					//check if the users level is high enough
-					const currentLevel = (await queryPromise(`SELECT level FROM user_stats WHERE user_id=${msg.author.id}`))[0].level
+					const currentLevel = (await queryPromise(`SELECT level FROM users WHERE user_id=${msg.author.id}`))[0].level
 					if (item.level_req > currentLevel) {throw "You are not high enough level to equip item with id: "+item_id}
 
 					//check if the user is allowed to wear this type.
@@ -366,8 +371,95 @@ export const commands = [
 				console.log(err);
 				msg.channel.send(sucess_output + err);
 			}
+		}
+	},
+	{
+		name: 'chop',
+		description: 'Chop for some wood!',
+		usage: `${prefix}Chop`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				//Check if user is registered
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount == 0) throw "You must be registered to use this command!";
+
+				//Check for cooldown.
+				if (cooldowns.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - cooldowns.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference < command_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(command_cooldown - difference)} seconds!`;
+				}
+				else
+				{
+					cooldowns.push({user_id: msg.author.id, date: new Date()});
+				}
+
+				//Generate number between minwood and maxwood
+				const amount = randomIntFromInterval(chop_wood_gain_min, chop_wood_gain_max);
+
+				await queryPromise(`UPDATE user_currencies SET wood=wood + ${amount} WHERE user_id=${msg.author.id};`);
+
+				msg.channel.send(`You have sucessfully chopped ${amount} wood!`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send("An error occured: \n" + err);
+			}
 		},
-	}
+	},
+	{
+		name: 'mine',
+		description: 'Mine for coins or ores!',
+		usage: `${prefix}mine`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				//Check if user is registered
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount == 0) throw "You must be registered to use this command!";
+
+				//Check for cooldown.
+				if (cooldowns.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - cooldowns.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference < command_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(command_cooldown - difference)} seconds!`;
+					cooldowns.find(x=> x.user_id == msg.author.id)!.date = new Date();
+				}
+				else
+				{
+					cooldowns.push({user_id: msg.author.id, date: new Date()});
+				}
+
+				//Coins or ore
+				const typeFlip = randomIntFromInterval(0,100);
+				if (typeFlip < 50)
+				{
+					//coins
+					const amount = (randomIntFromInterval(mine_coin_gain_min*100,mine_coin_gain_max*100))/100; //*100 becuase they're floats then /100 to make them decimals again.
+					await queryPromise(`UPDATE user_currencies SET coins=coins + ${amount} WHERE user_id=${msg.author.id};`);
+					msg.channel.send(`You have sucessfully mined and received ${amount} coins!`);
+				}
+				else
+				{
+					//ore
+					const amount = randomIntFromInterval(mine_ore_gain_min,mine_ore_gain_max);
+					await queryPromise(`UPDATE user_currencies SET iron_ore=iron_ore + ${amount} WHERE user_id=${msg.author.id};`);
+					msg.channel.send(`You have sucessfully mined and received ${amount} iron ore!`);
+				}
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send("An error occured: \n" + err);
+			}
+		},
+	},
 ]
 
 export function SetupCommands()

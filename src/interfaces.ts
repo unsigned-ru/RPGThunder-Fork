@@ -28,6 +28,11 @@ export interface _class {
   allowed_item_types: string,
 }
 
+export interface _command_cooldown{
+  user_id: string,
+  date: Date
+}
+
 export interface _equipment_slot{
   id: number,
   name: string
@@ -45,7 +50,9 @@ export class _user_data{
   class: _class | undefined;
   level: number = 0;
   exp: number = 0;
-  currency: number = 0;
+  coins: number = 0;
+  wood: number = 0;
+  iron_ore: number = 0;
   max_hp: number = 0;
   current_hp: number = 0;
   
