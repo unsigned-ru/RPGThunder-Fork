@@ -5,6 +5,7 @@ import {prefix} from "../config.json";
 export const commands = [
 	{
 		name: 'ping',
+		aliases: [],
 		description: 'Ping! Pong?! Wait what is this? ',
 		usage: `${prefix}ping`,
 		execute(msg: Discord.Message, args: string[]) {
@@ -13,6 +14,7 @@ export const commands = [
 	},
 	{
 		name: 'jointest', //TODO: remove
+		aliases: ['jt'],
 		description: 'TestCommand!',
 		usage: `${prefix}jointest [@User]`,
 		execute(msg: Discord.Message, args: string[]) {
@@ -26,7 +28,7 @@ export function SetupCommands()
 {
     commands.forEach(cmd =>
     {
-        client.commands.set(cmd.name, cmd);
+		client.commands.set(cmd.name, cmd);
         console.log("command: '"+cmd.name+"' Registered.");
     });
 }

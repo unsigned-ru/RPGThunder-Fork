@@ -6,11 +6,10 @@ import * as generalcommands from "./commands/generalcmds";
 import * as usercommands from "./commands/usercmds";
 import * as staticData from "./staticData";
 import {_client, _command_cooldown} from "./interfaces";
-export const client: _client = { c:new Discord.Client()};
-client.commands = new Discord.Collection();
+export const client: _client = { c:new Discord.Client(), commands: new Discord.Collection()};
 
 //Cooldowns
-export var cooldowns :_command_cooldown[] = [];
+export var gather_commands_cooldown :_command_cooldown[] = [];
 
 //setup SQL connection as an export
 export const con = mysql.createConnection({

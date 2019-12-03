@@ -1,13 +1,17 @@
 import Discord from 'discord.js';
-import {client, con, cooldowns} from '../main';
+import {client, con, gather_commands_cooldown} from '../main';
 import {classes, equipment_slots, item_qualities, item_types} from '../staticData';
 import {_class,_user_data, _item, _item_type} from '../interfaces';
-import {currency_name,prefix, chop_wood_gain_min,chop_wood_gain_max, command_cooldown, mine_coin_gain_max,mine_coin_gain_min,mine_ore_gain_max,mine_ore_gain_min} from "../config.json";
+import {currency_display_names, prefix, chop_wood_gain_min,chop_wood_gain_max, command_cooldown, 
+	mine_coin_gain_max,mine_coin_gain_min,mine_ore_gain_max,mine_ore_gain_min, mine_rare_drops,
+	mine_chance_for_coin,mine_chance_for_ore
+} from "../config.json";
 import {capitalizeFirstLetter, queryPromise, randomIntFromInterval} from '../utils';
 import {getUserData,calculateReqExp, getInventory, getItemData} from "../calculations";
 export const commands = [
 	{
 		name: 'profile',
+		aliases: ['pf'],
 		description: 'Shows a user profile containing their class, stats and equipment.',
 		usage:`${prefix}profile [optional: @User]`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -26,6 +30,19 @@ export const commands = [
 			//Get UserData
 			try {
 				var data = await getUserData(user.id);
+
+				//get all the currencies into a proper string:
+				var currencyNameString = "";
+				var currencyValueString = "";
+				for (const property in data.currencies)
+				{
+					if (property == "user_id") continue;
+					if (property == "id") continue;
+					currencyNameString+= `**${currency_display_names.find(x => x.database_name == property)!.display_name}:**\n`;
+					currencyValueString+= data.currencies[property]+"\n"
+				}
+
+
 				//Create an embedd with the profile data.
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -40,25 +57,21 @@ export const commands = [
 
 				.addField(" ឵឵",
 				`
-				${data!.class!.name}
-				${data!.level}
-				${data!.exp} / ${calculateReqExp(data!.level)}`
+				${data.class!.name}
+				${data.level}
+				${data.exp} / ${calculateReqExp(data.level)}`
 				,true)
 
 				.addBlankField(false)
 
 				.addField("Currency:",
 				`
-				**${capitalizeFirstLetter(currency_name)}:**
-				**Wood:**
-				**Iron Ore:**
+				${currencyNameString}
 				`,true)
 
 				.addField(" ឵឵",
 				`
-				${data!.coins}
-				${data!.wood}
-				${data!.iron_ore}
+				${currencyValueString}
 				`,true)
 
 				.addBlankField(false)
@@ -74,10 +87,10 @@ export const commands = [
 
 				.addField(" ឵឵",
 				`
-				${data!.current_hp} / ${data!.max_hp}
-				${data!.total_atk}
-				${data!.total_def}
-				${data!.total_acc}
+				${data.current_hp} / ${data.max_hp}
+				${data.total_atk}
+				${data.total_def}
+				${data.total_acc}
 				`
 				, true)
 
@@ -96,13 +109,13 @@ export const commands = [
 				,true)
 				.addField(" ឵឵",
 				`
-				${data!.main_hand == null ? "None" : data!.main_hand.name}
-				${data!.off_hand! == null ? "None" : data!.off_hand!.name}
-				${data!.head! == null ? "None" : data!.head!.name}
-				${data!.chest! == null ? "None" : data!.chest!.name}
-				${data!.legs! == null ? "None" : data!.legs!.name}
-				${data!.feet! == null ? "None" : data!.feet!.name}
-				${data!.trinket! == null ? "None" : data!.trinket!.name}
+				${data.main_hand == null ? "None" : data.main_hand.name}
+				${data.off_hand! == null ? "None" : data.off_hand!.name}
+				${data.head! == null ? "None" : data.head!.name}
+				${data.chest! == null ? "None" : data.chest!.name}
+				${data.legs! == null ? "None" : data.legs!.name}
+				${data.feet! == null ? "None" : data.feet!.name}
+				${data.trinket! == null ? "None" : data.trinket!.name}
 				`
 				,true)
 				.setThumbnail(user.user.avatarURL)
@@ -119,6 +132,7 @@ export const commands = [
 	},
 	{
 		name: 'register',
+		aliases: [],
 		description: 'Registers a user!',
 		usage: `${prefix}register [class]`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -161,13 +175,14 @@ export const commands = [
 	},
 	{
 		name: 'inventory',
+		aliases: ['inv'],
 		description: 'Lists all items in your inventory and their respective ids.',
 		usage: `${prefix}inventory`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{
-				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`).catch(err => {throw err;}))[0]
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
 				const userCount = userCountResult[Object.keys(userCountResult)[0]];
 				if (userCount == 0) {throw "You must be registered to view your inventory."}
 
@@ -200,6 +215,7 @@ export const commands = [
 	},
 	{
 		name: 'itemdata',
+		aliases: ['id'],
 		description: 'Shows all the information about an item.',
 		usage: `${prefix}itemdata [itemID1], [itemID[2], ...`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -261,6 +277,7 @@ export const commands = [
 	},
 	{
 		name: 'equip',
+		aliases: [],
 		description: 'Equips an item or a set of items from your inventory.',
 		usage: `${prefix}equip [itemID1] [itemID[2] ...`,
 		async execute(msg: Discord.Message, args: string[])
@@ -375,6 +392,7 @@ export const commands = [
 	},
 	{
 		name: 'chop',
+		aliases: [],
 		description: 'Chop for some wood!',
 		usage: `${prefix}Chop`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -387,14 +405,14 @@ export const commands = [
 				if (userCount == 0) throw "You must be registered to use this command!";
 
 				//Check for cooldown.
-				if (cooldowns.find(x=> x.user_id == msg.author.id))
+				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
-					const difference = (new Date().getTime() - cooldowns.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
 					if (difference < command_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(command_cooldown - difference)} seconds!`;
 				}
 				else
 				{
-					cooldowns.push({user_id: msg.author.id, date: new Date()});
+					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
 				}
 
 				//Generate number between minwood and maxwood
@@ -413,7 +431,8 @@ export const commands = [
 	},
 	{
 		name: 'mine',
-		description: 'Mine for coins or ores!',
+		aliases: [],
+		description: 'Mine for coins/ores/gems!',
 		usage: `${prefix}mine`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
@@ -425,20 +444,20 @@ export const commands = [
 				if (userCount == 0) throw "You must be registered to use this command!";
 
 				//Check for cooldown.
-				if (cooldowns.find(x=> x.user_id == msg.author.id))
+				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
-					const difference = (new Date().getTime() - cooldowns.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
 					if (difference < command_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(command_cooldown - difference)} seconds!`;
-					cooldowns.find(x=> x.user_id == msg.author.id)!.date = new Date();
+					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
 				}
 				else
 				{
-					cooldowns.push({user_id: msg.author.id, date: new Date()});
+					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
 				}
 
 				//Coins or ore
-				const typeFlip = randomIntFromInterval(0,100);
-				if (typeFlip < 50)
+				const typeFlip = randomIntFromInterval(0, 10000);
+				if (typeFlip < mine_chance_for_coin*100)
 				{
 					//coins
 					const amount = (randomIntFromInterval(mine_coin_gain_min*100,mine_coin_gain_max*100))/100; //*100 becuase they're floats then /100 to make them decimals again.
@@ -447,6 +466,21 @@ export const commands = [
 				}
 				else
 				{
+					//Check for chance of gems.
+					const gemChanceFlip = randomIntFromInterval(0,10000);
+					//Create a sum of all chances (*100)
+					var chanceSum = mine_rare_drops.reduce((a,b) => a + (b.drop_chance*100), 0)
+					for (var drop of mine_rare_drops.reverse())
+					{
+						if (gemChanceFlip < chanceSum)
+						{
+							await queryPromise(`UPDATE user_currencies SET ${drop.database_name}=${drop.database_name} +1 WHERE user_id=${msg.author.id};`)
+							msg.channel.send(`You have sucessfully mined and received a rare drop: ${currency_display_names.find(x => x.database_name == drop.database_name)!.display_name}!`);
+							return;
+						}
+						chanceSum -= (drop.drop_chance*100)
+					}
+					
 					//ore
 					const amount = randomIntFromInterval(mine_ore_gain_min,mine_ore_gain_max);
 					await queryPromise(`UPDATE user_currencies SET iron_ore=iron_ore + ${amount} WHERE user_id=${msg.author.id};`);
@@ -459,6 +493,151 @@ export const commands = [
 				msg.channel.send("An error occured: \n" + err);
 			}
 		},
+	},
+	{
+		name: 'cooldown',
+		aliases: ['cd'],
+		description: 'Check your cooldowns',
+		usage: `${prefix}cooldown`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				//Check if user is registered
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount == 0) throw "You must be registered to use this command!";
+
+				var gather_command_cooldown = 0;
+				
+				//Check for cooldown.
+				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					
+					if (difference < command_cooldown) gather_command_cooldown = command_cooldown - difference;
+				}
+
+
+				//create embed
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`${msg.author.username}'s cooldowns`)
+				.addField("✨ Progress",
+				`${gather_command_cooldown == 0 ? `✅ ~~~ mine/chop/harvest/fish`:`❌ ~~~ mine/chop/harvest/fish **(${Math.round(gather_command_cooldown)}s)**`}`)
+				.setThumbnail(msg.author.avatarURL)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send("An error occured: \n" + err);
+			}
+		},
+	},
+	{
+		name: 'ready',
+		aliases: ['rd'],
+		description: 'Check what cooldowns are ready.',
+		usage: `${prefix}ready`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				//Check if user is registered
+				const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${msg.author.id}`))[0]
+				const userCount = userCountResult[Object.keys(userCountResult)[0]];
+				if (userCount == 0) throw "You must be registered to use this command!";
+				
+				var readyString = "";
+
+				//Check for cooldown.
+				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference >= command_cooldown) readyString+= "✅ ~~~ mine/chop/harvest/fish\n"
+
+				}
+				else
+				{
+					readyString+= "✅ ~~~ mine/chop/harvest/fish\n"
+				}
+				if (readyString == "") {msg.channel.send("You have no ready commands!"); return}
+
+				//create embed
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`${msg.author.username}'s ready commands.`)
+				.addField("✨ Progress",readyString)
+				.setThumbnail(msg.author.avatarURL)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send("An error occured: \n" + err);
+			}
+		},
+		
+	},
+	{
+		name: 'help',
+		aliases: ['commands'],
+		description: 'List help for all commands.',
+		usage: `${prefix}help`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				const commands = client.commands.array();
+				var commandStrings: string[] = [];
+				var commandString = "";
+				for (var command of commands)
+				{
+					const aliases = command.aliases.map((el:string) => "`"+el+"`");
+					const stringToAdd = 
+					`➥ **Command: _${command.name}_**\n`+
+					`__Description:__ ${command.description}\n`+
+					`__Usage:__ \`${command.usage}\n\``+
+					`__Aliases:__ ${aliases.length == 0 ? "None" : aliases.join("/")}\n\n`
+
+					if (commandString.length + stringToAdd.length >= 1024) {commandStrings.push(commandString); commandString = "";}
+					commandString += stringToAdd;
+				}
+				if (commandString.length > 0 ) commandStrings.push(commandString);
+				
+
+				//create embed
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`${client.c.user.username} -- Help`)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				var first = true;
+				for (var string of commandStrings)
+				{
+					if (first) {embed.addField("📰Commands:",string); first = false;}
+					else embed.addField(" ឵឵",string);
+				}
+
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send("An error occured: \n" + err);
+			}
+		},
+		
 	},
 ]
 

@@ -14,18 +14,16 @@ export async function getUserData(id: string):Promise<_user_data>
     //Get userClassID & user_Equipment & currentHP
     var sql = `SELECT class_id,level,exp,current_hp FROM users WHERE user_id='${id}';`+
     `SELECT main_hand,off_hand,head,chest,legs,feet,trinket FROM user_equipment WHERE user_id='${id}';`+
-    `SELECT coins,wood,iron_ore FROM user_currencies WHERE user_id='${id}'`;
+    `SELECT * FROM user_currencies WHERE user_id='${id}'`;
     var query = await queryPromise(sql).catch(err => reject(err));
     
-    if (query[0].length == 0) throw "User is not registered.";
+    if (query[0].length == 0) reject("User is not registered.");
 
     data.class = classes.find(x => x.id == query[0][0].class_id);
     if (!data.class) reject("Class not found."); 
     data.level = query[0][0].level;
     data.exp = query[0][0].exp;
-    data.coins = query[2][0].coins;
-    data.wood = query[2][0].wood;
-    data.iron_ore = query[2][0].iron_ore;
+    data.currencies = query[2][0];
     data.current_hp = query[0][0].current_hp;
     data.base_atk = data.class!.base_atk;
     data.base_def = data.class!.base_def;

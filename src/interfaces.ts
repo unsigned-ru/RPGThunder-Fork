@@ -3,6 +3,7 @@ import Discord from 'discord.js';
 
 export interface _client {
   c: Discord.Client,
+  commands: Discord.Collection<any,any>
   [key: string]: any
 }
 
@@ -46,15 +47,15 @@ export interface _item_quality{
   id: number,
   name: string
 }
+
 export class _user_data{
   class: _class | undefined;
   level: number = 0;
   exp: number = 0;
-  coins: number = 0;
-  wood: number = 0;
-  iron_ore: number = 0;
   max_hp: number = 0;
   current_hp: number = 0;
+
+  currencies: any = [];
   
   base_atk: number = 0;
   base_def: number = 0;

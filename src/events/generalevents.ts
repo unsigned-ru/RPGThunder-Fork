@@ -26,18 +26,16 @@ async function onReady()
 
 function onMSGReceived(msg: Discord.Message)
 {
-    //Check if it starts with required refix
-    if (!msg.content.startsWith(prefix) || msg.author.bot) return;
-
-    //Split args and execute command if it exists.
-    const args: string[] = msg.content.slice(prefix.length).split(/ +/);
-    const command = args.shift()!.toLowerCase();
-        
-    if (!client.commands.has(command)) return;
-
     try 
     {
-        client.commands.get(command).execute(msg, args);
+        //Check if it starts with required refix
+        if (!msg.content.startsWith(prefix) || msg.author.bot) return;
+
+        //Split args and execute command if it exists.
+        const args: string[] = msg.content.slice(prefix.length).split(/ +/);
+        const command = args.shift()!.toLowerCase();
+        if (client.commands.has(command))  client.commands.get(command).execute(msg, args);
+        else if (client.commands.find((x:any) => x.aliases.find((alias:string) => alias == command))) client.commands.find(x => x.aliases.find((alias:string) => alias == command)).execute(msg,args);
     }
     catch (error) 
     {
