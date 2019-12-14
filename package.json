@@ -7,19 +7,15 @@
     "@types/mysql": "^2.15.8",
     "concurrently": "^5.0.0",
     "discord.js": "^11.5.1",
-    "express": "^4.17.1",
     "mysql": "^2.17.1",
     "ts-node": "^8.5.2",
     "typescript": "^3.7.2"
   },
-  "devDependencies": {
-    "nodemon": "^2.0.1"
-  },
+  "devDependencies": {},
   "scripts": {
     "start": "concurrently \"npm:compile\" \"npm:run\"",
-    "compile":"tsc",
-    "run":"node dist/main.js",
-    "dev": "nodemon src/main.ts",
+    "compile": "tsc",
+    "run": "node dist/main.js",
     "build": "tsc -p ."
   },
   "repository": {

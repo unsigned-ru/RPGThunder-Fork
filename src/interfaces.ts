@@ -1,5 +1,7 @@
 import Discord from 'discord.js';
-//interfaces
+import {blackjackSessions, client } from './main';
+import {official_server_id, session_category_id} from "./config.json";
+import {sleep, randomIntFromInterval, queryPromise} from "./utils"
 
 export interface _client {
   c: Discord.Client,
@@ -29,6 +31,32 @@ export interface _class {
   allowed_item_types: string,
 }
 
+export interface _stats
+{
+  max_hp: number,
+  current_hp: number,
+  atk: number,
+  def: number,
+  acc: number,
+}
+
+
+
+export interface _item{
+  id: number,
+  name: string,
+  description: string,
+  slot: number,
+  type: number,
+  atk: number,
+  def: number,
+  acc: number,
+  level_req: number,
+  sell_price: number,
+  quality: number,
+  icon_name: string,
+}
+
 export interface _command_cooldown{
   user_id: string,
   date: Date
@@ -48,45 +76,84 @@ export interface _item_quality{
   name: string
 }
 
-export class _user_data{
-  class: _class | undefined;
-  level: number = 0;
-  exp: number = 0;
-  max_hp: number = 0;
-  current_hp: number = 0;
-
-  currencies: any = [];
-  
-  base_atk: number = 0;
-  base_def: number = 0;
-  base_acc: number = 0;
-
-  equipment_atk: number = 0;
-  equipment_def: number = 0;
-  equipment_acc: number = 0;
-
-  total_atk: number = 0;
-  total_def: number = 0;
-  total_acc: number = 0;
-
-  main_hand: _item|null = null;
-  off_hand: _item|null = null;
-  head: _item|null = null;
-  chest: _item|null = null;
-  legs: _item|null = null;
-  feet: _item|null = null;
-  trinket: _item|null = null;
+export interface _shop_item
+{
+  [key: string]: any; //used for ID
+  price: number,
 }
-export interface _item{
+
+export interface _consumable
+{
   id: number,
   name: string,
-  description: string,
-  slot: number,
-  type: number,
-  atk: number,
-  def: number,
-  acc: number,
-  level_req: number,
-  sell_price: number,
-  quality: number,
+  hp: number,
+  icon_name:string
+}
+
+export interface _enemy{
+  id: number,
+  name: string,
+
+  base_hp: number,
+  base_atk: number,
+  base_def: number,
+  base_acc: number,
+
+  hp_increase: number,
+  atk_increase: number,
+  def_increase: number,
+  acc_increase: number,
+
+  encounter_level_range_min: number,
+  encounter_level_range_max: number,
+
+  enemy_level_offset_min: number,
+  enemy_level_offset_max: number,
+
+  base_exp: number,
+  exp_multiplier: number,
+}
+
+export interface _enemy_currency_drop_data{
+  id: number,
+  enemy_id: number,
+  currency_name: string,
+  base_amount_min: number,
+  base_amount_max: number,
+  amount_increase: number,
+  base_drop_chance: number,
+  drop_chance_increase: number,
+}
+
+export interface _enemy_material_drop_data{
+  id: number,
+  enemy_id: number,
+  material_name: string,
+  base_amount_min: number,
+  base_amount_max: number,
+  amount_increase: number,
+  base_drop_chance: number,
+  drop_chance_increase: number
+}
+
+
+export interface _enemy_item_drop_data{
+  enemy_id: number,
+  item_id: number,
+  base_chance: number,
+  chance_increase: number,
+}
+
+export interface _enemy_currency_drop{
+  currency_name: string,
+  amount: number,
+}
+export interface _enemy_material_drop{
+  material_name: string,
+  amount: number,
+}
+export interface _deck_card
+{
+  value: string,
+  suit: string,
 }
