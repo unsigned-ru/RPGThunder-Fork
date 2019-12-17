@@ -1,8 +1,8 @@
 import { client, con, explore_command_cooldown } from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
-import { isRegistered, queryPromise, CreateRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName } from "../utils";
-import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data } from "../staticdata";
+import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName } from "../utils";
+import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones } from "../staticdata";
 import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule } from "../classes/userdata";
 import { Enemy } from "../classes/enemy";
 import { _item } from "../interfaces";
@@ -52,7 +52,7 @@ export const commands =
 					const slot = equipment_slots.find(slot => slot.id == itemToEquip.item.slot)!;
 
 					//check if the user has already equipped an item of that slot
-					if (already_equipped_slots.includes(itemToEquip.item.slot)) { throw "You have already equipped an item in the slot: "+ slot.name}
+					if (already_equipped_slots.includes(itemToEquip.item.slot)) { throw "You have already equipped an item in the slot: "+ slot.display_name}
 					
 					console.log(itemToEquip);
 					//check if the users level is high enough
@@ -60,10 +60,10 @@ export const commands =
 
 					//check if the user is allowed to wear this type.
 					if (!basicMod.class!.allowed_item_types.split(",").includes(itemToEquip.item.type.toString())) throw `You cannot equip item with \`id: ${item_id}\` because your class is not allowed to equip the type: \`${item_types.get(itemToEquip.item!.type)!.name}\``
-					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.name,itemToEquip.item);
+					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.database_name,itemToEquip.item);
 					//add the equipped type to already_equipped_slots.
 					already_equipped_slots.push(itemToEquip.item.slot);
-					sucess_output += `You have sucessfully equipped: ${itemToEquip.item.icon_name} ${itemToEquip.item.name} in the slot: ${slot.name}!\n`
+					sucess_output += `You have sucessfully equipped: ${itemToEquip.item.icon_name} ${itemToEquip.item.name} in the slot: ${slot.display_name}!\n`
 				}
 				await equipmentMod.update(msg.author.id);
 				msg.channel.send(sucess_output);
@@ -115,7 +115,7 @@ export const commands =
 	{
 		name: 'explore',
 		aliases: ['adventure'],
-		description: 'Explore your area! Be careful, you might end up fighting enemies!',
+		description: 'Explore your zone! Be careful, you might end up fighting eou might end up fighting enemies!',
 		usage: `${cf.prefix}explore`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
@@ -142,7 +142,7 @@ export const commands =
 				const previousHp = basicMod.current_hp!;
 
 				//Find a enemy from the static loaded data.
-				const enemyData = enemies.filter(x => basicMod.level! >= x.encounter_level_range_min && x.encounter_level_range_max >= basicMod.level!).random();
+				const enemyData = enemies.filter(x => x.encounter_zones.split(',').find(x => parseInt(x) == basicMod.zone!) != undefined && x.min_encounter_level <= basicMod!.level!).random();
 				const item_drops = enemies_item_drop_data.filter(x => x.enemy_id == enemyData.id).array();
 				const currency_drops = enemies_currency_drop_data.filter(x => x.enemy_id == enemyData.id).array();
 				const material_drops = enemies_material_drop_data.filter(x => x.enemy_id == enemyData.id).array();
@@ -159,7 +159,7 @@ export const commands =
 				{
 					//Todo: make inserts more performant
 					case "won":
-						var hasLeveled = await UserData.grantExp(basicMod,statsMod,enemy.exp);
+						var hasLeveled = await UserData.grantExp(basicMod,equipMod,statsMod,enemy.exp);
 						var currencyQueryString = ""
 						var rewardEmbedString = "";
 						for (var currencyDrop of enemy.currency_drops)
@@ -173,7 +173,7 @@ export const commands =
 						{
 							queryPromise(`INSERT INTO user_inventory (user_id,item) VALUES (${msg.author.id}, ${itemDrop})`);
 							const itemDropData = itemDropsItemData.find(x=> x.id == itemDrop)!
-							rewardEmbedString += `**${itemDrop}** - ${itemDropData.icon_name} ${itemDropData.name} [${item_qualities.find(x => x.id == itemDropData.quality)!.name} ${getEquipmentSlotDisplayName(equipment_slots.find(x => x.id == itemDropData.slot)!.name)}]\n`
+							rewardEmbedString += `**${itemDrop}** - ${itemDropData.icon_name} ${itemDropData.name} [${item_qualities.find(x => x.id == itemDropData.quality)!.name} ${getEquipmentSlotDisplayName(itemDropData.slot)}]\n`
 						}
 						var materialQueryString = ""
 						for (var materialDrop of enemy.material_drops)
@@ -191,7 +191,8 @@ export const commands =
 						.setColor('#00ff7b') //green
 						.setTitle(`Exploration Success!`)
 						.setDescription(
-						`**${msg.author.username}** encountered and killed **a level ${enemy.level} ${enemy.name}**\n`+
+
+						`**${msg.author.username}** explored **${zones.get(basicMod.zone!)!.name}** and **killed a level ${enemy.level} ${enemy.name}**\n`+
 						`You have **lost ${(previousHp - basicMod.current_hp!) >= 0 ? (previousHp - basicMod.current_hp!).toFixed(0) : 0} HP** and have **earned ${enemy.exp} exp!**\n`+
 						`Your **remaining hp** is **${basicMod.current_hp!.toFixed(0)}/${statsMod.stats.get("max_hp")}**\n`)
 						.addField("**Rewards:**", rewardEmbedString.length == 0 ? "None" : rewardEmbedString)
@@ -211,12 +212,21 @@ export const commands =
 						.setColor('#ff0000') //red
 						.setTitle(`Exploration Failed`)
 						.setDescription(
-						`**${msg.author.username}** encountered and got killed by **a level ${enemy.level} ${enemy.name}**\n`+
-						`**YOU LOST 1 LEVEL AS DEATH PENALTY**\n`)
+						`**${msg.author.username}** explored **${zones.get(basicMod.zone!)!.name}** and got killed by **a level ${enemy.level} ${enemy.name}**\n`+
+						`**YOU LOST 1 LEVEL AS DEATH PENALTY**\n
+						Your health has been restored.`)
 						.setTimestamp()
 						.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 						msg.channel.send(lossEmbed);
-						if (basicMod.level! > 1) await queryPromise(`UPDATE users SET level = level-1, exp = ${(calculateReqExp(basicMod.level!-1) / 100 * basicMod.exp! / calculateReqExp(basicMod.level!)*100)} WHERE user_id = ${msg.author.id};`);
+						if (basicMod.level! > 1) 
+						{
+							basicMod.level! -= 1;
+							basicMod.exp! = (calculateReqExp(basicMod.level!-1) / 100 * basicMod.exp! / calculateReqExp(basicMod.level!)*100);
+							await statsMod.init(basicMod, equipMod);
+							basicMod.current_hp = statsMod.stats.get("max_hp");
+
+							basicMod.update(msg.author.id);
+						}						
 						break;
 				}
 			}
@@ -243,7 +253,7 @@ export const commands =
 
 				if (args.length == 0) 
 				{
-					const embed = await CreateRegisterEmbed(msg.member);
+					const embed = await createRegisterEmbed(msg.member);
 					msg.author.send(embed);
 					return;
 				}

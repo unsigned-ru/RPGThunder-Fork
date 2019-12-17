@@ -3,7 +3,7 @@ import cf from "../config.json"
 import Discord from "discord.js"
 import {calculateReqExp, isRegistered, getEquipmentSlotDisplayName} from "../utils";
 import {basicModule, equipmentModule, currencyModule, statsModule, UserData, userDataModules, inventoryModule, consumablesModule, materialsModule} from "../classes/userdata";
-import { item_qualities, equipment_slots } from "../staticdata";
+import { item_qualities, equipment_slots, zones, currencies, materials } from "../staticdata";
 
 export const commands = 
 [
@@ -31,9 +31,9 @@ export const commands =
 
 				//get all the currencies into a proper string:
 				var currencyString = "";
-				for (var cc of cf.currencies)
+				for (var cc of currencies)
 				{
-					currencyString+= `**${cc.display_name}:** ${currencyMod.currencies.get(cc.database_name)}\n`;
+					currencyString+= `**${cc[1].display_name}:** ${currencyMod.currencies.get(cc[1].database_name)}\n`;
 				}
 
 				//Create an embedd with the profile data.
@@ -45,7 +45,7 @@ export const commands =
 				`**Class:** ${basicMod.class!.name}\n`+
 				`**Level:** ${basicMod.level!}\n`+
 				`**Exp:** ${basicMod.exp!} / ${calculateReqExp(basicMod.level!)}\n`+
-				`**Area:** ${basicMod.area!}\n`,true)
+				`**Zone:** ${zones.get(basicMod.zone!)!.name}\n`,true)
 
 				.addField("Stats:",
 				`❤️ **HP:** ${basicMod.current_hp!.toFixed(2)} / ${statsMod.stats.get("max_hp")!.toFixed(2)}\n`+
@@ -90,10 +90,9 @@ export const commands =
 
 				var currencyString = "";
 
-				for (var c of cf.currencies)
+				for (var c of currencies)
 				{
-					
-					currencyString += `${c.icon_name} **${c.display_name}**: ${currenciesMod.currencies.get(c.database_name)}\n`
+					currencyString += `${c[1].icon_name} **${c[1].display_name}**: ${currenciesMod.currencies.get(c[1].database_name)}\n`
 				}
 				
 				const embed = new Discord.RichEmbed()
@@ -129,10 +128,10 @@ export const commands =
 
 				var materialsString = "";
 
-				for (var m of cf.materials)
+				for (var m of materials)
 				{
 					
-					materialsString += `${m.icon_name} **${m.display_name}**: ${materialsMod.materials.get(m.database_name)}\n`
+					materialsString += `${m[1].icon_name} **${m[1].display_name}**: ${materialsMod.materials.get(m[1].database_name)}\n`
 				}
 				
 				const embed = new Discord.RichEmbed()
@@ -169,7 +168,7 @@ export const commands =
 
 				var invString = "";
 
-				for (var id of inventoryMod.inventory) invString += `**${id[0]}** - ${id[1].item.icon_name} ${id[1].item.name} [${item_qualities.get(id[1].item.quality)!.name} ${getEquipmentSlotDisplayName(equipment_slots.get(id[1].item.slot)!.name)}]\n`
+				for (var id of inventoryMod.inventory) invString += `**${id[0]}** - ${id[1].item.icon_name} ${id[1].item.name} [${item_qualities.get(id[1].item.quality)!.name} ${getEquipmentSlotDisplayName(id[1].item.slot)}] x${id[1].count}\n`
 
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -247,7 +246,7 @@ export const commands =
 				{
 					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
 					
-					if (difference < cf.command_cooldown) gather_command_cooldown = cf.command_cooldown - difference;
+					if (difference < cf.gather_cooldown) gather_command_cooldown = cf.gather_cooldown - difference;
 				}
 
 				if (explore_command_cooldown.find(x=> x.user_id == msg.author.id))
@@ -263,8 +262,9 @@ export const commands =
 				.setColor('#fcf403') //Yelow
 				.setTitle(`${msg.author.username}'s cooldowns`)
 				.addField("✨ Progress",
-				`${gather_command_cooldown == 0 ? `✅ - mine/chop/harvest/fish`:`❌ ~~~ mine/chop/harvest/fish **(${Math.round(gather_command_cooldown)}s)**`}`+
-				`${explore_cmd_cooldown == 0 ? `✅ - explore`:`❌ ~~~ explore **(${Math.round(explore_cmd_cooldown)}s)**`}`
+				`${gather_command_cooldown == 0 ? `✅ - mine/chop/harvest/fish\n`: `❌ - mine/chop/harvest/fish **(${Math.round(gather_command_cooldown)}s)**\n`}`+
+				`${explore_cmd_cooldown == 0 ? `✅ - explore`:`❌ - explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`
+				
 				)
 				.setThumbnail(msg.author.avatarURL)
 				.setTimestamp()
@@ -276,7 +276,6 @@ export const commands =
 			catch(err)
 			{
 				console.log(err);
-				msg.channel.send("An error occured: \n" + err);
 			}
 		},
 	},
@@ -298,22 +297,22 @@ export const commands =
 				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
 					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference >= cf.command_cooldown) readyString+= "✅ ~~~ mine/chop/harvest/fish\n"
+					if (difference >= cf.gather_cooldown) readyString+= "✅ - mine/chop/harvest/fish\n"
 
 				}
 				else
 				{
-					readyString+= "✅ ~~~ mine/chop/harvest/fish\n"
+					readyString+= "✅ - mine/chop/harvest/fish\n"
 				}
 				//Check for cooldown.
 				if (explore_command_cooldown.find(x=> x.user_id == msg.author.id))
 				{
 					const difference = (new Date().getTime() - explore_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference >= cf.explore_cooldown) readyString+= "✅ ~~~ explore\n"
+					if (difference >= cf.explore_cooldown) readyString+= "✅ - explore\n"
 				}
 				else
 				{
-					readyString+= "✅ ~~~ explore\n"
+					readyString+= "✅ - explore\n"
 				}
 				if (readyString == "") {msg.channel.send("You have no ready commands!"); return}
 

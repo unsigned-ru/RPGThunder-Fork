@@ -271,7 +271,7 @@ export class BlackJackSession
 
     //check result of game.
     if (dealerData.value == playerData.value) this.endGame("push");
-    else if (dealerData.value == 21) this.endGame("win",true);
+    else if (playerData.value == 21) this.endGame("win",true);
     else if (dealerData.value > 21) this.endGame("win");
     else if (dealerData.value > playerData.value) this.endGame("loss");
     else if (dealerData.value < playerData.value) this.endGame("win");
@@ -287,7 +287,7 @@ export class BlackJackSession
       case "timeoutEnded":
         break;
       case "timeoutLoss":
-        this.executedChannel.send(`\`${this.user.username}\` their blackjack session expired and lost: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
+        this.executedChannel.send(`\`${this.user.username}\` their blackjack session expired and lost: ${getCurrencyIcon("coins")} ${this.amount.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
         editCollectionNumberValue(currencyMod.currencies,"coins", -this.amount);
         break;
         case "timeout":
@@ -295,9 +295,11 @@ export class BlackJackSession
         break;
       case "win":
         this.boardMsg!.edit(this.createBoardEmbed("You win!","#00ff37",result))
-        if (isBlackjack) editCollectionNumberValue(currencyMod.currencies,"coins", +this.amount/2*3);
-        else editCollectionNumberValue(currencyMod.currencies,"coins", +this.amount);
-        this.executedChannel.send(`\`${this.user.username}\` has won their blackjack session and earned: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
+        var amountwon = 0;
+        if (isBlackjack) amountwon = (this.amount)*1.5;
+        else amountwon = this.amount;
+        editCollectionNumberValue(currencyMod.currencies,"coins", amountwon);
+        this.executedChannel.send(`\`${this.user.username}\` has won their blackjack session and earned: ${getCurrencyIcon("coins")} ${amountwon.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")!.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
         break;
       case "push":
         this.boardMsg!.edit(this.createBoardEmbed("Push!","#ffee00",result))
@@ -306,7 +308,7 @@ export class BlackJackSession
       case "loss":
         this.boardMsg!.edit(this.createBoardEmbed("You lose!","#ff0000",result))
         editCollectionNumberValue(currencyMod.currencies,"coins", -this.amount);
-        this.executedChannel.send(`\`${this.user.username}\` has lost their blackjack session and lost: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
+        this.executedChannel.send(`\`${this.user.username}\` has lost their blackjack session and lost: ${getCurrencyIcon("coins")} ${this.amount.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
         break;
     }
     currencyMod.update(this.user.id);

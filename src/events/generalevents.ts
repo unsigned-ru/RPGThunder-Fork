@@ -2,6 +2,7 @@ import Discord from 'discord.js'
 import {client, blackjackSessions} from '../main';
 import {prefix,session_category_id} from '../config.json';
 import {queryPromise} from '../utils';
+import { blacklistedChannels } from '../staticdata';
 
 export function SetupEvents()
 {
@@ -18,19 +19,17 @@ async function onReady()
     client.c.setInterval(updateBotStatus,3600000); //update bot status every hour
 }
 
-function onMSGReceived(msg: Discord.Message)
+async function onMSGReceived(msg: Discord.Message)
 {
     try 
     {
         if (msg.author.bot) return;
-        console.log(msg);
-        console.log(blackjackSessions);
         //relay channel messages when blackjack session is active
         if ((msg.channel as Discord.GuildChannel).parentID == session_category_id && blackjackSessions.find(x => x.user.id == msg.author.id)) return blackjackSessions.find(x => x.user.id == msg.author.id)!.handleSessionCommand(msg);
-
+    
         //Check if it starts with required refix
         if (!msg.content.startsWith(prefix)) return;
-
+        if (blacklistedChannels.includes(msg.channel.id)) {await msg.delete(); return;}
         //Split args and execute command if it exists.
         const args: string[] = msg.content.slice(prefix.length).split(/ +/);
         const command = args.shift()!.toLowerCase();

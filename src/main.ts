@@ -1,7 +1,6 @@
 import Discord from 'discord.js';
 import mysql from 'mysql';
 import {token,mysql_host,mysql_user, mysql_pass, mysql_dbname} from "./config.json"
-
 //cmds and events
 import * as generalevents from "./events/generalevents";
 import * as generalcommands from "./commands/generalcmds";
@@ -10,8 +9,7 @@ import * as useractioncommands from "./commands/useractioncmds";
 import * as gathercommands from "./commands/gathercmds";
 import * as shopcommands from "./commands/shopcmds";
 import * as gamblecommands from "./commands/gamblecmds";
-
-
+import * as admincommands from "./commands/admincmds"
 import * as staticData from "./staticdata";
 import {_client, _command_cooldown} from "./interfaces";
 import { BlackJackSession } from './classes/blackjacksession.js';
@@ -43,6 +41,7 @@ useractioncommands.SetupCommands();
 gathercommands.SetupCommands();
 shopcommands.SetupCommands();
 gamblecommands.SetupCommands();
+admincommands.SetupCommands();
 
 
 //Setup events

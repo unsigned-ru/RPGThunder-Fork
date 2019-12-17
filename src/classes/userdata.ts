@@ -1,7 +1,7 @@
 import * as Discord from "discord.js";
 import {_class,_item,_consumable,_stats} from "../interfaces";
 import {queryPromise, calculateReqExp } from "../utils";
-import {classes} from "../staticdata";
+import {classes, currencies, materials, equipment_slots} from "../staticdata";
 import * as cf from "../config.json";
 
 export enum userDataModules 
@@ -18,17 +18,17 @@ export enum userDataModules
 export class basicModule
 {
     class: _class | undefined;
-    area: number | undefined;
+    zone: number | undefined;
     level: number | undefined;
     exp: number | undefined;
     current_hp: number | undefined;
 
     public async init(user_id:string)
     {
-        const result = (await queryPromise(`SELECT class_id,level,exp,current_hp,area FROM users WHERE user_id='${user_id}';`))[0];
+        const result = (await queryPromise(`SELECT * FROM users WHERE user_id='${user_id}';`))[0];
 
         this.class = classes.get(result.class_id)!;
-        this.area = result.area;
+        this.zone = result.zone;
         this.exp = result.exp;
         this.level = result.level;
         this.current_hp = result.current_hp;
@@ -36,7 +36,7 @@ export class basicModule
 
     public async update(user_id:string)
     {
-        await queryPromise(`UPDATE users SET class_id=${this.class!.id},level=${this.level},exp=${this.exp},current_hp=${this.current_hp},area=${this.area} WHERE user_id='${user_id}';`);
+        await queryPromise(`UPDATE users SET class_id=${this.class!.id},level=${this.level},exp=${this.exp},current_hp=${this.current_hp},zone=${this.zone} WHERE user_id='${user_id}';`);
     }
 }
 
@@ -47,9 +47,9 @@ export class currencyModule
     public async init(user_id:string) 
     {
         const result = (await queryPromise(`SELECT * FROM user_currencies WHERE user_id=${user_id};`))[0];
-        for (var c of cf.currencies)
+        for (var c of currencies)
         {
-            const name = Object.keys(result).find(x => x == c.database_name)!
+            const name = Object.keys(result).find(x => x == c[1].database_name)!
             this.currencies.set(name,result[name]);
         }
     }
@@ -69,9 +69,9 @@ export class materialsModule
     public async init(user_id:string) 
     {
         const result = (await queryPromise(`SELECT * FROM user_materials WHERE user_id=${user_id};`))[0];
-        for (var m of cf.materials)
+        for (var m of materials)
         {
-            const name = Object.keys(result).find(x => x == m.database_name)!
+            const name = Object.keys(result).find(x => x == m[1].database_name)!
             this.materials.set(name,result[name]);
         }
     }
@@ -91,10 +91,10 @@ export class equipmentModule
     {
         const result = (await queryPromise(`SELECT * FROM user_equipment WHERE user_id=${user_id};`))[0];
 
-        for (var s of cf.equipment_slots)
+        for (var s of equipment_slots)
         {
-            const itemResult = (await queryPromise(`SELECT * FROM items WHERE id='${result[s.database_name]}';`))[0];
-            this.equipment.set(s.database_name,itemResult);
+            const itemResult = (await queryPromise(`SELECT * FROM items WHERE id='${result[s[1].database_name]}';`))[0];
+            this.equipment.set(s[1].database_name,itemResult);
         }
     }
 
@@ -194,10 +194,10 @@ export class statsModule
     public async init(basicMod:basicModule, equipmentMod:equipmentModule) 
     {
         //calculate base stats (base_STAT) atk - def - acc - current_hp - max_hp
-        this.stats.set("base_atk",basicMod.class!.base_atk + (basicMod.level! * basicMod.class!.atk_increase));
-        this.stats.set("base_def",basicMod.class!.base_def + (basicMod.level! * basicMod.class!.def_increase));
-        this.stats.set("base_acc",basicMod.class!.base_acc + (basicMod.level! * basicMod.class!.acc_increase));
-        this.stats.set("base_hp",basicMod.class!.base_hp + (basicMod.level! * basicMod.class!.hp_increase));
+        this.stats.set("base_atk",basicMod.class!.base_atk + (basicMod.level!-1 * basicMod.class!.atk_increase));
+        this.stats.set("base_def",basicMod.class!.base_def + (basicMod.level!-1 * basicMod.class!.def_increase));
+        this.stats.set("base_acc",basicMod.class!.base_acc + (basicMod.level!-1 * basicMod.class!.acc_increase));
+        this.stats.set("base_hp",basicMod.class!.base_hp + (basicMod.level!-1 * basicMod.class!.hp_increase));
 
         //calculate gear stats (gear_STAT)
         const gear_stats = equipmentMod.getStatIncrease();
@@ -206,7 +206,7 @@ export class statsModule
         this.stats.set("gear_acc",gear_stats.acc);
         
         //calculate totalStats
-        this.stats.set("max_hp",basicMod.class!.base_hp + (basicMod.level! * basicMod.class!.hp_increase));
+        this.stats.set("max_hp",basicMod.class!.base_hp + (basicMod.level!-1 * basicMod.class!.hp_increase));
         this.stats.set("total_atk",this.stats.get("base_atk")! + this.stats.get("gear_atk")!);
         this.stats.set("total_def",this.stats.get("base_def")! + this.stats.get("gear_def")!);
         this.stats.set("total_acc",this.stats.get("base_acc")! + this.stats.get("gear_acc")!);
@@ -335,7 +335,10 @@ export class UserData
     }
     static async removeItemFromInventory(user_id:string, inventoryMod: inventoryModule, item:_item)
     {
-        inventoryMod.inventory.sweep(x => x.item == item);
+        const entry = inventoryMod.inventory.get(item.id);
+        if (entry!.count - 1 > 0) {entry!.count -= 1; inventoryMod.inventory.set(item.id,entry!);}
+        else inventoryMod.inventory.delete(item.id);
+        
         await queryPromise(`DELETE FROM user_inventory WHERE user_id=${user_id} AND item=${item.id} LIMIT 1`)
     }
 
@@ -350,7 +353,7 @@ export class UserData
     }
 
     //returns true if the user has leveled.
-    static grantExp(basicMod:basicModule, statsMod:statsModule,amount:number) :Promise<boolean>
+    static grantExp(basicMod:basicModule,equipMod:equipmentModule, statsMod:statsModule,amount:number) :Promise<boolean>
     {
         return new Promise(async function(resolve, reject)
         {
@@ -362,6 +365,7 @@ export class UserData
                     basicMod.level!++;
                     basicMod.exp! = amount;
                     //Reset hp cause of level
+                    await statsMod.init(basicMod,equipMod);
                     basicMod.current_hp = statsMod.stats.get("max_hp")!;
                     return resolve(true);
                 }
@@ -373,5 +377,10 @@ export class UserData
             }
             catch(err) {reject(err);}
         });
+    }
+    //returns true if the user has leveled.
+    static resetHP(basicMod:basicModule, statsMod:statsModule)
+    {
+        basicMod.current_hp = statsMod.stats.get("max_hp")!;
     }
 }

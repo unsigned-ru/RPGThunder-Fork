@@ -1,7 +1,4 @@
 import Discord from 'discord.js';
-import {blackjackSessions, client } from './main';
-import {official_server_id, session_category_id} from "./config.json";
-import {sleep, randomIntFromInterval, queryPromise} from "./utils"
 
 export interface _client {
   c: Discord.Client,
@@ -55,16 +52,12 @@ export interface _item{
   sell_price: number,
   quality: number,
   icon_name: string,
+  objType: "item"
 }
 
 export interface _command_cooldown{
   user_id: string,
   date: Date
-}
-
-export interface _equipment_slot{
-  id: number,
-  name: string
 }
 
 export interface _item_type{
@@ -88,9 +81,67 @@ export interface _consumable
   name: string,
   hp: number,
   icon_name:string
+  objType: "consumable"
 }
 
-export interface _enemy{
+export interface _zone
+{
+  id: number,
+  name: string,
+}
+
+export interface _material
+{
+  id:number,
+  database_name: string,
+  display_name: string,
+  icon_name: string
+  objType: "material"
+}
+
+export interface _equipment_slot
+{
+  id:number,
+  database_name: string,
+  display_name: string,
+  icon_name: string
+}
+
+export interface _currency
+{
+  id:number,
+  database_name: string,
+  display_name: string,
+  icon_name: string
+}
+
+export interface _zone_gather_drops
+{
+  id: number,
+  zone_id: number,
+  material_name: string,
+  min_amount: number,
+  max_amount: number,
+}
+
+
+export interface _zone_shop_entry
+{
+  id: number,
+  zone_id: number,
+  category_id: number,
+  entry_id: number,
+  entry_price: number,
+}
+
+export interface _shop_category
+{
+  id: number,
+  name: string,
+}
+
+export interface _enemy
+{
   id: number,
   name: string,
 
@@ -104,14 +155,14 @@ export interface _enemy{
   def_increase: number,
   acc_increase: number,
 
-  encounter_level_range_min: number,
-  encounter_level_range_max: number,
+  encounter_zones: string,
+  min_encounter_level: number,
 
   enemy_level_offset_min: number,
   enemy_level_offset_max: number,
 
   base_exp: number,
-  exp_multiplier: number,
+  exp_increase: number,
 }
 
 export interface _enemy_currency_drop_data{
@@ -156,4 +207,10 @@ export interface _deck_card
 {
   value: string,
   suit: string,
+}
+
+export interface blacklistedChannel
+{
+  id: number,
+  channel_id: number,
 }

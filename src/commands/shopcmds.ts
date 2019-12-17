@@ -1,10 +1,10 @@
-import Discord from 'discord.js';
+import Discord, { User } from 'discord.js';
 import {client} from '../main';
 import cf from "../config.json";
-import {isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue} from "../utils";
-import { consumable_shop_data, consumables } from '../staticdata';
-import { _shop_item } from '../interfaces';
-import { inventoryModule, userDataModules, UserData, currencyModule } from '../classes/userdata';
+import {isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue, getEquipmentSlotDisplayName} from "../utils";
+import {zone_shops, shop_categories, zones, item_qualities } from '../staticdata';
+import { _shop_item, _consumable, _item, _material } from '../interfaces';
+import { inventoryModule, userDataModules, UserData, currencyModule, basicModule } from '../classes/userdata';
 
 export const commands = 
 [
@@ -20,33 +20,39 @@ export const commands =
 				//Check if user is registered
 				if (!await isRegistered(msg.author.id))throw "You must be registered to use this command!";
 
-				//Check args
-				if (!args[0]) throw "Please enter the category you wish to browse.\n Usage: `"+this.usage+"`"
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
 
-				//Create first page TODO
-				var shopEmbed;
-				switch(args[0].toLowerCase())
+				const entries = zone_shops.filter(x => x.zone_id == basicMod.zone!);
+
+				if (entries.size == 0) throw "This zone has no shop!"; 
+
+				let shopString = "";
+				for(let entry of entries)
 				{
-					case "items":
-						throw "This shop is still in development."
-						break;
-					case "consumables":
-						var shopString = "";
-						for (var cdata of consumable_shop_data)
-						{
-							var cons = consumables.get(cdata[0])!;
-							shopString += `**${cdata[0]}** - ${cons.icon_name} ${cons.name} [${getCurrencyIcon("coins")} ${cdata[1].price} ${getCurrencyDisplayName("coins")}]\n`
-						}
-						shopEmbed = new Discord.RichEmbed()
-						.setColor('#fcf403') //Yelow
-						.setTitle(`Shop -- Consumables`)
-						.addField("**Consumables**",shopString)
-						.setAuthor("*Use the command `"+cf.prefix+"buy consumable [ID]` to buy a consumable.*")
-						.setTimestamp()
-						.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-						break;
+					switch(shop_categories.get(entry[1].category_id)!.name)
+					{
+						case "item":
+							const item: _item = (await queryPromise(`SELECT * from items WHERE id=${entry[1].entry_id}`))[0];
+							shopString += `${item.icon_name} ${item.name} [${item_qualities.get(item.quality)!.name} ${getEquipmentSlotDisplayName(item.slot)}] - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
+							break;
+						case "consumable":
+							const cons: _consumable = (await queryPromise(`SELECT * from consumables WHERE id=${entry[1].entry_id}`))[0];
+							shopString += `${cons.icon_name} ${cons.name} [${cons.hp}HP] - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
+							break;
+						case "material":
+							const material: _material = (await queryPromise(`SELECT * from materials WHERE id=${entry[1].entry_id}`))[0];
+							shopString += `${material.icon_name} ${material.display_name} - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
+							break;
+					}
 				}
-				
+
+				const shopEmbed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`Shop -- ${zones.get(basicMod.zone!)!.name}`)
+				.addField("**Entries**",shopString)
+				.setAuthor("Vendor: Execute "+cf.prefix+"buy [ITEMNAME] [optional: AMOUNT] to buy an item!",'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 				msg.channel.send(shopEmbed);
 			}
 			catch(err)
@@ -60,8 +66,8 @@ export const commands =
 	{
 		name: 'buy',
 		aliases: ["purchase"],
-		description: 'Buy an item from a shop catergory.',
-		usage: `${cf.prefix}buy [category] (item/consumable) [ID] [AMOUNT]`,
+		description: 'Buy an item from the shop',
+		usage: `${cf.prefix}buy [ITEMNAME] [AMOUNT]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -69,50 +75,82 @@ export const commands =
 				//Check if user is registered
 				if (!await isRegistered(msg.author.id))throw "You must be registered to use this command!";
 
-				//Check args
-				if (!args[0]) throw "Please enter the category you wish to buy from.\nUsage: `"+this.usage+"`"
-				if (!args[1] || !parseInt(args[1])) throw "Please enter the ID of the shop item you wish to buy\nUsage: `"+this.usage+"`";
 				var amount = 1;
-				if (parseInt(args[2])) amount = parseInt(args[2])
+				var itemName;
+				//Check args
+				if (args.length == 0) throw "Please enter the item you wish to buy!\nUsage: `"+this.usage+"`"
 
-				//Get the correct database to check and get the item from.
-				var dbNameString;
-				switch(args[0].toLowerCase())
+				if (parseInt(args[args.length -1]))
 				{
-					case "item":
-						throw "Has yet to be implemented.";
-						dbNameString = "item";
-						break;
-					case "consumable":
-						dbNameString = "consumables";
-						break;
-
-					default:
-						throw "Could not find a category with that name!\nUsage: `"+this.usage+"`";
+					amount = parseInt(args[args.length -1]);
+					itemName = args.slice(0, -1).join(" ").toLowerCase();
+				}
+				else
+				{
+					itemName = args.join(" ").toLowerCase();
 				}
 
-				//get listing and price and user balance
-				const shopEntry:_shop_item = (await queryPromise(`SELECT consumable_id, price FROM ${dbNameString}_shop WHERE id=${args[1]}`))[0];
-				const userBalance = (await queryPromise(`SELECT coins FROM user_currencies WHERE user_id=${msg.author.id}`))[0].coins;
+				if (amount <= 0) throw "You cannot buy amounts smaller than 0.";
 
-				//check if listing exists. check if user has enough money
-				if (!shopEntry) throw "Could not find a listing with that ID";
-				if (userBalance < shopEntry.price * amount) throw "You do not own enough "+ getCurrencyIcon("coins") +getCurrencyDisplayName("coins")+ " to purchase that listing.";
+				const [basicMod,currencyMod] = <[basicModule,currencyModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.currencies]).init();
 
-				//remove money from user, add item to inventory
-				await queryPromise(`UPDATE user_currencies SET coins = ${userBalance - (shopEntry.price * amount)} WHERE user_id=${msg.author.id}`);
-				switch(args[0].toLowerCase())
+				const entries = zone_shops.filter(x => x.zone_id == basicMod.zone!);
+
+				//Get for all entries its name so we can backtrace the item.
+				const shopEntriesWithData : Discord.Collection<string, _item | _consumable | _material> = new Discord.Collection();
+				for(let entry of entries)
+				{
+					switch(shop_categories.get(entry[1].category_id)!.name)
+					{
+						case "item":
+							const item: _item = (await queryPromise(`SELECT * from items WHERE id=${entry[1].entry_id}`))[0];
+							item.objType = "item";
+							shopEntriesWithData.set(item.name.toLowerCase(),item);
+							break;
+						case "consumable":
+							const cons: _consumable = (await queryPromise(`SELECT * from consumables WHERE id=${entry[1].entry_id}`))[0];
+							cons.objType = "consumable"
+							shopEntriesWithData.set(cons.name.toLowerCase(),cons);
+							break;
+						case "material":
+							const material: _material = (await queryPromise(`SELECT * from materials WHERE id=${entry[1].entry_id}`))[0];
+							material.objType = "material";
+							shopEntriesWithData.set(material.display_name.toLowerCase(),material);
+							break;
+					}
+				}
+				//Check if the users input item exists in the list
+				if (!shopEntriesWithData.has(itemName)) throw "Could not find an item with that name in the shop."
+
+				//get the item
+				const entryData = shopEntriesWithData.get(itemName);
+				const entry = entries.find(x=> shop_categories.get(x.category_id!)!.name == entryData!.objType && x.entry_id == entryData!.id);
+
+				//Check if user has enough balance
+				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \${itemName}\`x${amount}!`
+				//Add it to the appropriate inventory.
+				let sql = "";
+				
+				let price = amount * entry.entry_price;
+				switch(entryData!.objType)
 				{
 					case "item":
-						await queryPromise(`INSERT INTO user_inventory (user_id,item) VALUES (${msg.author.id},${shopEntry.item_id});`.repeat(amount))
+						for (let i=0; i<amount; i++) sql += `(${msg.author.id}, ${entry.entry_id}),`
+						await queryPromise("INSERT INTO user_inventory(user_id,item) VALUES "+sql.slice(0,-1)+";")
+						msg.channel.send(`\`${msg.author.username}\` has sucessfully bought __[${(entryData as _item).icon_name} ${(entryData as _item).name}]__x${amount} for ${getCurrencyIcon("coins")} ${price} ${getCurrencyDisplayName("coins")}`);
 						break;
 					case "consumable":
-						await queryPromise(`INSERT INTO user_consumables (user_id,consumable_id) VALUES (${msg.author.id},${shopEntry.consumable_id});`.repeat(amount));
+						for (let i=0; i<amount; i++) sql += `(${msg.author.id}, ${entry.entry_id}),`
+						await queryPromise("INSERT INTO user_consumables(user_id,consumable_id) VALUES "+sql.slice(0,-1)+";")
+						msg.channel.send(`\`${msg.author.username}\` has sucessfully bought __[${(entryData as _consumable).icon_name} ${(entryData as _consumable).name}]__x${amount} for ${getCurrencyIcon("coins")} ${price} ${getCurrencyDisplayName("coins")}`);
+						break;
+					case "material":
+						await queryPromise(`UPDATE user_materials SET ${(entryData as _material).database_name}=${(entryData as _material).database_name} + ${amount} WHERE user_id=${msg.author.id}`);
+						msg.channel.send(`\`${msg.author.username}\` has sucessfully bought __[${(entryData as _material).icon_name} ${(entryData as _material).display_name}]__x${amount} for ${getCurrencyIcon("coins")} ${price} ${getCurrencyDisplayName("coins")}`);
 						break;
 				}
-
-				msg.channel.send(`Listing ${args[1]} has been successfully bought ${amount} times!`);
-
+				editCollectionNumberValue(currencyMod.currencies,"coins",-price);
+				currencyMod.update(msg.author.id);
 			}
 			catch(err)
 			{

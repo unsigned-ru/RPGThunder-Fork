@@ -8,7 +8,7 @@ export const commands = [
 	{
 		name: 'coinflip',
 		aliases: ['cf'],
-		description: `Gamble a amount of your ${getCurrencyDisplayName("coins")} with a 50/50 coinflip!`,
+		description: `Gamble a amount of your coins with a 50/50 coinflip!`,
 		usage: `${prefix}coinflip [h/t](heads or tails) [amount (number/half/full)]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
@@ -65,7 +65,7 @@ export const commands = [
 	{
 		name: 'blackjack',
 		aliases: ['bj'],
-		description: `Gamble a amount of your ${getCurrencyDisplayName("coins")} and start a blackjack session with the bot.`,
+		description: `Gamble a amount of your coins and start a blackjack session with the bot.`,
 		usage: `${prefix}blackjack [amount (number/half/full)]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{

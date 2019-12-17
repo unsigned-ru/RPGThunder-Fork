@@ -1,5 +1,5 @@
 import { _enemy, _enemy_currency_drop, _enemy_currency_drop_data, _enemy_item_drop_data, _enemy_material_drop_data, _enemy_material_drop } from "../interfaces";
-import { randomIntFromInterval } from "../utils";
+import { randomIntFromInterval, clamp } from "../utils";
 import { basicModule, statsModule, UserData } from "./userdata";
 
 export class Enemy{
@@ -22,10 +22,10 @@ export class Enemy{
       this.level = proposedlvl >= 1 ? proposedlvl : 1;
       this.max_hp = enemyData.base_hp + (this.level * enemyData.hp_increase);
       this.current_hp = this.max_hp;
-      this.atk = enemyData.base_atk + (this.level * enemyData.atk_increase);
-      this.def = enemyData.base_def + (this.level * enemyData.def_increase);
-      this.acc = enemyData.base_acc + (this.level * enemyData.acc_increase);
-      this.exp = Math.round(enemyData.base_exp + (enemyData.base_exp * ((this.level ** enemyData.exp_multiplier)-this.level)));
+      this.atk = enemyData.base_atk + (clamp(this.level - ul,0,Number.MAX_VALUE) * enemyData.atk_increase);
+      this.def = enemyData.base_def + (clamp(this.level - ul,0,Number.MAX_VALUE) * enemyData.def_increase);
+      this.acc = enemyData.base_acc + (clamp(this.level - ul,0,Number.MAX_VALUE) * enemyData.acc_increase);
+      this.exp = Math.round(enemyData.base_exp + (clamp(this.level - ul,0,Number.MAX_VALUE) * enemyData.exp_increase))
   
       //calculate the currency drops the enemy will have
       const currencyDropChances: {name: string, chance: number}[] = [];
@@ -33,15 +33,15 @@ export class Enemy{
   
       for (var currencyDrop of currency_drops)
       {
-        if (currencyDrop.base_drop_chance + (this.level * currencyDrop.drop_chance_increase) >= 100)
+        if (currencyDrop.base_drop_chance >= 100)
         {
           //100% drop chance.
-          const proposedAmount = randomIntFromInterval((currencyDrop.base_amount_min + (this.level * currencyDrop.amount_increase)), (currencyDrop.base_amount_max + (this.level * currencyDrop.amount_increase)));
+          const proposedAmount = randomIntFromInterval((currencyDrop.base_amount_min + (clamp(this.level - ul,0,Number.MAX_VALUE) * currencyDrop.amount_increase)), (currencyDrop.base_amount_max + (clamp(this.level - ul,0,Number.MAX_VALUE) * currencyDrop.amount_increase)));
           this.currency_drops.push({currency_name: currencyDrop.currency_name, amount: proposedAmount});
           continue;
         }
         //drop chance below 100% 
-        currencyDropChanceCounter += currencyDrop.base_drop_chance + (this.level * currencyDrop.drop_chance_increase);
+        currencyDropChanceCounter += currencyDrop.base_drop_chance + (clamp(this.level - ul,0,Number.MAX_VALUE) * currencyDrop.drop_chance_increase);
         currencyDropChances.push({name: currencyDrop.currency_name, chance: currencyDropChanceCounter});
       }
 
@@ -53,7 +53,7 @@ export class Enemy{
         if (currencyDropChanceRNG <= currencyDropChance.chance)
         {
           const currencyDrop = currency_drops.find(x => x.currency_name == currencyDropChance.name)!;
-          const proposedAmount = randomIntFromInterval((currencyDrop.base_amount_min + (this.level * currencyDrop.amount_increase))*100, (currencyDrop.base_amount_max + (this.level * currencyDrop.amount_increase))*100) /100
+          const proposedAmount = randomIntFromInterval((currencyDrop.base_amount_min + (clamp(this.level - ul,0,Number.MAX_VALUE) * currencyDrop.amount_increase)), (currencyDrop.base_amount_max + ((clamp(this.level - ul,0,Number.MAX_VALUE) * currencyDrop.amount_increase))))
           this.currency_drops.push({currency_name: currencyDrop.currency_name, amount: proposedAmount});
           break;
         }
@@ -65,13 +65,13 @@ export class Enemy{
   
       for (var itemDrop of item_drops)
       {
-        if (itemDrop.base_chance + (this.level * itemDrop.chance_increase) >= 100) //100% drop chance.
+        if (itemDrop.base_chance >= 100) //100% drop chance.
         {
           this.item_drops.push(itemDrop.item_id);
           continue;
         }
         //drop chance below 100%
-        itemDropChanceCounter += itemDrop.base_chance + (this.level * itemDrop.chance_increase);
+        itemDropChanceCounter += itemDrop.base_chance + (clamp(this.level - ul,0,Number.MAX_VALUE) * itemDrop.chance_increase);
         itemDropChances.push({id: itemDrop.item_id, chance: itemDropChanceCounter});
       }
   
@@ -92,15 +92,15 @@ export class Enemy{
 
       for (var materialDrop of materialDrops)
       {
-        if (materialDrop.base_drop_chance + (this.level * materialDrop.drop_chance_increase) >= 100)
+        if (materialDrop.base_drop_chance >= 100)
         {
           //100% drop chance.
-          const proposedAmount = randomIntFromInterval((materialDrop.base_amount_min + (this.level * materialDrop.amount_increase)), (materialDrop.base_amount_max + (this.level * materialDrop.amount_increase)));
+          const proposedAmount = randomIntFromInterval((materialDrop.base_amount_min + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase)), (materialDrop.base_amount_max + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase)));
           this.material_drops.push({material_name: materialDrop.material_name, amount: proposedAmount});
           continue;
         }
         //drop chance below 100% 
-        materialChanceCounter += materialDrop.base_drop_chance + (this.level * materialDrop.drop_chance_increase);
+        materialChanceCounter += materialDrop.base_drop_chance + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.drop_chance_increase);
         materialDropChances.push({name: materialDrop.material_name, chance: materialChanceCounter});
       }
       
@@ -112,7 +112,7 @@ export class Enemy{
         if (materialDropChanceRNG <= materialDropChance.chance)
         {
           const materialDrop = materialDrops.find(x => x.material_name == materialDropChance.name)!;
-          const proposedAmount = randomIntFromInterval((materialDrop.base_amount_min + (this.level * materialDrop.amount_increase))*100, (materialDrop.base_amount_max + (this.level * materialDrop.amount_increase))*100) /100
+          const proposedAmount = randomIntFromInterval(materialDrop.base_amount_min + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase), (materialDrop.base_amount_max + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase)));
           this.material_drops.push({material_name: materialDrop.material_name, amount: proposedAmount});
           break;
         }

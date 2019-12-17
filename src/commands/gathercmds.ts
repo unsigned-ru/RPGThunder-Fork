@@ -1,14 +1,16 @@
 import { client, gather_commands_cooldown } from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
-import { isRegistered, randomIntFromInterval, queryPromise, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon } from "../utils";
+import { isRegistered, randomIntFromInterval, queryPromise, getMaterialDisplayName, getMaterialIcon } from "../utils";
+import { zone_mine_drops, zones, zone_chop_drops, zone_fish_drops, zone_harvest_drops } from "../staticdata";
+import { basicModule, UserData, userDataModules } from "../classes/userdata";
 
 export const commands = 
 [
     {
 		name: 'mine',
 		aliases: [],
-		description: 'Mine for coins/ores/gems!',
+		description: 'Mine current zone for its ores!',
 		usage: `${cf.prefix}mine`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
@@ -17,11 +19,19 @@ export const commands =
 				//Check if user is registered
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to mine for coins/ores/gems!"
 
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
+				//get zone's mine drops
+				const currentZoneDrops = zone_mine_drops.filter(x => x.zone_id == basicMod.zone);
+
+				//null protection
+				if (currentZoneDrops.size == 0) throw "There is nothing to mine in this zone!";
+
 				//Check for cooldown.
 				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
 					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.command_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.command_cooldown - difference)} seconds!`;
+					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
 					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
 				}
 				else
@@ -29,62 +39,100 @@ export const commands =
 					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
 				}
 
-				//Coins or ore
-				const typeFlip = randomIntFromInterval(0, 10000);
-				if (typeFlip < cf.mine_chance_for_coin*100)
-				{
-					//coins
-					const amount = (randomIntFromInterval(cf.mine_coin_gain_min,cf.mine_coin_gain_max));
-					await queryPromise(`UPDATE user_currencies SET coins=coins + ${Math.round(amount)} WHERE user_id=${msg.author.id};`);
-					msg.channel.send(`You have sucessfully mined and received ${amount} coins!`);
-				}
-				else
-				{
-					//Check for chance of gems.
-					const gemChanceFlip = randomIntFromInterval(0,10000);
-					//Create a sum of all chances (*100)
-					var chanceSum = cf.mine_rare_drops.reduce((a,b) => a + (b.drop_chance*100), 0)
-					for (var drop of cf.mine_rare_drops.reverse())
-					{
-						if (gemChanceFlip < chanceSum)
-						{
-							await queryPromise(`UPDATE user_materials SET ${drop.database_name}=${drop.database_name} +1 WHERE user_id=${msg.author.id};`)
-							msg.channel.send(`You have sucessfully mined and received a rare drop: ${getMaterialIcon(drop.database_name)} ${getMaterialDisplayName(drop.database_name)}!`);
-							return;
-						}
-						chanceSum -= (drop.drop_chance*100)
-					}
-					
-					//ore
-					const amount = randomIntFromInterval(cf.mine_ore_gain_min,cf.mine_ore_gain_max);
-					await queryPromise(`UPDATE user_materials SET iron_ore=iron_ore + ${amount} WHERE user_id=${msg.author.id};`);
-					msg.channel.send(`You have sucessfully mined and received ${amount} ${getMaterialIcon("iron_ore")} iron ore!`);
-				}
+				//get a random one,
+				const drop = currentZoneDrops.random();
+				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
+
+				//update user in database
+				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+
+				//return with a message
+				msg.channel.send(`\`${msg.author.username}\` mined in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
 			}
 			catch(err)
 			{
 				console.log(err);
-				msg.channel.send("An error occured: \n" + err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'harvest',
+		aliases: ['hv'],
+		description: 'Scour your area for harvestable materials!',
+		usage: `${cf.prefix}harvest`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				//Check if user is registered
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to harvest!"
+
+
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
+				//get zone's mine drops
+				const currentZoneDrops = zone_harvest_drops.filter(x => x.zone_id == basicMod.zone);
+
+				//null protection
+				if (currentZoneDrops.size == 0) throw "There is nothing to harvest in this zone!";
+
+				//Check for cooldown.
+				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
+					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
+				}
+				else
+				{
+					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
+				}
+
+				//get a random one,
+				const drop = currentZoneDrops.random();
+				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
+
+				//update user in database
+				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+
+				//return with a message
+				msg.channel.send(`\`${msg.author.username}\` went harvesting in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
 			}
 		},
 	},
 	{
 		name: 'chop',
 		aliases: [],
-		description: 'Chop for some wood!',
-		usage: `${cf.prefix}Chop`,
+		description: 'Chop in your current zone for its wood!',
+		usage: `${cf.prefix}chop`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{	
 				//Check if user is registered
-				if (!await isRegistered(msg.author.id)) throw "You must be registered to chop for wood.";
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to chop for wood!"
+
+				
+
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
+				//get zone's mine drops
+				const currentZoneDrops = zone_chop_drops.filter(x => x.zone_id == basicMod.zone);
+
+				//null protection
+				if (currentZoneDrops.size == 0) throw "There is nothing to chop in this zone!";
 
 				//Check for cooldown.
 				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
 					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.command_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.command_cooldown - difference)} seconds!`;
+					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
 					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
 				}
 				else
@@ -92,17 +140,72 @@ export const commands =
 					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
 				}
 
-				//Generate number between minwood and maxwood
-				const amount = randomIntFromInterval(cf.chop_wood_gain_min, cf.chop_wood_gain_max);
+				//get a random one,
+				const drop = currentZoneDrops.random();
+				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
 
-				await queryPromise(`UPDATE user_currencies SET wood=wood + ${amount} WHERE user_id=${msg.author.id};`);
+				//update user in database
+				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
 
-				msg.channel.send(`You have sucessfully chopped ${amount} wood!`);
+				//return with a message
+				msg.channel.send(`\`${msg.author.username}\` chopped in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
 			}
 			catch(err)
 			{
 				console.log(err);
-				msg.channel.send("An error occured: \n" + err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'fish',
+		aliases: [],
+		description: 'Fish in a nearby pool in your current zone!',
+		usage: `${cf.prefix}fish`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{	
+				//Check if user is registered
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to fish!"
+
+
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
+				//get zone's mine drops
+				const currentZoneDrops = zone_fish_drops.filter(x => x.zone_id == basicMod.zone);
+
+				//null protection
+				if (currentZoneDrops.size == 0) throw "There is nothing to fish for in this zone!";
+
+				//Check for cooldown.
+				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
+					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
+				}
+				else
+				{
+					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
+				}
+
+				
+
+				//get a random one,
+				const drop = currentZoneDrops.random();
+				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
+
+				//update user in database
+				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+
+				//return with a message
+				msg.channel.send(`\`${msg.author.username}\` fished in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
 			}
 		},
 	},

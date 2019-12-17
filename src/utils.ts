@@ -1,8 +1,8 @@
 import {con} from "./main";
-import {currencies,exp_req_base_exp,exp_req_multiplier,prefix,materials, equipment_slots} from "./config.json";
+import * as cf from "./config.json";
 import { _item } from "./interfaces";
 import Discord from "discord.js";
-import { classes } from "./staticdata";
+import { classes, equipment_slots, materials, currencies } from "./staticdata";
 
 /**
  * Capitalize the first letter of a string
@@ -32,7 +32,7 @@ export function queryPromise(str: string): Promise<any>{
  */
 export function getCurrencyDisplayName(currencyDbName:string) :string
 {
-  return currencies.find(x => x.database_name == currencyDbName)!.display_name;
+  return currencies.find(x => x.database_name == currencyDbName).database_name;
 }
 
 export function getCurrencyIcon(currencyDbName:string) :string
@@ -42,17 +42,18 @@ export function getCurrencyIcon(currencyDbName:string) :string
 
 export function getMaterialDisplayName(materialDbName:string) :string
 {
-  return materials.find(x => x.database_name == materialDbName)!.display_name;
+  return materials.find("database_name",materialDbName).display_name!;
 }
 
 export function getMaterialIcon(materialDbName:string) :string
 {
-  return materials.find(x => x.database_name == materialDbName)!.icon_name;
+  return materials.find("database_name",materialDbName).icon_name!;
 }
 
-export function getEquipmentSlotDisplayName(equipmentSlotDbName:string) :string
+export function getEquipmentSlotDisplayName(equipmentSlot:string | number) :string
 {
-  return equipment_slots.find(x => x.database_name == equipmentSlotDbName)!.display_name;
+  if (!isNaN(equipmentSlot as number)) return equipment_slots.find(x => x.id == equipmentSlot)!.display_name;
+  else return equipment_slots.find(x => x.database_name == equipmentSlot as string)!.display_name;
 }
 
 /**
@@ -109,7 +110,7 @@ export function editCollectionNumberValue(collection: Discord.Collection<any,num
  */
 export function calculateReqExp(level:number) :number
 {
-  return Math.round(exp_req_base_exp + (exp_req_base_exp * ((level ** exp_req_multiplier)-level)));
+  return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level ** cf.exp_req_multiplier)-level)));
 }
 
 /**
@@ -139,8 +140,11 @@ export async function getItemData(item_ids: number | number[]) : Promise<_item |
   });
 }
 
+export function clamp(number:number,min:number, max:number) {
+  return Math.min(Math.max(number, min), max);
+};
 
-export async function CreateRegisterEmbed(user: Discord.GuildMember) :Promise<Discord.RichEmbed>
+export async function createRegisterEmbed(user: Discord.GuildMember) :Promise<Discord.RichEmbed>
 {
   return new Promise(async function(resolve, reject)
   {
@@ -170,7 +174,7 @@ export async function CreateRegisterEmbed(user: Discord.GuildMember) :Promise<Di
       .addField("👥 **Join us!**","I'd be thrilled to recruit another adventurer with potential! Join the growing RPG community, become the strongest of them all and kick some ass!")
 
       .addField("❔ **'How?!'**","To join us you will have to create your character first. You can do so by choosing what class you'd like to be! "+
-      "\n\n**When you have made up your mind simply execute the command: `"+prefix+"register [class]`**")
+      "\n\n**When you have made up your mind simply execute the command: `"+cf.prefix+"register [class]`**")
 
       .addField("⚔️ **Pick your poison!**","Available classes:\n\n"+availableClassesString)
 

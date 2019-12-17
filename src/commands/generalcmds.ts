@@ -3,37 +3,42 @@ import {client} from '../main';
 import {equipment_slots, item_qualities, item_types} from '../staticdata';
 import {_class, _item, _item_type, _shop_item, _consumable, _enemy} from '../interfaces';
 import * as cf from "../config.json";
-import {getItemData} from '../utils';
+import {getItemData, getCurrencyDisplayName, getCurrencyIcon, queryPromise} from '../utils';
 
 export const commands = [
 	{
 		name: 'itemdata',
 		aliases: ['id'],
 		description: 'Shows all the information about an item.',
-		usage: `${cf.prefix}itemdata [itemID]`,
+		usage: `${cf.prefix}itemdata [itemID/ItemName]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{
-				if (args.length == 0 || parseInt(args[0]) == undefined){ throw "Please enter a valid id."}
-				const item = await getItemData(parseInt(args[0])) as _item
+				if (args.length == 0) throw "Please enter an id/Name"
+
+				let item : _item;
+				parseInt(args[0]) ? item = await getItemData(parseInt(args[0])) as _item : item = (await queryPromise(`SELECT * FROM items WHERE LOWER(name)='${args.reduce((a, x) => a + " " + x.toString()).toLowerCase()}'`))[0];
+				//Check if item's name exists within database.
+				
+				if (item == undefined) throw "Could not find that item."
+				
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
-				.setTitle(`Item #${item!.id}: ${item!.name}`)
+				.setTitle(`Item #${item!.id}: ${item!.icon_name} ${item!.name}`)
 				.addField("Desciption:", item!.description)
 
 				.addField("Info:",
 				`**Quality:** ${item_qualities.find(quality => quality.id == item!.quality)!.name}\n`+
-				`**Slot:** ${equipment_slots.find(slot => slot.id == item!.slot)!.name}\n`+
+				`**Slot:** ${equipment_slots.find(x => x.id == item.quality).display_name}\n`+
 				`**Type:** ${item_types.find(type => type.id == item!.type)!.name}\n`+
-				`**Level Req:** ${item!.level_req}\n`,true)
+				`**Level Req:** ${item!.level_req}\n`+
+				`**Sell Price:** ${getCurrencyIcon("coins")} ${item.sell_price} ${getCurrencyDisplayName("coins")}`,true)
 				
 				.addField("Stats:",
 				`**ATK:** ${item!.atk}\n`+
 				`**DEF:** ${item!.def}\n`+
 				`**ACC:** ${item!.acc}\n`,true)
-
-				.setThumbnail("http://159.89.133.235/DiscordBotImgs/logo.png")
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 				
@@ -41,6 +46,7 @@ export const commands = [
 			}
 			catch(err)
 			{
+				console.log(err);
 				msg.channel.send(err);
 			}
 		},
