@@ -1,15 +1,15 @@
 import Discord from 'discord.js';
 import {client} from '../main';
-import {prefix} from "../config.json";
 import { blacklistedChannels } from '../staticdata';
 import { queryPromise } from '../utils';
 
 export const commands = [
 	{
 		name: 'blacklist',
+		category: "admin",
 		aliases: [],
 		description: 'Blacklist a channel in your server and prevent commands from executing there. Execute this again to undo the blacklisting./',
-		usage: `${prefix}blacklist [ChannelName]`,
+		usage: `[prefix]blacklist [ChannelName]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try

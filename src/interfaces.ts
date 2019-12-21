@@ -88,6 +88,7 @@ export interface _zone
 {
   id: number,
   name: string,
+  boss_id: number,
 }
 
 export interface _material
@@ -145,6 +146,7 @@ export interface _enemy
   id: number,
   name: string,
 
+  base_level: number,
   base_hp: number,
   base_atk: number,
   base_def: number,
@@ -165,6 +167,34 @@ export interface _enemy
   exp_increase: number,
 }
 
+export interface _boss
+{
+  id: number,
+  name: string,
+  hp: number,
+  atk: number,
+  def: number,
+  abilities: string,
+  pre_dialogue: string,
+}
+
+export interface _boss_abbility
+{
+  id: number,
+  name: string,
+  atk_percentage: string,
+  dialogue: string,
+}
+
+export interface _boss_currency_drop_data{
+  id: number,
+  boss_id: number,
+  currency_name: string,
+  amount_min: number,
+  amount_max: number,
+  drop_chance: number,
+}
+
 export interface _enemy_currency_drop_data{
   id: number,
   enemy_id: number,
@@ -174,6 +204,15 @@ export interface _enemy_currency_drop_data{
   amount_increase: number,
   base_drop_chance: number,
   drop_chance_increase: number,
+}
+
+export interface _boss_material_drop_data{
+  id: number,
+  boss_id: number,
+  material_name: string,
+  amount_min: number,
+  amount_max: number,
+  drop_chance: number,
 }
 
 export interface _enemy_material_drop_data{
@@ -195,14 +234,22 @@ export interface _enemy_item_drop_data{
   chance_increase: number,
 }
 
-export interface _enemy_currency_drop{
+export interface _boss_item_drop_data{
+  boss_id: number,
+  item_id: number,
+  drop_chance: number,
+}
+
+export interface _currency_drop{
   currency_name: string,
   amount: number,
 }
-export interface _enemy_material_drop{
+
+export interface _material_drop{
   material_name: string,
   amount: number,
 }
+
 export interface _deck_card
 {
   value: string,

@@ -1,15 +1,23 @@
 import {Collection} from "discord.js"
-import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category, _material, _currency} from './interfaces';
+import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility} from './interfaces';
 import { queryPromise } from './utils';
 
 export var classes: Collection<number,_class> = new Collection();
 export var item_types: Collection<number,_item_type> = new Collection();
 export var item_qualities: Collection<number,_item_quality> = new Collection();
 
+//enemyData
 export var enemies: Collection<number,_enemy> = new Collection();
 export var enemies_item_drop_data: Collection<number,_enemy_item_drop_data> = new Collection();
 export var enemies_currency_drop_data: Collection<number,_enemy_currency_drop_data> = new Collection();
 export var enemies_material_drop_data: Collection<number,_enemy_material_drop_data> = new Collection();
+
+//bossData
+export var bosses: Collection<number,_boss> = new Collection();
+export var bosses_abilities: Collection<number,_boss_abbility> = new Collection();
+export var bosses_item_drop_data: Collection<number,_boss_item_drop_data> = new Collection();
+export var bosses_currency_drop_data: Collection<number,_boss_currency_drop_data> = new Collection();
+export var bosses_material_drop_data: Collection<number,_boss_material_drop_data> = new Collection();
 
 export var consumables: Collection<number,_consumable> = new Collection();
 
@@ -43,10 +51,18 @@ export async function LoadStaticDatabaseData()
     item_types = await loadDbData("item_types");
     item_qualities = await loadDbData("item_qualities");
 
+    //EnemyData
     enemies = await loadDbData("enemies");
     enemies_item_drop_data = await loadDbData("enemy_item_drops")
     enemies_currency_drop_data = await loadDbData("enemy_currency_drops")
     enemies_material_drop_data = await loadDbData("enemy_material_drops")
+
+    //BossData
+    bosses = await loadDbData("bosses");
+    bosses_abilities = await loadDbData("boss_abilities");
+    bosses_item_drop_data = await loadDbData("boss_item_drops")
+    bosses_currency_drop_data = await loadDbData("boss_currency_drops")
+    bosses_material_drop_data = await loadDbData("boss_material_drops")
 
     zone_fish_drops = await loadDbData("zone_fish_drops");
     zone_mine_drops = await loadDbData("zone_mine_drops");

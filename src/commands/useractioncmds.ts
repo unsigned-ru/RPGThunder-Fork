@@ -1,19 +1,22 @@
-import { client, con, explore_command_cooldown } from "../main";
+import { client, con, explore_command_cooldown, zoneBossSessions } from "../main";
 import cf from "../config.json"
-import Discord from "discord.js"
-import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName } from "../utils";
-import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones } from "../staticdata";
+import Discord, { User } from "discord.js"
+import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue } from "../utils";
+import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones, consumables, bosses, bosses_currency_drop_data, bosses_item_drop_data, bosses_material_drop_data } from "../staticdata";
 import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule } from "../classes/userdata";
 import { Enemy } from "../classes/enemy";
-import { _item } from "../interfaces";
+import { _item, _consumable } from "../interfaces";
+import { ZoneBossSession } from "../classes/zoneBossSession";
+import { Boss } from "../classes/boss";
 
 export const commands = 
 [
 	{
 		name: 'equip',
+		category: "items",
 		aliases: [],
 		description: 'Equips an item or a set of items from your inventory.',
-		usage: `${cf.prefix}equip [itemID1] [itemID2] ...`,
+		usage: `[prefix]equip [itemID1/ItemName1] [itemID2/ItemName2] ...`,
 		async execute(msg: Discord.Message, args: string[])
 		{
 			var sucess_output :string = "";
@@ -24,24 +27,44 @@ export const commands =
 				var item_ids :number[] = [];
 
 				//check if there are args
-				if (args.length == 0) {throw "Please enter the ids of the items you wish to equip."}
-
-				for (var arg of args)
+				if (args.length == 0) {throw "Please enter the ids or names of the items you wish to equip."}
+				console.log(args)
+				for (let arg of args)
 				{
+					console.log(arg)
 					var id = parseInt(arg);
-					if (id != undefined)
+					if (id)
 					{
 						item_ids.push(id);
 					}
-					else throw "One of the id's you entered was invallid.";
 				}
+				//remove resolved ids from args
+				args.map((x) => 
+				{
+					if (item_ids.includes(parseInt(x))) args.splice(args.indexOf(x)); 
+				})
 
+				//Get the itemnames out of the args
+				const itemNames = args.join(" ").toLowerCase().split(',').map(x => x.trim());
+
+				
 				//Check if the user is registered.
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to equip an item."
 				
 				//Get the users class
 				const [basicMod,inventoryMod,equipmentMod] = <[basicModule,inventoryModule,equipmentModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.inventory,userDataModules.equipment]).init();
+				if (inventoryMod.isEmpty) throw "Your inventory is empty, you cannot equip any items."
 				
+				//convert the Itemnames to id's
+				console.log(itemNames);
+				for (let itemName of itemNames)
+				{
+					if (itemName.length == 0) continue;
+					const item = inventoryMod.inventory.find(x => x.item.name.toLowerCase() == itemName)
+					if (item) item_ids.push(item.item.id);
+					else throw "You do not own an item with the name: "+ itemName;
+				}
+
 				//Iterate over each item_id
 				for (var item_id of item_ids)
 				{
@@ -56,14 +79,14 @@ export const commands =
 					
 					console.log(itemToEquip);
 					//check if the users level is high enough
-					if (itemToEquip.item.level_req > basicMod.level!) throw "You are not high enough level to equip item with id: "+item_id
+					if (itemToEquip.item.level_req > basicMod.level!) throw `You are not high enough level to equip item ${itemToEquip.item.id} - ${itemToEquip.item.icon_name} ${itemToEquip.item.name}`;
 
 					//check if the user is allowed to wear this type.
-					if (!basicMod.class!.allowed_item_types.split(",").includes(itemToEquip.item.type.toString())) throw `You cannot equip item with \`id: ${item_id}\` because your class is not allowed to equip the type: \`${item_types.get(itemToEquip.item!.type)!.name}\``
+					if (!basicMod.class!.allowed_item_types.split(",").includes(itemToEquip.item.type.toString())) throw `You cannot equip item __${itemToEquip.item.id} - ${itemToEquip.item.icon_name} ${itemToEquip.item.name}__ because your class is not allowed to equip the type: \`${item_types.get(itemToEquip.item!.type)!.name}\``
 					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.database_name,itemToEquip.item);
 					//add the equipped type to already_equipped_slots.
 					already_equipped_slots.push(itemToEquip.item.slot);
-					sucess_output += `You have sucessfully equipped: ${itemToEquip.item.icon_name} ${itemToEquip.item.name} in the slot: ${slot.display_name}!\n`
+					sucess_output += `You have sucessfully equipped: __${itemToEquip.item.id} - ${itemToEquip.item.icon_name} ${itemToEquip.item.name}__ in the slot: ${slot.display_name}!\n`
 				}
 				await equipmentMod.update(msg.author.id);
 				msg.channel.send(sucess_output);
@@ -77,23 +100,26 @@ export const commands =
 	},
 	{
 		name: 'consume',
-		aliases: ['devour'],
+		category: "items",
+		aliases: ['csm'],
 		description: 'Consume a consumable',
-		usage: `${cf.prefix}consume [ID]`,
+		usage: `[prefix]consume [consumableID/consumableName]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{
-				if (!await isRegistered(msg.author.id)) throw "You must be registered to view your inventory.";
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
 
 				//check args
-				if (!parseInt(args[0])) throw "Please enter the id of the consumable you wish to consume.\nUsage: `"+this.usage+"`";
+				if (args.length == 0) throw "Please enter the id of the consumable you wish to consume.\nUsage: `"+this.usage+"`";
 
 				const [consumablesMod] =  <[consumablesModule]> await new UserData(msg.author.id,[userDataModules.consumables]).init();
 
+				
+				var cons = parseInt(args[0]) ? consumablesMod.consumables.get(parseInt(args[0])) : consumablesMod.consumables.find(x => x.cons.name.toLowerCase() == args.join(" ").trim().toLowerCase());
+
 				//check if user owns the consumable
-				const cons = consumablesMod.consumables.get(parseInt(args[0]))
-				if(!cons || !cons.cons) throw "You do not own a consumable with that id."; 
+				if(!cons || !cons.cons) throw "You do not own the consumable: "+ args[0]; 
 				
 				//update our stats
 				const [basicMod, equipmentMod, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
@@ -113,10 +139,65 @@ export const commands =
 		},
 	},
 	{
+		name: 'heal',
+		category: "items",
+		aliases: [],
+		description: 'Consume your smallest potions untill you reach full health.',
+		usage: `[prefix]heal`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
+
+				const [consumablesMod, basicMod, equipmentMod, statMod] = <[consumablesModule,basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.consumables,userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
+				
+				if (consumablesMod.isEmpty) throw "You do not own any potions!";
+
+				let consumedAmounts: Discord.Collection<number,number> = new Discord.Collection();
+
+				if (basicMod.current_hp! == statMod.stats.get("max_hp")!) throw "You are already full health!"
+
+				while (basicMod.current_hp! < statMod.stats.get("max_hp")!)
+				{
+					//get smallest consumable
+					const cons = consumablesMod.consumables.get(1);
+					//check if undefined or null
+					if (!cons) 
+					{
+						let csmedString = "";
+						for (let ca of consumedAmounts) csmedString += `${ca[0]} x${ca[1]}\n`
+						msg.channel.send(`You have run out of potions, your current health is ${basicMod.current_hp}/${statMod.stats.get("max_hp")}\nYou have consumed:\n${csmedString}`);
+					}
+					
+					//Heal us up and remove consumable
+					UserData.heal(basicMod,statMod,cons!.cons.hp);
+					UserData.removeConsumable(msg.author.id,consumablesMod,cons!.cons);
+
+					//Add to consumedAmounts
+					if (consumedAmounts.has(cons!.cons.id)) editCollectionNumberValue(consumedAmounts,cons!.cons.id,1);
+					else consumedAmounts.set(cons!.cons.id,1);
+				}
+				//update the health
+				basicMod.update(msg.author.id);
+				
+				let csmedString = "";
+				for (let ca of consumedAmounts) csmedString += `${consumables.get(ca[0])!.icon_name} ${consumables.get(ca[0])!.name} x${ca[1]}\n`
+				msg.channel.send(`Your health has been restored to full. You have consumed:\n${csmedString}`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
 		name: 'explore',
+		category: "fighting",
 		aliases: ['adventure'],
 		description: 'Explore your zone! Be careful, you might end up fighting eou might end up fighting enemies!',
-		usage: `${cf.prefix}explore`,
+		usage: `[prefix]explore`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -138,7 +219,9 @@ export const commands =
 				//get users data
 				const [basicMod, equipMod,statsMod] = <[basicModule, equipmentModule, statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
 
-				if (basicMod.current_hp! <= statsMod.stats.get("max_hp")! / 100 * 10) throw "Your health is too low to adventure!";
+				//TODO: when horses are added let the horse stop you from marching to your death
+				// if (basicMod.current_hp! <= statsMod.stats.get("max_hp")! / 100 * 10) throw "Your health is too low to adventure!"
+				
 				const previousHp = basicMod.current_hp!;
 
 				//Find a enemy from the static loaded data.
@@ -189,7 +272,7 @@ export const commands =
 						//Construct a message
 						const winEmbed = new Discord.RichEmbed()
 						.setColor('#00ff7b') //green
-						.setTitle(`Exploration Success!`)
+						.setTitle(`⚔️ Exploration Success! ✅`)
 						.setDescription(
 
 						`**${msg.author.username}** explored **${zones.get(basicMod.zone!)!.name}** and **killed a level ${enemy.level} ${enemy.name}**\n`+
@@ -210,7 +293,7 @@ export const commands =
 					case "lost":
 						const lossEmbed = new Discord.RichEmbed()
 						.setColor('#ff0000') //red
-						.setTitle(`Exploration Failed`)
+						.setTitle(`⚔️ Exploration Failed ❌`)
 						.setDescription(
 						`**${msg.author.username}** explored **${zones.get(basicMod.zone!)!.name}** and got killed by **a level ${enemy.level} ${enemy.name}**\n`+
 						`**YOU LOST 1 LEVEL AS DEATH PENALTY**\n
@@ -222,13 +305,63 @@ export const commands =
 						{
 							basicMod.level! -= 1;
 							basicMod.exp! = (calculateReqExp(basicMod.level!-1) / 100 * basicMod.exp! / calculateReqExp(basicMod.level!)*100);
-							await statsMod.init(basicMod, equipMod);
-							basicMod.current_hp = statsMod.stats.get("max_hp");
-
-							basicMod.update(msg.author.id);
 						}						
+						await statsMod.init(basicMod, equipMod);
+						basicMod.current_hp = statsMod.stats.get("max_hp");
+						basicMod.update(msg.author.id);
 						break;
 				}
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+		
+	},
+	{
+		name: 'boss',
+		category: "fighting",
+		aliases: [],
+		description: 'qsdqsd',
+		usage: `[prefix]boss`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				//check if is in guild.
+				if (msg.channel.type == "dm") throw "You can only initiate a session in a discord server.";
+
+				if (!await isRegistered(msg.author.id)) throw "You must be registered use this command.";
+
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
+				var zone = zones.get(basicMod.zone!)!;
+				
+				//Check if the zone has a boss
+				if (!bosses.has(zone.boss_id)) throw "This zone does not have a boss (yet).";
+
+				//check if we have found the boss yet.
+				if (!basicMod.foundBosses.includes(bosses.get(zone.boss_id)!.id)) throw "You have not found this zone's boss yet. Explore some more!";
+
+				//check for an active session.
+				if (zoneBossSessions.find(x => x.user.id == msg.author.id)) throw "You still have an open session please end your previous session!";
+			
+				//create an instance of the boss class.
+				var bossdata = bosses.get(zone.boss_id)!;
+				console.log(bossdata.abilities);
+				var currency_drops = bosses_currency_drop_data.filter(x => x.boss_id == bossdata.id).array();
+				var item_drops = bosses_item_drop_data.filter(x => x.boss_id == bossdata.id).array();
+				var material_drops = bosses_material_drop_data.filter(x => x.boss_id == bossdata.id).array();
+				const boss = new Boss(bossdata,currency_drops,item_drops,material_drops);
+
+				const bossSession = new ZoneBossSession(msg.channel as Discord.TextChannel,msg.author,boss);
+				zoneBossSessions.push(bossSession);
+				await bossSession.initAsync();
+			
+				await msg.channel.send(`${msg.author.username} has started fighting the boss **${boss.name}** of zone **${zone.name}**\nClick the link below to join or watch!`);
+				msg.channel.send(bossSession.invite!.url)
 			}
 			catch(err)
 			{
@@ -242,7 +375,7 @@ export const commands =
 		name: 'register',
 		aliases: [],
 		description: 'Registers a user!',
-		usage: `${cf.prefix}register [class]`,
+		usage: `[prefix]register [class]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try

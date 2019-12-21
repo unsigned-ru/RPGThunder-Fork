@@ -9,9 +9,10 @@ export const commands =
 [
     {
 		name: 'profile',
+		category: "statistics",
 		aliases: ['pf'],
 		description: 'Shows a user profile containing their class, stats and equipment.',
-		usage:`${cf.prefix}profile [optional: @User]`,
+		usage: `[prefix]profile [optional: @User]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			var user: Discord.GuildMember;
@@ -76,9 +77,10 @@ export const commands =
 	},
 	{
 		name: 'currencies',
+		category: "statistics",
 		aliases: ['$','curr','coins'],
 		description: 'Lists all currencies and their amounts.',
-		usage: `${cf.prefix}currencies`,
+		usage: `[prefix]currencies`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -114,9 +116,10 @@ export const commands =
 	},
 	{
 		name: 'materials',
+		category: "statistics",
 		aliases: ['mats'],
 		description: 'Lists all materials and their amounts.',
-		usage: `${cf.prefix}materials`,
+		usage: `[prefix]materials`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -153,9 +156,10 @@ export const commands =
 	},
 	{
 		name: 'inventory',
+		category: "statistics",
 		aliases: ['inv'],
 		description: 'Lists all items in your inventory and their respective ids.',
-		usage: `${cf.prefix}inventory`,
+		usage: `[prefix]inventory`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -189,9 +193,10 @@ export const commands =
 	},
 	{
 		name: 'consumables',
+		category: "statistics",
 		aliases: ['nomnoms','pots','food'],
 		description: 'Lists all consumables in your inventory and their respective ids.',
-		usage: `${cf.prefix}consumables`,
+		usage: `[prefix]consumables`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -229,9 +234,10 @@ export const commands =
 	},
 	{
 		name: 'cooldown',
+		category: "statistics",
 		aliases: ['cd'],
 		description: 'Check your cooldowns',
-		usage: `${cf.prefix}cooldown`,
+		usage: `[prefix]cooldown`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -281,9 +287,10 @@ export const commands =
 	},
 	{
 		name: 'ready',
+		category: "statistics",
 		aliases: ['rd'],
 		description: 'Check what cooldowns are ready.',
-		usage: `${cf.prefix}ready`,
+		usage: `[prefix]ready`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try

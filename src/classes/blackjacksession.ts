@@ -2,7 +2,7 @@ import Discord from "discord.js";
 import { _deck_card } from "../interfaces";
 import { client, blackjackSessions } from "../main";
 import {official_server_id,session_category_id} from "../config.json";
-import { sleep, randomIntFromInterval, queryPromise, editCollectionNumberValue, getCurrencyIcon, getCurrencyDisplayName } from "../utils";
+import { sleep, randomIntFromInterval, editCollectionNumberValue, getCurrencyIcon, getCurrencyDisplayName } from "../utils";
 import { currencyModule, UserData, userDataModules } from "./userdata";
 
 export class BlackJackSession
@@ -22,7 +22,8 @@ export class BlackJackSession
   isStanding = false;
   invite: Discord.Invite | undefined;
   
-  constructor(executedChannel:Discord.TextChannel, user:Discord.User, amount:number){
+  constructor(executedChannel:Discord.TextChannel, user:Discord.User, amount:number)
+  {
     this.executedChannel = executedChannel;
     this.user = user;
     this.amount = amount;
@@ -39,7 +40,7 @@ export class BlackJackSession
       var parentCategory = this.bjGuild.channels.get(session_category_id)!;
       
       //if the channel exists delete it first. then create a channel for play and add permissions for user.
-      if (this.bjGuild!.channels.find(x => x.name.includes(this.user.id.slice(0,4)))) await this.bjGuild.channels.find(x => x.name.includes(this.user.id.slice(0,4))).delete();
+      if (this.bjGuild!.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes("blackjack"))) await this.bjGuild.channels.find(x => x.name.includes(this.user.id.slice(0,4))).delete();
 
       const newchannel = (await this.bjGuild!.createChannel(`blackjack-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory,
       permissionOverwrites: [

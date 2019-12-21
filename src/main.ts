@@ -13,6 +13,7 @@ import * as admincommands from "./commands/admincmds"
 import * as staticData from "./staticdata";
 import {_client, _command_cooldown} from "./interfaces";
 import { BlackJackSession } from './classes/blackjacksession.js';
+import { ZoneBossSession } from './classes/zoneBossSession.js';
 
 export const client: _client = { c:new Discord.Client(), commands: new Discord.Collection()};
 
@@ -20,7 +21,8 @@ export const client: _client = { c:new Discord.Client(), commands: new Discord.C
 export var gather_commands_cooldown :_command_cooldown[] = []; //TODO: change system
 export var explore_command_cooldown :_command_cooldown[] = []; //TODO: change system
 
-export var blackjackSessions :BlackJackSession[] = []; //TODO: move to seperate file.
+export var blackjackSessions :BlackJackSession[] = [];
+export var zoneBossSessions :ZoneBossSession[] = []
 
 //setup SQL connection as an export
 export const con = mysql.createConnection({

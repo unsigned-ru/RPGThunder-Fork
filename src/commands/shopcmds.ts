@@ -1,7 +1,7 @@
 import Discord, { User } from 'discord.js';
 import {client} from '../main';
 import cf from "../config.json";
-import {isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue, getEquipmentSlotDisplayName} from "../utils";
+import {isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue, getEquipmentSlotDisplayName, getGuildPrefix} from "../utils";
 import {zone_shops, shop_categories, zones, item_qualities } from '../staticdata';
 import { _shop_item, _consumable, _item, _material } from '../interfaces';
 import { inventoryModule, userDataModules, UserData, currencyModule, basicModule } from '../classes/userdata';
@@ -10,9 +10,10 @@ export const commands =
 [
 	{
 		name: 'shop',
+		category: "economy",
 		aliases: [],
 		description: 'Shop for items or consumables',
-		usage: `${cf.prefix}shop [category] (items/consumables)`,
+		usage: `[prefix]shop`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -26,33 +27,42 @@ export const commands =
 
 				if (entries.size == 0) throw "This zone has no shop!"; 
 
-				let shopString = "";
+				let shopStrings = [];
+				let currentString = "";
 				for(let entry of entries)
 				{
+					if (currentString.length > 900) 
+					{
+						shopStrings.push(currentString);
+						currentString = "";
+					}
 					switch(shop_categories.get(entry[1].category_id)!.name)
 					{
 						case "item":
 							const item: _item = (await queryPromise(`SELECT * from items WHERE id=${entry[1].entry_id}`))[0];
-							shopString += `${item.icon_name} ${item.name} [${item_qualities.get(item.quality)!.name} ${getEquipmentSlotDisplayName(item.slot)}] - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
+							currentString += `${item.icon_name} ${item.name} [${item_qualities.get(item.quality)!.name} ${getEquipmentSlotDisplayName(item.slot)}] - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
 							break;
 						case "consumable":
 							const cons: _consumable = (await queryPromise(`SELECT * from consumables WHERE id=${entry[1].entry_id}`))[0];
-							shopString += `${cons.icon_name} ${cons.name} [${cons.hp}HP] - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
+							currentString += `${cons.icon_name} ${cons.name} [${cons.hp}HP] - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
 							break;
 						case "material":
 							const material: _material = (await queryPromise(`SELECT * from materials WHERE id=${entry[1].entry_id}`))[0];
-							shopString += `${material.icon_name} ${material.display_name} - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
+							currentString += `${material.icon_name} ${material.display_name} - ${getCurrencyIcon("coins")} ${entry[1].entry_price} ${getCurrencyDisplayName("coins")}\n`
 							break;
 					}
 				}
+				if (currentString.length > 0) shopStrings.push(currentString);
 
 				const shopEmbed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
 				.setTitle(`Shop -- ${zones.get(basicMod.zone!)!.name}`)
-				.addField("**Entries**",shopString)
-				.setAuthor("Vendor: Execute "+cf.prefix+"buy [ITEMNAME] [optional: AMOUNT] to buy an item!",'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setAuthor("Vendor: Execute "+getGuildPrefix(msg.guild.id)+"buy [ITEMNAME] [optional: AMOUNT] to buy an item!",'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+
+				for (let shopString of shopStrings) shopEmbed.addField("**\u200b**",shopString);
+
 				msg.channel.send(shopEmbed);
 			}
 			catch(err)
@@ -65,9 +75,10 @@ export const commands =
 	},
 	{
 		name: 'buy',
+		category: "economy",
 		aliases: ["purchase"],
 		description: 'Buy an item from the shop',
-		usage: `${cf.prefix}buy [ITEMNAME] [AMOUNT]`,
+		usage: `[prefix]buy [ITEMNAME] [AMOUNT]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -127,7 +138,7 @@ export const commands =
 				const entry = entries.find(x=> shop_categories.get(x.category_id!)!.name == entryData!.objType && x.entry_id == entryData!.id);
 
 				//Check if user has enough balance
-				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \${itemName}\`x${amount}!`
+				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \$${itemName}\`x${amount}!`
 				//Add it to the appropriate inventory.
 				let sql = "";
 				
@@ -161,9 +172,10 @@ export const commands =
 	},
 	{
 		name: 'sell',
+		category: "economy",
 		aliases: ["sell"],
 		description: 'Sell items for their standard sell price.',
-		usage: `${cf.prefix}sell [itemID1] [itemID2] [itemID3] ...`,
+		usage: `[prefix]sell [itemID1] [itemID2] [itemID3] ...`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try

@@ -22,6 +22,7 @@ export class basicModule
     level: number | undefined;
     exp: number | undefined;
     current_hp: number | undefined;
+    foundBosses: number[] = [];
 
     public async init(user_id:string)
     {
@@ -32,6 +33,10 @@ export class basicModule
         this.exp = result.exp;
         this.level = result.level;
         this.current_hp = result.current_hp;
+        this.foundBosses = result.found_bosses.split(",").reduce((result:number[],x:string) => {
+            if (x.trim().length == 0) return;
+            else result.push(parseInt(x))
+        });
     }
 
     public async update(user_id:string)
@@ -194,10 +199,10 @@ export class statsModule
     public async init(basicMod:basicModule, equipmentMod:equipmentModule) 
     {
         //calculate base stats (base_STAT) atk - def - acc - current_hp - max_hp
-        this.stats.set("base_atk",basicMod.class!.base_atk + (basicMod.level!-1 * basicMod.class!.atk_increase));
-        this.stats.set("base_def",basicMod.class!.base_def + (basicMod.level!-1 * basicMod.class!.def_increase));
-        this.stats.set("base_acc",basicMod.class!.base_acc + (basicMod.level!-1 * basicMod.class!.acc_increase));
-        this.stats.set("base_hp",basicMod.class!.base_hp + (basicMod.level!-1 * basicMod.class!.hp_increase));
+        this.stats.set("base_atk",basicMod.class!.base_atk + ((basicMod.level!-1) * basicMod.class!.atk_increase));
+        this.stats.set("base_def",basicMod.class!.base_def + ((basicMod.level!-1) * basicMod.class!.def_increase));
+        this.stats.set("base_acc",basicMod.class!.base_acc + ((basicMod.level!-1) * basicMod.class!.acc_increase));
+        this.stats.set("base_hp",basicMod.class!.base_hp + ((basicMod.level!-1) * basicMod.class!.hp_increase));
 
         //calculate gear stats (gear_STAT)
         const gear_stats = equipmentMod.getStatIncrease();
@@ -206,7 +211,7 @@ export class statsModule
         this.stats.set("gear_acc",gear_stats.acc);
         
         //calculate totalStats
-        this.stats.set("max_hp",basicMod.class!.base_hp + (basicMod.level!-1 * basicMod.class!.hp_increase));
+        this.stats.set("max_hp",basicMod.class!.base_hp + ((basicMod.level!-1) * basicMod.class!.hp_increase));
         this.stats.set("total_atk",this.stats.get("base_atk")! + this.stats.get("gear_atk")!);
         this.stats.set("total_def",this.stats.get("base_def")! + this.stats.get("gear_def")!);
         this.stats.set("total_acc",this.stats.get("base_acc")! + this.stats.get("gear_acc")!);

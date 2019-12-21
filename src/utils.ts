@@ -42,12 +42,12 @@ export function getCurrencyIcon(currencyDbName:string) :string
 
 export function getMaterialDisplayName(materialDbName:string) :string
 {
-  return materials.find("database_name",materialDbName).display_name!;
+  return materials.find(x => x.database_name == materialDbName).display_name!;
 }
 
 export function getMaterialIcon(materialDbName:string) :string
 {
-  return materials.find("database_name",materialDbName).icon_name!;
+  return materials.find(x => x.database_name == materialDbName).icon_name!;
 }
 
 export function getEquipmentSlotDisplayName(equipmentSlot:string | number) :string
@@ -174,7 +174,7 @@ export async function createRegisterEmbed(user: Discord.GuildMember) :Promise<Di
       .addField("👥 **Join us!**","I'd be thrilled to recruit another adventurer with potential! Join the growing RPG community, become the strongest of them all and kick some ass!")
 
       .addField("❔ **'How?!'**","To join us you will have to create your character first. You can do so by choosing what class you'd like to be! "+
-      "\n\n**When you have made up your mind simply execute the command: `"+cf.prefix+"register [class]`**")
+      "\n\n**When you have made up your mind simply execute the command: `[prefix]register [class]`**")
 
       .addField("⚔️ **Pick your poison!**","Available classes:\n\n"+availableClassesString)
 
@@ -189,4 +189,10 @@ export async function createRegisterEmbed(user: Discord.GuildMember) :Promise<Di
         reject(err);
     }       
   })
+}
+export async function getGuildPrefix(guild_id:string)
+{
+  const result = (await queryPromise(`SELECT * FROM custom_prefix WHERE guild_id=${guild_id}`))[0]
+  if (result) return result.prefix;
+  else return '$';
 }

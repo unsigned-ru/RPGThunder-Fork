@@ -1,15 +1,15 @@
 import Discord, { RichEmbed } from 'discord.js';
 import {client, con, blackjackSessions} from '../main';
-import {prefix} from "../config.json";
 import {randomIntFromInterval, isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue} from "../utils";
 import { BlackJackSession } from '../classes/blackjacksession';
 import { currencyModule, UserData, userDataModules } from '../classes/userdata';
 export const commands = [
 	{
 		name: 'coinflip',
+		category: "gambling",
 		aliases: ['cf'],
 		description: `Gamble a amount of your coins with a 50/50 coinflip!`,
-		usage: `${prefix}coinflip [h/t](heads or tails) [amount (number/half/full)]`,
+		usage: `[prefix]coinflip [h/t](heads or tails) [amount (number/half/full)]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -64,9 +64,10 @@ export const commands = [
 	},
 	{
 		name: 'blackjack',
+		category: "gambling",
 		aliases: ['bj'],
 		description: `Gamble a amount of your coins and start a blackjack session with the bot.`,
-		usage: `${prefix}blackjack [amount (number/half/full)]`,
+		usage: `[prefix]blackjack [amount (number/half/full)]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -101,17 +102,10 @@ export const commands = [
 
 				//check if user has no active session
 				if (blackjackSessions.find(x => x.user.id == msg.author.id)) throw "You still have an open session please end your previous session!"
-				//TODO: add link to the session here:
 
 				const bjSession = new BlackJackSession(msg.channel as Discord.TextChannel,msg.author,amount);
 				blackjackSessions.push(bjSession);
 				await bjSession.initAsync();
-
-				const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //Yelow
-			
-				.setTimestamp()
-				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 			
 				await msg.channel.send(`${msg.author.username} has started a Blackjack Session ${getCurrencyIcon("coins")} ${amount} ${coins_display_name}!\nClick the link below to join or watch!`);
 				msg.channel.send(bjSession.invite!.url)

@@ -9,9 +9,10 @@ export const commands =
 [
     {
 		name: 'mine',
+		category: "gathering",
 		aliases: [],
 		description: 'Mine current zone for its ores!',
-		usage: `${cf.prefix}mine`,
+		usage: `[prefix]mine`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -58,9 +59,10 @@ export const commands =
 	},
 	{
 		name: 'harvest',
+		category: "gathering",
 		aliases: ['hv'],
 		description: 'Scour your area for harvestable materials!',
-		usage: `${cf.prefix}harvest`,
+		usage: `[prefix]harvest`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -108,9 +110,10 @@ export const commands =
 	},
 	{
 		name: 'chop',
+		category: "gathering",
 		aliases: [],
 		description: 'Chop in your current zone for its wood!',
-		usage: `${cf.prefix}chop`,
+		usage: `[prefix]chop`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -159,9 +162,10 @@ export const commands =
 	},
 	{
 		name: 'fish',
+		category: "gathering",
 		aliases: [],
 		description: 'Fish in a nearby pool in your current zone!',
-		usage: `${cf.prefix}fish`,
+		usage: `[prefix]fish`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
