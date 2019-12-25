@@ -1,7 +1,7 @@
 import * as Discord from "discord.js";
-import {_class,_item,_consumable,_stats} from "../interfaces";
-import {queryPromise, calculateReqExp } from "../utils";
-import {classes, currencies, materials, equipment_slots} from "../staticdata";
+import {_class,_item,_consumable,_stats, _class_ability} from "../interfaces";
+import {queryPromise, calculateReqExp, clamp } from "../utils";
+import {classes, currencies, materials, equipment_slots, class_abilities} from "../staticdata";
 import * as cf from "../config.json";
 
 export enum userDataModules 
@@ -12,7 +12,9 @@ export enum userDataModules
     equipment,
     inventory,
     consumables,
-    stats
+    stats,
+    abilities,
+    spellbook,
 }
 
 export class basicModule
@@ -23,6 +25,7 @@ export class basicModule
     exp: number | undefined;
     current_hp: number | undefined;
     foundBosses: number[] = [];
+    unlockedZones: number[] = [];
 
     public async init(user_id:string)
     {
@@ -33,15 +36,13 @@ export class basicModule
         this.exp = result.exp;
         this.level = result.level;
         this.current_hp = result.current_hp;
-        this.foundBosses = result.found_bosses.split(",").reduce((result:number[],x:string) => {
-            if (x.trim().length == 0) return;
-            else result.push(parseInt(x))
-        });
+        this.foundBosses = result.found_bosses.split(",").filter((x:string) => x.trim().length > 0).map((x:string) => parseInt(x));
+        this.unlockedZones = result.unlocked_zones.split(",").filter((x:string) => x.trim().length > 0).map((x:string) => parseInt(x));
     }
 
     public async update(user_id:string)
     {
-        await queryPromise(`UPDATE users SET class_id=${this.class!.id},level=${this.level},exp=${this.exp},current_hp=${this.current_hp},zone=${this.zone} WHERE user_id='${user_id}';`);
+        await queryPromise(`UPDATE users SET class_id=${this.class!.id},level=${this.level},exp=${this.exp},current_hp=${this.current_hp},zone=${this.zone},found_bosses='${this.foundBosses.join(",")}',unlocked_zones='${this.unlockedZones.join(",")}' WHERE user_id='${user_id}';`);
     }
 }
 
@@ -218,6 +219,40 @@ export class statsModule
     }
 }
 
+export class spellbookModule
+{
+    spellbook: Discord.Collection<number,_class_ability> = new Discord.Collection();
+    isEmpty: boolean = false;
+
+    public async init(user_id:string) 
+    {
+        const result: any[] = await queryPromise(`SELECT * FROM user_spellbook WHERE user_id=${user_id}`);
+
+        if (result.length == 0) return this.isEmpty = true;
+
+        for (let r of result)
+        {
+            this.spellbook.set(r.id,class_abilities.get(r.ability_id)!);
+        }
+    }
+}
+
+export class abilityModule
+{
+    abilities: Discord.Collection<number,_class_ability> = new Discord.Collection();
+
+    public async init(user_id:string) 
+    {
+        //Get ability id's
+        var result = (await queryPromise(`SELECT * FROM user_abilities WHERE user_id=${user_id}`))[0];
+        //Get ability Data and add it to the collection for all abilities.
+        for (let i = 1; i <= 4; i++)
+        {
+            this.abilities.set(i,class_abilities.get(result[i.toString()])!);
+        }
+    }
+}
+
 
 export class UserData
 {
@@ -293,6 +328,16 @@ export class UserData
                             await newModule.init(this.modules.get(userDataModules.basic)!,this.modules.get(userDataModules.equipment)!);
                             this.modules.set(userDataModules.stats,newModule);
                             break;
+                        case userDataModules.abilities:
+                            newModule = new abilityModule();
+                            await newModule.init(this.user_id);
+                            this.modules.set(userDataModules.abilities,newModule);
+                            break;
+                        case userDataModules.spellbook:
+                            newModule = new spellbookModule();
+                            await newModule.init(this.user_id);
+                            this.modules.set(userDataModules.spellbook,newModule);
+                            break;
                     }
                     rv.push(newModule);
                 }
@@ -318,10 +363,22 @@ export class UserData
         if (basicMod.current_hp! + amount > statsMod.stats.get("max_hp")!) basicMod.current_hp = statsMod.stats.get("max_hp")!;
         else basicMod.current_hp! += amount;
     }
-    static takeDamage(basicMod :basicModule, amount:number)
+    static levelDeathPenalty(basicMod :basicModule)
     {
-        if (basicMod.current_hp! - amount < 0) basicMod.current_hp = 0;
-        else basicMod.current_hp! -= amount;
+        if (basicMod.level! > 1) 
+        {
+            basicMod.level! -= 1;
+            basicMod.exp! = (calculateReqExp(basicMod.level!-1) / 100 * basicMod.exp! / calculateReqExp(basicMod.level!)*100);
+        }				
+    }
+    static takeDamage(basicMod :basicModule,statsMod:statsModule, damageToTake:number) :number
+    {
+        clamp((damageToTake * 0.75) - statsMod.stats.get("total_def")!/3,0,Number.MAX_VALUE)
+        const damage = (damageToTake * 0.25) + (clamp((damageToTake * 0.75) - statsMod.stats.get("total_def")!/3,0,Number.MAX_VALUE))
+        if (basicMod.current_hp! - damage < 0) basicMod.current_hp = 0;
+        else basicMod.current_hp! -= damage;
+
+        return damage;
     }
     static async removeConsumable(user_id:string, consumablesMod:consumablesModule, consumable: _consumable)
     {

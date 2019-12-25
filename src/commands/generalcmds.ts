@@ -22,9 +22,6 @@ export const commands = [
 				//Check if item's name exists within database.
 				
 				if (item == undefined) throw "Could not find that item."
-				
-				console.log(item.slot);
-				console.log(equipment_slots);
 
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -63,13 +60,12 @@ export const commands = [
 		{
 			try
 			{	
-				console.log(client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "statistics"}))
-				
-				
+				var prefix = await getGuildPrefix(msg.guild.id)
 				const embed = new Discord.RichEmbed()
-				.setAuthor(`Add ${await getGuildPrefix(msg.guild.id)} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403') //Yelow⛏️
 				.setTitle(`**Commands**`)
+				.setDescription(`**Are you a new user? Type \`${prefix}register\` to get started!**`)
 				.addField("⚙️**Statistic commands**⚙️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "statistics"}).map(x => `\`${x.name}\``).join(","))
 				.addField("**Item commands**",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "items"}).map(x => `\`${x.name}\``).join(","))
 				.addField("⚔️**Fighting commands**⚔️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "fighting"}).map(x => `\`${x.name}\``).join(","))
@@ -88,56 +84,6 @@ export const commands = [
 			}
 		},	
 	},
-	// {
-	// 	name: 'help',
-	// 	aliases: ['commands'],
-	// 	description: 'List help for all commands.',
-	// 	usage: `[prefix]help`,
-	// 	async execute(msg: Discord.Message, args: string[]) 
-	// 	{
-	// 		try
-	// 		{	
-	// 			const commands = client.commands.array();
-	// 			var commandStrings: string[] = [];
-	// 			var commandString = "";
-	// 			for (var command of commands)
-	// 			{
-
-	// 				const aliases = command.aliases.map((el:string) => "`"+el+"`");
-	// 				const stringToAdd = 
-	// 				`➥ **Command: _${command.name}_**\n`+
-	// 				`__Description:__ ${command.description}\n`+
-	// 				`__Usage:__ \`${command.usage}\n\``+
-	// 				`__Aliases:__ ${aliases.length == 0 ? "None" : aliases.join("/")}\n\n`
-
-	// 				if (commandString.length + stringToAdd.length >= 1024) {commandStrings.push(commandString); commandString = "";}
-	// 				commandString += stringToAdd;
-	// 			}
-	// 			if (commandString.length > 0 ) commandStrings.push(commandString);
-				
-
-	// 			//create embed
-	// 			const embed = new Discord.RichEmbed()
-	// 			.setColor('#fcf403') //Yelow
-	// 			.setTitle(`${client.c.user.username} -- Help`)
-	// 			.setTimestamp()
-	// 			.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-				
-	// 			var first = true;
-	// 			for (var string of commandStrings)
-	// 			{
-	// 				if (first) {embed.addField("📰Commands:",string); first = false;}
-	// 				else embed.addField(" ឵឵",string);
-	// 			}
-
-	// 			msg.channel.send(embed);
-	// 		}
-	// 		catch(err)
-	// 		{
-	// 			console.log(err);
-	// 		}
-	// 	},	
-	// },
 ]
 
 export function SetupCommands()

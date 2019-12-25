@@ -1,9 +1,9 @@
-import { client, con, explore_command_cooldown, zoneBossSessions } from "../main";
+import { client, con, explore_command_cooldown, zoneBossSessions, rest_command_cooldown, zoneBoss_command_cooldown } from "../main";
 import cf from "../config.json"
 import Discord, { User } from "discord.js"
-import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue } from "../utils";
+import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue, randomIntFromInterval } from "../utils";
 import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones, consumables, bosses, bosses_currency_drop_data, bosses_item_drop_data, bosses_material_drop_data } from "../staticdata";
-import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule } from "../classes/userdata";
+import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule, abilityModule, currencyModule, materialsModule } from "../classes/userdata";
 import { Enemy } from "../classes/enemy";
 import { _item, _consumable } from "../interfaces";
 import { ZoneBossSession } from "../classes/zoneBossSession";
@@ -28,10 +28,9 @@ export const commands =
 
 				//check if there are args
 				if (args.length == 0) {throw "Please enter the ids or names of the items you wish to equip."}
-				console.log(args)
+
 				for (let arg of args)
 				{
-					console.log(arg)
 					var id = parseInt(arg);
 					if (id)
 					{
@@ -166,8 +165,9 @@ export const commands =
 					if (!cons) 
 					{
 						let csmedString = "";
-						for (let ca of consumedAmounts) csmedString += `${ca[0]} x${ca[1]}\n`
+						for (let ca of consumedAmounts) csmedString += `${consumables.get(ca[0])!.icon_name} ${consumables.get(ca[0])!.name} x${ca[1]}\n`
 						msg.channel.send(`You have run out of potions, your current health is ${basicMod.current_hp}/${statMod.stats.get("max_hp")}\nYou have consumed:\n${csmedString}`);
+						break;
 					}
 					
 					//Heal us up and remove consumable
@@ -184,6 +184,46 @@ export const commands =
 				let csmedString = "";
 				for (let ca of consumedAmounts) csmedString += `${consumables.get(ca[0])!.icon_name} ${consumables.get(ca[0])!.name} x${ca[1]}\n`
 				msg.channel.send(`Your health has been restored to full. You have consumed:\n${csmedString}`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'rest',
+		category: "",
+		aliases: [],
+		description: 'Rest for a night, restore you health daily.',
+		usage: `[prefix]rest`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
+
+				const [basicMod, equipmentMod, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
+
+				if (basicMod.current_hp! == statMod.stats.get("max_hp")!) throw "You are already full health!"
+
+				//Check for cooldown.
+				if (rest_command_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - rest_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference < cf.rest_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.rest_cooldown - difference)} seconds!`;
+					rest_command_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
+				}
+				else
+				{
+					rest_command_cooldown.push({user_id: msg.author.id, date: new Date()});
+				}
+
+				UserData.resetHP(basicMod,statMod);
+				basicMod.update(msg.author.id);
+
+				msg.channel.send(`You have rested and your health has been fully restored!`);
 			}
 			catch(err)
 			{
@@ -265,9 +305,6 @@ export const commands =
 							rewardEmbedString += `${getMaterialIcon(materialDrop.material_name)} ${getMaterialDisplayName(materialDrop.material_name)} ${materialDrop.amount.toFixed()}\n`
 						}
 						if (enemy.material_drops.length >0) queryPromise("UPDATE user_materials SET "+ materialQueryString.slice(0,-1)+" WHERE user_id="+msg.author.id);
-						
-
-						basicMod.update(msg.author.id);
 
 						//Construct a message
 						const winEmbed = new Discord.RichEmbed()
@@ -284,9 +321,16 @@ export const commands =
 
 						var extraInfo = "";
 						if (hasLeveled) extraInfo += `${msg.author.username} has reached level ${basicMod.level}. HP was regenerated.`
-
+						if (!basicMod.foundBosses.includes(zones.get(basicMod.zone!)!.boss_id))
+						{
+							if (randomIntFromInterval(0,100) <= 2) 
+							{
+								basicMod.foundBosses.push(zones.get(basicMod.zone!)!.boss_id);
+								extraInfo += `You have found the location of the boss! You can now fight it!\n`;
+							}
+						}
 						if (extraInfo.length != 0) winEmbed.addField("**Extra Info:**", extraInfo)
-
+						basicMod.update(msg.author.id);
 						msg.channel.send(winEmbed);
 						break;
 
@@ -296,18 +340,14 @@ export const commands =
 						.setTitle(`⚔️ Exploration Failed ❌`)
 						.setDescription(
 						`**${msg.author.username}** explored **${zones.get(basicMod.zone!)!.name}** and got killed by **a level ${enemy.level} ${enemy.name}**\n`+
-						`**YOU LOST 1 LEVEL AS DEATH PENALTY**\n
-						Your health has been restored.`)
+						`**YOU LOST 1 LEVEL AS DEATH PENALTY**\n`+
+						`Your health has been restored.`)
 						.setTimestamp()
 						.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 						msg.channel.send(lossEmbed);
-						if (basicMod.level! > 1) 
-						{
-							basicMod.level! -= 1;
-							basicMod.exp! = (calculateReqExp(basicMod.level!-1) / 100 * basicMod.exp! / calculateReqExp(basicMod.level!)*100);
-						}						
-						await statsMod.init(basicMod, equipMod);
-						basicMod.current_hp = statsMod.stats.get("max_hp");
+						UserData.levelDeathPenalty(basicMod);
+						await statsMod.init(basicMod, equipMod);		
+						UserData.resetHP(basicMod,statsMod);
 						basicMod.update(msg.author.id);
 						break;
 				}
@@ -324,7 +364,7 @@ export const commands =
 		name: 'boss',
 		category: "fighting",
 		aliases: [],
-		description: 'qsdqsd',
+		description: 'Fight your the boss of your current zone.',
 		usage: `[prefix]boss`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
@@ -335,7 +375,7 @@ export const commands =
 
 				if (!await isRegistered(msg.author.id)) throw "You must be registered use this command.";
 
-				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+				const [basicMod,consumablesMod,currencyMod,equipmentMod,inventoryMod,materialMod,statsMod,abilityMod] = <[basicModule,consumablesModule,currencyModule,equipmentModule,inventoryModule,materialsModule,statsModule,abilityModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.consumables,userDataModules.currencies,userDataModules.equipment,userDataModules.inventory,userDataModules.materials,userDataModules.stats,userDataModules.abilities]).init();
 
 				var zone = zones.get(basicMod.zone!)!;
 				
@@ -347,21 +387,34 @@ export const commands =
 
 				//check for an active session.
 				if (zoneBossSessions.find(x => x.user.id == msg.author.id)) throw "You still have an open session please end your previous session!";
-			
+		
+				//Check for cooldown.
+				if (zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference < cf.zoneBoss_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.zoneBoss_cooldown - difference)} seconds!`;
+					zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
+				}
+				else
+				{
+					zoneBoss_command_cooldown.push({user_id: msg.author.id, date: new Date()});
+				}
+
 				//create an instance of the boss class.
 				var bossdata = bosses.get(zone.boss_id)!;
-				console.log(bossdata.abilities);
 				var currency_drops = bosses_currency_drop_data.filter(x => x.boss_id == bossdata.id).array();
 				var item_drops = bosses_item_drop_data.filter(x => x.boss_id == bossdata.id).array();
 				var material_drops = bosses_material_drop_data.filter(x => x.boss_id == bossdata.id).array();
 				const boss = new Boss(bossdata,currency_drops,item_drops,material_drops);
 
-				const bossSession = new ZoneBossSession(msg.channel as Discord.TextChannel,msg.author,boss);
+				const bossSession = new ZoneBossSession(msg.channel as Discord.TextChannel,msg.author,boss,zone.name,basicMod,equipmentMod, statsMod, abilityMod,currencyMod,materialMod,inventoryMod);
 				zoneBossSessions.push(bossSession);
 				await bossSession.initAsync();
 			
 				await msg.channel.send(`${msg.author.username} has started fighting the boss **${boss.name}** of zone **${zone.name}**\nClick the link below to join or watch!`);
-				msg.channel.send(bossSession.invite!.url)
+				msg.channel.send(bossSession.invite!.url);
+
+
 			}
 			catch(err)
 			{
@@ -394,7 +447,7 @@ export const commands =
 				const selectedClass = classes.find(element => element.name.toLowerCase() == args[0].toLowerCase());
 				if (!selectedClass) throw "Did not find a class with that name.";
 
-				const sql = 
+				var sql = 
 				//user creation.
 				`INSERT INTO users(user_id,class_id,datetime_joined,current_hp) VALUES ('${msg.author.id}',${selectedClass.id},${con.escape(new Date())}, ${selectedClass.base_hp});` +
 				//user_equipment creation + asigning starter gear.
@@ -405,10 +458,25 @@ export const commands =
 				//user_currencies creation.
 				`INSERT INTO user_currencies(user_id,coins) VALUES ('${msg.author.id}',50);`+
 				//user_consumables default 2hp pots
-				`INSERT INTO user_consumables(user_id,consumable_id) VALUES ('${msg.author.id}',1);`+
-				`INSERT INTO user_consumables(user_id,consumable_id) VALUES ('${msg.author.id}',1);`+
+				`INSERT INTO user_consumables(user_id,consumable_id) VALUES ('${msg.author.id}',1), ('${msg.author.id}',1), ('${msg.author.id}',1), ('${msg.author.id}',1), ('${msg.author.id}',1);`+
 				//userMats creation
-				`INSERT INTO user_materials(user_id) VALUES ('${msg.author.id}');`
+				`INSERT INTO user_materials(user_id) VALUES ('${msg.author.id}');`;
+
+				switch(selectedClass.name.toLowerCase())
+				{
+					case "mage":
+						sql += `INSERT INTO user_spellbook(user_id,ability_id) VALUES (${msg.author.id},1), (${msg.author.id},2);`
+						sql += `INSERT INTO \`user_abilities\` (\`user_id\`, \`1\`, \`2\`) VALUES ('${msg.author.id}', '1', '2');`
+						break;
+					case "warrior":
+						sql += `INSERT INTO user_spellbook(user_id,ability_id) VALUES (${msg.author.id},1), (${msg.author.id},3);`
+						sql += `INSERT INTO \`user_abilities\` (\`user_id\`, \`1\`, \`2\`) VALUES ('${msg.author.id}', '1', '3');`
+						break;
+					case "archer":
+						sql += `INSERT INTO user_spellbook(user_id,ability_id) VALUES (${msg.author.id},1), (${msg.author.id},4);`
+						sql += `INSERT INTO \`user_abilities\` (\`user_id\`, \`1\`, \`2\`) VALUES ('${msg.author.id}', '1', '4');`
+						break;
+				}
 
 				await queryPromise(sql);
 

@@ -20,6 +20,8 @@ export const client: _client = { c:new Discord.Client(), commands: new Discord.C
 //Cooldowns
 export var gather_commands_cooldown :_command_cooldown[] = []; //TODO: change system
 export var explore_command_cooldown :_command_cooldown[] = []; //TODO: change system
+export var zoneBoss_command_cooldown :_command_cooldown[] = []; //TODO: change system
+export var rest_command_cooldown :_command_cooldown[] = []; //TODO: change system
 
 export var blackjackSessions :BlackJackSession[] = [];
 export var zoneBossSessions :ZoneBossSession[] = []

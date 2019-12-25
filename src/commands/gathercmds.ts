@@ -3,7 +3,7 @@ import cf from "../config.json"
 import Discord from "discord.js"
 import { isRegistered, randomIntFromInterval, queryPromise, getMaterialDisplayName, getMaterialIcon } from "../utils";
 import { zone_mine_drops, zones, zone_chop_drops, zone_fish_drops, zone_harvest_drops } from "../staticdata";
-import { basicModule, UserData, userDataModules } from "../classes/userdata";
+import { basicModule, UserData, userDataModules, consumablesModule, currencyModule, equipmentModule, inventoryModule, materialsModule, statsModule } from "../classes/userdata";
 
 export const commands = 
 [
@@ -17,11 +17,11 @@ export const commands =
 		{
 			try
 			{	
+				
 				//Check if user is registered
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to mine for coins/ores/gems!"
 
 				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
-
 				//get zone's mine drops
 				const currentZoneDrops = zone_mine_drops.filter(x => x.zone_id == basicMod.zone);
 

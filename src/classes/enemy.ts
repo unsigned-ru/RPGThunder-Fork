@@ -127,9 +127,7 @@ export class Enemy{
       this.current_hp -= e_ensuredDamage + e_protectedDamage;
       if (this.current_hp <= 0) return "won";
   
-      var u_ensuredDamage = (this.atk * 0.25);
-      var u_protectedDamage = clamp((this.atk * 0.75) - (statsMod.stats.get("total_def")! / 3), 0, Number.MAX_VALUE);
-      UserData.takeDamage(basicMod, u_ensuredDamage + u_protectedDamage);
+      UserData.takeDamage(basicMod, statsMod, this.atk);
       if (basicMod.current_hp! <= 0) return "lost";
   
       return "inProgress";

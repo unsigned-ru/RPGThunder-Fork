@@ -1,8 +1,8 @@
-import { client, gather_commands_cooldown, explore_command_cooldown} from "../main";
+import { client, gather_commands_cooldown, explore_command_cooldown, rest_command_cooldown, zoneBoss_command_cooldown} from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
-import {calculateReqExp, isRegistered, getEquipmentSlotDisplayName} from "../utils";
-import {basicModule, equipmentModule, currencyModule, statsModule, UserData, userDataModules, inventoryModule, consumablesModule, materialsModule} from "../classes/userdata";
+import {calculateReqExp, isRegistered, getEquipmentSlotDisplayName, clamp} from "../utils";
+import {basicModule, equipmentModule, currencyModule, statsModule, UserData, userDataModules, inventoryModule, consumablesModule, materialsModule, spellbookModule, abilityModule} from "../classes/userdata";
 import { item_qualities, equipment_slots, zones, currencies, materials } from "../staticdata";
 
 export const commands = 
@@ -14,7 +14,7 @@ export const commands =
 		description: 'Shows a user profile containing their class, stats and equipment.',
 		usage: `[prefix]profile [optional: @User]`,
 		async execute(msg: Discord.Message, args: string[]) 
-		{
+		{	
 			var user: Discord.GuildMember;
 
 			//check if there is a mentioned arg.
@@ -28,14 +28,9 @@ export const commands =
 			}
 			//Get UserData
 			try {
-				var [basicMod,equipmentMod,currencyMod,statsMod] = <[basicModule,equipmentModule,currencyModule,statsModule]> await new UserData(user.id,[userDataModules.basic,userDataModules.equipment,userDataModules.currencies,userDataModules.stats]).init();
+				if (!await isRegistered(user.user.id)) throw "User must be registered to use that command.";
 
-				//get all the currencies into a proper string:
-				var currencyString = "";
-				for (var cc of currencies)
-				{
-					currencyString+= `**${cc[1].display_name}:** ${currencyMod.currencies.get(cc[1].database_name)}\n`;
-				}
+				var [basicMod,equipmentMod,statsMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(user.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
 
 				//Create an embedd with the profile data.
 				const embed = new Discord.RichEmbed()
@@ -45,7 +40,7 @@ export const commands =
 				.addField("Info:",
 				`**Class:** ${basicMod.class!.name}\n`+
 				`**Level:** ${basicMod.level!}\n`+
-				`**Exp:** ${basicMod.exp!} / ${calculateReqExp(basicMod.level!)}\n`+
+				`**Exp:** ${basicMod.exp!.toFixed(0)} / ${calculateReqExp(basicMod.level!).toFixed(0)}\n`+
 				`**Zone:** ${zones.get(basicMod.zone!)!.name}\n`,true)
 
 				.addField("Stats:",
@@ -192,6 +187,92 @@ export const commands =
 		},
 	},
 	{
+		name: 'spellbook',
+		category: "statistics",
+		aliases: ['sb'],
+		description: 'Lists all the abbilities you have learned.',
+		usage: `[prefix]spellbook`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to execute that command."
+
+				const [spellbookMod] = <[spellbookModule]> await new UserData(msg.author.id, [userDataModules.spellbook]).init();
+
+				if (spellbookMod.isEmpty) throw "You do not own any abilities!"
+
+				var spellbookString = "";
+
+				for (var sd of spellbookMod.spellbook) spellbookString += `**${sd[1].id}** - **${sd[1].name}** [ATK_MP: \`${sd[1].atk_multiplier}\` | BASE_HIT: \`${sd[1].base_chance}\`]\n`
+
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`User spellbook: ${msg.author.username}`)
+				.addField("Abilities:", spellbookString)
+				.setThumbnail(msg.author.avatarURL)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'abilities',
+		category: "statistics",
+		aliases: ['abs'],
+		description: 'Lists your current equipped abilities and their damage/hitchance values.',
+		usage: `[prefix]abilities`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to execute that command."
+
+				const [abilityMod,basicMod,equipmentMod,statsMod] = <[abilityModule,basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id, [userDataModules.abilities,userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
+
+				var abilityStrings: string[] = [];
+				var abilityIcons:string[] = ['1️⃣', '2️⃣', '3️⃣', '4️⃣']
+
+				for (var a of abilityMod.abilities)
+				{
+					var abilityString = a[1] == undefined ? 
+					"❌ **NONE**" : 
+					`${abilityIcons[a[0]-1]} **${a[1].name}** | 🗡️${clamp((a[1].atk_multiplier * statsMod.stats.get("total_atk")!),0,a[1].max_atk).toFixed(0)} | ⚡${(((a[1].base_chance /100) + (statsMod.stats.get("total_acc")! / (basicMod.level! * 10)) / 3)*100).toFixed(0)}\n`+
+					`__ATK:__ \`${statsMod.stats.get("total_atk")} * ${a[1].atk_multiplier} <= ${a[1].max_atk} (max_dmg)\` => \`${clamp((a[1].atk_multiplier * statsMod.stats.get("total_atk")!),0,a[1].max_atk).toFixed(0)}\`\n`+
+					`__HIT:__ \`(${a[1].base_chance} / 100) + ((${statsMod.stats.get("total_acc")!} / (${basicMod.level!} * 10)) / 3) * 100\` => \`${(((a[1].base_chance /100) + (statsMod.stats.get("total_acc")! / (basicMod.level! * 10)) / 3)*100).toFixed(0)}\``
+					abilityStrings.push(abilityString);
+				}
+
+
+				//2️⃣ 3️⃣ 4️⃣
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow
+				.setTitle(`Equipped Abilities: ${msg.author.username}`)
+				.addField("\u200B",abilityStrings[0])
+				.addField("\u200B",abilityStrings[1])
+				.addField("\u200B",abilityStrings[2])
+				.addField("\u200B",abilityStrings[3])
+				.setThumbnail(msg.author.avatarURL)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
 		name: 'consumables',
 		category: "statistics",
 		aliases: ['nomnoms','pots','food'],
@@ -247,6 +328,8 @@ export const commands =
 
 				var gather_command_cooldown = 0;
 				var explore_cmd_cooldown = 0;
+				var rest_cmd_cooldown = 0;
+				var zoneBoss_cmd_cooldown = 0;
 				//Check for cooldown.
 				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
@@ -262,6 +345,20 @@ export const commands =
 					if (difference < cf.explore_cooldown) explore_cmd_cooldown = cf.explore_cooldown - difference;
 				}
 
+				if (rest_command_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - rest_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					
+					if (difference < cf.rest_cooldown) rest_cmd_cooldown = cf.rest_cooldown - difference;
+				}
+
+				if (zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					
+					if (difference < cf.zoneBoss_cooldown) zoneBoss_cmd_cooldown = cf.zoneBoss_cooldown - difference;
+				}
+
 
 				//create embed
 				const embed = new Discord.RichEmbed()
@@ -269,8 +366,9 @@ export const commands =
 				.setTitle(`${msg.author.username}'s cooldowns`)
 				.addField("✨ Progress",
 				`${gather_command_cooldown == 0 ? `✅ - mine/chop/harvest/fish\n`: `❌ - mine/chop/harvest/fish **(${Math.round(gather_command_cooldown)}s)**\n`}`+
-				`${explore_cmd_cooldown == 0 ? `✅ - explore`:`❌ - explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`
-				
+				`${explore_cmd_cooldown == 0 ? `✅ - explore`:`❌ - explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`+
+				`${rest_cmd_cooldown == 0 ? `✅ - rest\n`: `❌ - rest **(${Math.round(rest_cmd_cooldown)}s)**\n`}`+
+				`${zoneBoss_cmd_cooldown == 0 ? `✅ - Zone Boss`:`❌ - Zone Boss **(${Math.round(zoneBoss_cmd_cooldown)}s)**\n`}`
 				)
 				.setThumbnail(msg.author.avatarURL)
 				.setTimestamp()
@@ -305,7 +403,6 @@ export const commands =
 				{
 					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
 					if (difference >= cf.gather_cooldown) readyString+= "✅ - mine/chop/harvest/fish\n"
-
 				}
 				else
 				{
@@ -320,6 +417,24 @@ export const commands =
 				else
 				{
 					readyString+= "✅ - explore\n"
+				}
+				if (rest_command_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - rest_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference >= cf.rest_cooldown) readyString+= "✅ - rest\n"
+				}
+				else
+				{
+					readyString+= "✅ - rest\n"
+				}
+				if (zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id))
+				{
+					const difference = (new Date().getTime() - zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
+					if (difference >= cf.zoneBoss_cooldown) readyString+= "✅ - zone boss\n"
+				}
+				else
+				{
+					readyString+= "✅ - zone boss\n"
 				}
 				if (readyString == "") {msg.channel.send("You have no ready commands!"); return}
 

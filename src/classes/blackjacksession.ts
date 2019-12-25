@@ -51,7 +51,7 @@ export class BlackJackSession
     
       this.invite = await this.cmdChannel.createInvite({maxAge: 86400});
       
-      this.destoryTimerID = setTimeout(this.destroySession,300000,this,false) //3min timeout
+      this.destoryTimerID = setTimeout(this.destroySession,180000,this,false) //3min timeout
       await this.promptStart();
     }
     catch(err)
@@ -93,10 +93,10 @@ export class BlackJackSession
 
   async destroySession(session:BlackJackSession,loss:boolean)
   {
-    if (await session.cmdChannel!){
+    if (session.cmdChannel!){
       session.bjGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete().catch((err)=> {console.log(err)})
     }
-    if (this.invite) this.invite.delete().catch((err)=> {console.log(err)})
+    if (session.invite) session.invite.delete().catch((err)=> {console.log(err)})
 
     if (session.hasEnded) session.endGame("timeoutEnded")
     else if (loss) session.endGame("timeoutLoss")
@@ -201,7 +201,7 @@ export class BlackJackSession
   async start(this:BlackJackSession)
   {
     clearTimeout(this.destoryTimerID)
-    this.destoryTimerID = setTimeout(this.destroySession,200000,this,true) //2min timeout
+    this.destoryTimerID = setTimeout(this.destroySession,120000,this,true) //2min timeout
     this.isStarted = true;
     this.createDeck();
     this.shuffleDeck();
@@ -250,7 +250,7 @@ export class BlackJackSession
       {
         //Draw card for dealer from deck.
         this.dealerCards.push(this.deck.shift()!)
-        this.boardMsg!.edit(this.createBoardEmbed("Drawing Cards...","#ffe100"))
+        await this.boardMsg!.edit(this.createBoardEmbed("Drawing Cards...","#ffe100"))
         await sleep(1000);
         continue;
       }
@@ -260,7 +260,7 @@ export class BlackJackSession
       {
         //Draw card for dealer from deck.
         this.dealerCards.push(this.deck.shift()!)
-        this.boardMsg!.edit(this.createBoardEmbed("Drawing Cards...","#ffe100"))
+        await this.boardMsg!.edit(this.createBoardEmbed("Drawing Cards...","#ffe100"))
         await sleep(1000);
         break;
       }

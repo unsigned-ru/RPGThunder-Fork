@@ -57,7 +57,7 @@ export const commands =
 				const shopEmbed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
 				.setTitle(`Shop -- ${zones.get(basicMod.zone!)!.name}`)
-				.setAuthor("Vendor: Execute "+getGuildPrefix(msg.guild.id)+"buy [ITEMNAME] [optional: AMOUNT] to buy an item!",'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setAuthor("Vendor: Execute "+await getGuildPrefix(msg.guild.id)+"buy [ITEMNAME] [optional: AMOUNT] to buy an item!",'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 

@@ -28,6 +28,17 @@ export interface _class {
   allowed_item_types: string,
 }
 
+export interface _class_ability
+{
+  id: number,
+  name: string,
+  dialogue: string,
+  base_chance: number,
+  max_atk: number,
+  atk_multiplier: number,
+  classes: string,
+}
+
 export interface _stats
 {
   max_hp: number,
@@ -182,7 +193,7 @@ export interface _boss_abbility
 {
   id: number,
   name: string,
-  atk_percentage: string,
+  atk_percentage: number,
   dialogue: string,
 }
 

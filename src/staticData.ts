@@ -1,8 +1,9 @@
 import {Collection} from "discord.js"
-import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility} from './interfaces';
+import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility, _class_ability} from './interfaces';
 import { queryPromise } from './utils';
 
 export var classes: Collection<number,_class> = new Collection();
+export var class_abilities: Collection<number,_class_ability> = new Collection();
 export var item_types: Collection<number,_item_type> = new Collection();
 export var item_qualities: Collection<number,_item_quality> = new Collection();
 
@@ -48,6 +49,7 @@ export async function LoadStaticDatabaseData()
     equipment_slots = await loadDbData("equipment_slots");
 
     classes = await loadDbData("classes");
+    class_abilities = await loadDbData("class_abilities");
     item_types = await loadDbData("item_types");
     item_qualities = await loadDbData("item_qualities");
 

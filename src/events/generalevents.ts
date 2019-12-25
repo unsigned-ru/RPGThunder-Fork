@@ -1,5 +1,5 @@
 import Discord from 'discord.js'
-import {client, blackjackSessions} from '../main';
+import {client, blackjackSessions, zoneBossSessions} from '../main';
 import {session_category_id} from '../config.json';
 import {queryPromise, getGuildPrefix} from '../utils';
 import { blacklistedChannels } from '../staticdata';
@@ -24,9 +24,9 @@ async function onMSGReceived(msg: Discord.Message)
     try 
     {
         if (msg.author.bot) return;
-        //relay channel messages when blackjack session is active
+        //relay channel messages when session is active
         if ((msg.channel as Discord.GuildChannel).parentID == session_category_id && blackjackSessions.find(x => x.user.id == msg.author.id)) return blackjackSessions.find(x => x.user.id == msg.author.id)!.handleSessionCommand(msg);
-        
+        if ((msg.channel as Discord.GuildChannel).parentID == session_category_id && zoneBossSessions.find(x => x.user.id == msg.author.id)) return zoneBossSessions.find(x => x.user.id == msg.author.id)!.handleSessionCommand(msg);
         //Split args
         const args: string[] = msg.content.split(/ +/);
         var command = args.shift()!.toLowerCase();

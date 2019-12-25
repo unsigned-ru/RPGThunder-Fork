@@ -37,7 +37,7 @@ export class Boss{
       })
       
       //Add pre_dialogue
-      this.pre_dialogue = bossData.pre_dialogue.split("\n");
+      this.pre_dialogue = bossData.pre_dialogue.split("-");
      
       //this.acc = bossData.acc TODO: add
       //this.exp = TODO: add
@@ -133,5 +133,13 @@ export class Boss{
         }
       }
     }
+    
+    takeDamage(damageToTake: number) :number
+    {
+      const damage = damageToTake - (this.def / 3);
+      this.current_hp -= damage
+      if (this.current_hp <= 0) this.current_hp = 0;
 
+      return damage;
+    }
   }
