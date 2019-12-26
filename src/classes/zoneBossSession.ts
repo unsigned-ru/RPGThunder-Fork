@@ -179,7 +179,7 @@ export class ZoneBossSession
         if (randomIntFromInterval(0,100) <= critChance){hasCrit = true; damageToDo *= 1.5;}
         const damageDone = this.boss.takeDamage(damageToDo);
 
-        const parsedDialogue = this.replaceDialogueParams(ability.dialogue,this.user.username,this.boss.name)
+        const parsedDialogue = this.replaceDialogueParams(ability.dialogue,this.user.username,this.boss.name,ability.name)
 
         //Add to the log.
         var logEntry = parsedDialogue + ` - **Dealt 🗡️${damageDone.toFixed(0)}**`;
@@ -229,7 +229,7 @@ export class ZoneBossSession
       var damageTaken = UserData.takeDamage(this.basicMod, this.statsMod, damageToDo);
 
       //add to log
-      var parsedDialogue = this.replaceDialogueParams(ability!.dialogue,this.boss.name,this.user.username)
+      var parsedDialogue = this.replaceDialogueParams(ability!.dialogue,this.boss.name,this.user.username,ability!.name)
       var logEntry = parsedDialogue + ` - **Dealt 🗡️${damageTaken.toFixed(0)}**`;
       this.log.unshift(logEntry);
 
@@ -273,7 +273,7 @@ export class ZoneBossSession
             for (var id of itemdrops) 
             {
               rewardString += `${id.icon_name} ${id.name} [${item_qualities.find(x => x.id == id.quality)!.name} ${getEquipmentSlotDisplayName(id.slot)}]\n`;
-              UserData.addItemToInventory(this.user.id,this.inventoryMod,id.id);
+              UserData.addItemToInventory(this.user.id,this.inventoryMod,id.id,0,0,0);
             }
         
             var extraInfo = "";
@@ -403,11 +403,11 @@ export class ZoneBossSession
       catch(err) {console.log(err);}
     }
 
-    replaceDialogueParams(dialogue: string, user:string, target:string) :string
+    replaceDialogueParams(dialogue: string, user:string, target:string, name: string) :string
     {
       dialogue = dialogue.replace("{user}", user);
       dialogue = dialogue.replace("{target}", target)
-
+      dialogue = dialogue.replace("{name}",name);
       return dialogue;
     }
 }

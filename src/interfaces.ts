@@ -44,11 +44,29 @@ export interface _stats
   max_hp: number,
   current_hp: number,
   atk: number,
+  bonus_atk: number,
   def: number,
+  bonus_def: number,
   acc: number,
+  bonus_acc: number,
 }
 
+export interface _user_equipment
+{
+  item: _item,
+  bonus_atk: number,
+  bonus_def: number,
+  bonus_acc: number,
+  slotDbName: string,
+}
 
+export interface _inventory_entry
+{
+  item: _item;
+  bonus_atk: number,
+  bonus_acc: number,
+  bonus_def: number,
+}
 
 export interface _item{
   id: number,
@@ -57,8 +75,14 @@ export interface _item{
   slot: number,
   type: number,
   atk: number,
+  bonus_atk_min: number,
+  bonus_atk_max: number,
   def: number,
+  bonus_def_min: number,
+  bonus_def_max: number,
   acc: number,
+  bonus_acc_min: number,
+  bonus_acc_max: number,
   level_req: number,
   sell_price: number,
   quality: number,

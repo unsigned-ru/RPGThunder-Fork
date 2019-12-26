@@ -2,7 +2,7 @@ import { client, con, explore_command_cooldown, zoneBossSessions, rest_command_c
 import cf from "../config.json"
 import Discord, { User } from "discord.js"
 import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue, randomIntFromInterval } from "../utils";
-import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones, consumables, bosses, bosses_currency_drop_data, bosses_item_drop_data, bosses_material_drop_data } from "../staticdata";
+import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones, consumables, bosses, bosses_currency_drop_data, bosses_item_drop_data, bosses_material_drop_data, currencies, materials } from "../staticdata";
 import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule, abilityModule, currencyModule, materialsModule } from "../classes/userdata";
 import { Enemy } from "../classes/enemy";
 import { _item, _consumable } from "../interfaces";
@@ -16,76 +16,58 @@ export const commands =
 		category: "items",
 		aliases: [],
 		description: 'Equips an item or a set of items from your inventory.',
-		usage: `[prefix]equip [itemID1/ItemName1] [itemID2/ItemName2] ...`,
+		usage: `[prefix]equip [invSlot1] [invSlot2] [invSlot3]...`,
 		async execute(msg: Discord.Message, args: string[])
 		{
 			var sucess_output :string = "";
 			try
 			{
+
 				//Turn args into numbers and add them to array
 				var already_equipped_slots :number[] = []
-				var item_ids :number[] = [];
+				var slot_ids :number[] = [];
 
 				//check if there are args
-				if (args.length == 0) {throw "Please enter the ids or names of the items you wish to equip."}
+				if (args.length == 0) {throw "Please enter the inventory slots of the item you wish to equip."}
 
 				for (let arg of args)
 				{
 					var id = parseInt(arg);
 					if (id)
 					{
-						item_ids.push(id);
+						slot_ids.push(id);
 					}
 				}
-				//remove resolved ids from args
-				args.map((x) => 
-				{
-					if (item_ids.includes(parseInt(x))) args.splice(args.indexOf(x)); 
-				})
 
-				//Get the itemnames out of the args
-				const itemNames = args.join(" ").toLowerCase().split(',').map(x => x.trim());
-
-				
 				//Check if the user is registered.
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to equip an item."
 				
-				//Get the users class
+				//Get the users class and data
 				const [basicMod,inventoryMod,equipmentMod] = <[basicModule,inventoryModule,equipmentModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.inventory,userDataModules.equipment]).init();
 				if (inventoryMod.isEmpty) throw "Your inventory is empty, you cannot equip any items."
 				
-				//convert the Itemnames to id's
-				console.log(itemNames);
-				for (let itemName of itemNames)
-				{
-					if (itemName.length == 0) continue;
-					const item = inventoryMod.inventory.find(x => x.item.name.toLowerCase() == itemName)
-					if (item) item_ids.push(item.item.id);
-					else throw "You do not own an item with the name: "+ itemName;
-				}
-
 				//Iterate over each item_id
-				for (var item_id of item_ids)
+				for (var slot_id of slot_ids)
 				{
 					//Check if user has the item in inventory.
-					const itemToEquip = inventoryMod.inventory.get(item_id);
-					if (!itemToEquip) throw "You do not own an item with the id: "+item_id
+					const invEntryToEquip = inventoryMod.inventory.get(slot_id);
+					if (!invEntryToEquip) throw "You do not own an item in the inventory slot: "+slot_id
 				
-					const slot = equipment_slots.find(slot => slot.id == itemToEquip.item.slot)!;
+					const slot = equipment_slots.find(slot => slot.id == invEntryToEquip.item.slot)!;
 
 					//check if the user has already equipped an item of that slot
-					if (already_equipped_slots.includes(itemToEquip.item.slot)) { throw "You have already equipped an item in the slot: "+ slot.display_name}
+					if (already_equipped_slots.includes(invEntryToEquip.item.slot)) { throw "You have already equipped an item in the slot: "+ slot.display_name}
 					
-					console.log(itemToEquip);
 					//check if the users level is high enough
-					if (itemToEquip.item.level_req > basicMod.level!) throw `You are not high enough level to equip item ${itemToEquip.item.id} - ${itemToEquip.item.icon_name} ${itemToEquip.item.name}`;
+					if (invEntryToEquip.item.level_req > basicMod.level!) throw `You are not high enough level to equip item ${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}`;
 
 					//check if the user is allowed to wear this type.
-					if (!basicMod.class!.allowed_item_types.split(",").includes(itemToEquip.item.type.toString())) throw `You cannot equip item __${itemToEquip.item.id} - ${itemToEquip.item.icon_name} ${itemToEquip.item.name}__ because your class is not allowed to equip the type: \`${item_types.get(itemToEquip.item!.type)!.name}\``
-					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.database_name,itemToEquip.item);
+					if (!basicMod.class!.allowed_item_types.split(",").includes(invEntryToEquip.item.type.toString())) throw `You cannot equip item __${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ because your class is not allowed to equip the type: \`${item_types.get(invEntryToEquip.item!.type)!.name}\``
+					
+					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.database_name,invEntryToEquip.item,invEntryToEquip.bonus_atk,invEntryToEquip.bonus_def,invEntryToEquip.bonus_acc);
 					//add the equipped type to already_equipped_slots.
-					already_equipped_slots.push(itemToEquip.item.slot);
-					sucess_output += `You have sucessfully equipped: __${itemToEquip.item.id} - ${itemToEquip.item.icon_name} ${itemToEquip.item.name}__ in the slot: ${slot.display_name}!\n`
+					already_equipped_slots.push(invEntryToEquip.item.slot);
+					sucess_output += `You have sucessfully equipped: __${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ in the slot: ${slot.display_name}!\n`
 				}
 				await equipmentMod.update(msg.author.id);
 				msg.channel.send(sucess_output);
@@ -194,7 +176,7 @@ export const commands =
 	},
 	{
 		name: 'rest',
-		category: "",
+		category: "fighting",
 		aliases: [],
 		description: 'Rest for a night, restore you health daily.',
 		usage: `[prefix]rest`,
@@ -224,6 +206,117 @@ export const commands =
 				basicMod.update(msg.author.id);
 
 				msg.channel.send(`You have rested and your health has been fully restored!`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'gift',
+		category: "economy",
+		aliases: [],
+		description: 'Gift a player currency / items / materials / consumables',
+		usage: `[prefix]gift [@User] [Name/invSlot] [Amount]`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
+
+				//Check for mentioned user
+				if (!args[0]) throw "Please mention the user you wish to gift to!"
+				var target = client.c.users.get(args[0].replace(/[\\<>@#&!]/g, ""))
+				var userMentionString = args.splice(0,1);
+				if (!target) throw "Could not find the user " + userMentionString;
+				if (target.id == msg.author.id) throw "You cannot gift to yourself you dummie!";
+				//check if mentioned user is registered:
+				if (!await isRegistered(target.id)) throw "Cannot gift to a non registered user. Get them to register first!";
+
+				//Start checking if the user owns the item.
+				const [basicMod,consumablesMod,currencyMod,inventoryMod,materialMod] = <[basicModule,consumablesModule,currencyModule,inventoryModule,materialsModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.consumables,userDataModules.currencies,userDataModules.inventory,userDataModules.materials]).init();
+
+				var slot_id = parseInt(args[0]);
+				if (slot_id)
+				{
+					if (inventoryMod.inventory.has(slot_id))
+					{
+						var inventoryEntry = inventoryMod.inventory.get(slot_id)!;
+						
+						const [targetInventoryMod] = <[inventoryModule]> await new UserData(target.id, [userDataModules.inventory]).init();
+						await UserData.addItemToInventory(target.id,targetInventoryMod, inventoryEntry.item.id, inventoryEntry.bonus_atk,inventoryEntry.bonus_def,inventoryEntry.bonus_acc);
+						await UserData.removeItemFromInventory(msg.author.id,inventoryMod,inventoryMod.inventory.findKey(x => x == inventoryEntry));
+
+						return await msg.channel.send(`You have sucessfully gifted \`${target.username}\` ${inventoryEntry.item.icon_name} ${inventoryEntry.item.name}`);
+					}
+					else throw `You have no item in inventory slot ${slot_id}!`;
+				}
+
+				var amount = 1;
+				//Check for amount args
+				if (parseInt(args[args.length-1])) 
+				{
+					amount = parseInt(args[args.length-1]);
+					args.splice(args.length-1,1);
+				}
+				
+				//Check if amount is bigger than 0
+				if (amount <= 0) throw "The amount must be bigger than 0!";
+
+				//Parse args to a string
+				var name = args.map(x => x.trim()).join(" ").toLowerCase();
+				if (name.length == 0) throw "Please enter the name of the currency / material / consumable or the inventory slot of the item you wish to gift."
+
+				if (currencies.find(x => x.display_name.toLowerCase() == name))
+				{
+					var currencyData = currencies.find(x => x.display_name.toLowerCase() == name)!;
+					var currAmount = currencyMod.currencies.get(currencyData.database_name)!;
+
+					//Check if we have enough to gift
+					if (amount > currAmount) throw "You do not own enough of that currency to send that.";
+
+					const [targetCurrencyMod] = <[currencyModule]> await new UserData(target.id, [userDataModules.currencies]).init();
+					editCollectionNumberValue(currencyMod.currencies, currencyData.database_name,-amount);
+					editCollectionNumberValue(targetCurrencyMod.currencies, currencyData.database_name,+amount);
+
+					currencyMod.update(msg.author.id);
+					targetCurrencyMod.update(target.id);
+
+					return await msg.channel.send(`You have sucessfully gifted \`${target.username}\` ${currencyData.icon_name} ${amount} ${currencyData.display_name}`);
+				}
+
+				if (materials.find(x => x.display_name.toLowerCase() == name))
+				{
+					var materialData = materials.find(x => x.display_name.toLowerCase() == name)!;
+					var materialAmount = materialMod.materials.get(materialData.database_name)!;
+
+					//Check if we have enough to gift
+					if (amount > materialAmount) throw "You do not own enough of that material to send that.";
+
+					const [targetMaterialMod] = <[materialsModule]> await new UserData(target.id, [userDataModules.materials]).init();
+					editCollectionNumberValue(materialMod.materials, materialData.database_name,-amount);
+					editCollectionNumberValue(targetMaterialMod.materials, materialData.database_name,+amount);
+
+					materialMod.update(msg.author.id);
+					targetMaterialMod.update(target.id);
+
+					return await msg.channel.send(`You have sucessfully gifted \`${target.username}\` ${materialData.icon_name} ${amount} ${materialData.display_name}`);
+				}
+
+				var cons = consumablesMod.consumables.find(x => x.cons.name.toLowerCase() == name);
+				if (cons)
+				{
+					const [targetConsumableMod] = <[consumablesModule]> await new UserData(target.id, [userDataModules.consumables]).init();
+					await UserData.removeConsumable(msg.author.id,consumablesMod,cons.cons);
+					await UserData.addConsumable(target.id,targetConsumableMod,cons.cons.id);
+
+					return await msg.channel.send(`You have sucessfully gifted \`${target.username}\` ${cons.cons.icon_name} ${cons.cons.name}`);
+				}
+
+
+				return await msg.channel.send(`An error happened with your command! Are you using it correctly?\nUsage:\`${this.usage}\``);
 			}
 			catch(err)
 			{

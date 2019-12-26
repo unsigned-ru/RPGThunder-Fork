@@ -50,13 +50,13 @@ export const commands =
 				`⚡ **ACC:** ${statsMod.stats.get("total_acc")!.toFixed(0)}\n`,true)
 
 				.addField("Equipment:",
-				`**Main Hand:**  ${equipmentMod.equipment.get("main_hand")! == null ? "" : equipmentMod.equipment.get("main_hand")!.icon_name} ${equipmentMod.equipment.get("main_hand")! == null ? "None" : equipmentMod.equipment.get("main_hand")!.name}\n`+
-				`**Off Hand:** ${equipmentMod.equipment.get("off_hand") == null ? "" : equipmentMod.equipment.get("off_hand")!.icon_name} ${equipmentMod.equipment.get("off_hand") == null ? "None" : equipmentMod.equipment.get("off_hand")!.name}\n`+
-				`**Head:** ${equipmentMod.equipment.get("head") == null ? "" : equipmentMod.equipment.get("head")!.icon_name} ${equipmentMod.equipment.get("head") == null ? "None" : equipmentMod.equipment.get("head")!.name}\n`+
-				`**Chest:** ${equipmentMod.equipment.get("chest") == null ? "" : equipmentMod.equipment.get("chest")!.icon_name} ${equipmentMod.equipment.get("chest") == null ? "None" : equipmentMod.equipment.get("chest")!.name}\n`+
-				`**Legs:** ${equipmentMod.equipment.get("legs") == null ? "" : equipmentMod.equipment.get("legs")!.icon_name} ${equipmentMod.equipment.get("legs") == null ? "None" : equipmentMod.equipment.get("legs")!.name}\n`+
-				`**Feet:** ${equipmentMod.equipment.get("feet") == null ? "" : equipmentMod.equipment.get("feet")!.icon_name} ${equipmentMod.equipment.get("feet") == null ? "None" : equipmentMod.equipment.get("feet")!.name}\n`+
-				`**Trinket:** ${equipmentMod.equipment.get("trinket") == null ? "" : equipmentMod.equipment.get("trinket")!.icon_name} ${equipmentMod.equipment.get("trinket") == null ? "None" : equipmentMod.equipment.get("trinket")!.name}\n`)
+				`**Main Hand:**  ${equipmentMod.equipment.get("main_hand")!.item == null ? "" : equipmentMod.equipment.get("main_hand")!.item.icon_name} ${equipmentMod.equipment.get("main_hand")!!.item == null ? "None" : equipmentMod.equipment.get("main_hand")!.item.name}\n`+
+				`**Off Hand:** ${equipmentMod.equipment.get("off_hand")!.item == null ? "" : equipmentMod.equipment.get("off_hand")!.item.icon_name} ${equipmentMod.equipment.get("off_hand")!.item == null ? "None" : equipmentMod.equipment.get("off_hand")!.item.name}\n`+
+				`**Head:** ${equipmentMod.equipment.get("head")!.item == null ? "" : equipmentMod.equipment.get("head")!.item.icon_name} ${equipmentMod.equipment.get("head")!.item == null ? "None" : equipmentMod.equipment.get("head")!.item.name}\n`+
+				`**Chest:** ${equipmentMod.equipment.get("chest")!.item == null ? "" : equipmentMod.equipment.get("chest")!.item.icon_name} ${equipmentMod.equipment.get("chest")!.item == null ? "None" : equipmentMod.equipment.get("chest")!.item.name}\n`+
+				`**Legs:** ${equipmentMod.equipment.get("legs")!.item == null ? "" : equipmentMod.equipment.get("legs")!.item.icon_name} ${equipmentMod.equipment.get("legs")!.item == null ? "None" : equipmentMod.equipment.get("legs")!.item.name}\n`+
+				`**Feet:** ${equipmentMod.equipment.get("feet")!.item == null ? "" : equipmentMod.equipment.get("feet")!.item.icon_name} ${equipmentMod.equipment.get("feet")!.item == null ? "None" : equipmentMod.equipment.get("feet")!.item.name}\n`+
+				`**Trinket:** ${equipmentMod.equipment.get("trinket")!.item == null ? "" : equipmentMod.equipment.get("trinket")!.item.icon_name} ${equipmentMod.equipment.get("trinket")!.item == null ? "None" : equipmentMod.equipment.get("trinket")!.item.name}\n`)
 				.setThumbnail(user.user.avatarURL)
 
 				.setTimestamp()
@@ -153,7 +153,7 @@ export const commands =
 		name: 'inventory',
 		category: "statistics",
 		aliases: ['inv'],
-		description: 'Lists all items in your inventory and their respective ids.',
+		description: 'Lists all items in your inventory and their respective slot they are in.',
 		usage: `[prefix]inventory`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
@@ -167,7 +167,7 @@ export const commands =
 
 				var invString = "";
 
-				for (var id of inventoryMod.inventory) invString += `**${id[0]}** - ${id[1].item.icon_name} ${id[1].item.name} [${item_qualities.get(id[1].item.quality)!.name} ${getEquipmentSlotDisplayName(id[1].item.slot)}] x${id[1].count}\n`
+				for (var id of inventoryMod.inventory) invString += `**${id[0]}** ${id[1].item.icon_name} ${id[1].item.name} [${item_qualities.get(id[1].item.quality)!.name} ${getEquipmentSlotDisplayName(id[1].item.slot)}] 🗡️ ${id[1].item.atk + id[1].bonus_atk} | 🛡️ ${id[1].item.def + id[1].bonus_def} | ⚡ ${id[1].item.acc + id[1].bonus_acc}\n`
 
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -366,9 +366,9 @@ export const commands =
 				.setTitle(`${msg.author.username}'s cooldowns`)
 				.addField("✨ Progress",
 				`${gather_command_cooldown == 0 ? `✅ - mine/chop/harvest/fish\n`: `❌ - mine/chop/harvest/fish **(${Math.round(gather_command_cooldown)}s)**\n`}`+
-				`${explore_cmd_cooldown == 0 ? `✅ - explore`:`❌ - explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`+
+				`${explore_cmd_cooldown == 0 ? `✅ - explore\n`:`❌ - explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`+
 				`${rest_cmd_cooldown == 0 ? `✅ - rest\n`: `❌ - rest **(${Math.round(rest_cmd_cooldown)}s)**\n`}`+
-				`${zoneBoss_cmd_cooldown == 0 ? `✅ - Zone Boss`:`❌ - Zone Boss **(${Math.round(zoneBoss_cmd_cooldown)}s)**\n`}`
+				`${zoneBoss_cmd_cooldown == 0 ? `✅ - Zone Boss\n`:`❌ - Zone Boss **(${Math.round(zoneBoss_cmd_cooldown)}s)**\n`}`
 				)
 				.setThumbnail(msg.author.avatarURL)
 				.setTimestamp()

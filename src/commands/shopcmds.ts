@@ -138,7 +138,7 @@ export const commands =
 				const entry = entries.find(x=> shop_categories.get(x.category_id!)!.name == entryData!.objType && x.entry_id == entryData!.id);
 
 				//Check if user has enough balance
-				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \$${itemName}\`x${amount}!`
+				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \`${itemName}\`x${amount}!`
 				//Add it to the appropriate inventory.
 				let sql = "";
 				
@@ -175,7 +175,7 @@ export const commands =
 		category: "economy",
 		aliases: ["sell"],
 		description: 'Sell items for their standard sell price.',
-		usage: `[prefix]sell [itemID1] [itemID2] [itemID3] ...`,
+		usage: `[prefix]sell [invSlot1] [invSlot2] [invSlot3] ...`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -183,9 +183,9 @@ export const commands =
 				//Check if user is registered
 				if (!await isRegistered(msg.author.id))throw "You must be registered to use this command!";
 
-				const item_ids = args.map(x => parseInt(x));
+				const invSlot_ids = args.map(x => parseInt(x));
 				//Check args
-				if (item_ids.length == 0) throw "Please enter the id's of the items you wish to sell.\nUsage: `"+this.usage+"`"
+				if (invSlot_ids.length == 0) throw "Please enter the inventory slots of the items you wish to sell.\nUsage: `"+this.usage+"`"
 
 				//Get data
 				const [inventoryMod, currencyMod] = <[inventoryModule,currencyModule]> await new UserData(msg.author.id, [userDataModules.inventory,userDataModules.currencies]).init();
@@ -193,26 +193,26 @@ export const commands =
 
 				var errormsg = "";
 				var currencyGained = 0;
-				for (var item_id of item_ids)
+				for (var invSlot_id of invSlot_ids)
 				{
 					//check if user owns item
-					if (!inventoryMod.inventory.has(item_id)) 
+					if (!inventoryMod.inventory.has(invSlot_id)) 
 					{
-						errormsg += `- You do not own the item with id \`${item_id}\`. You may have already sold it.\n`;
+						errormsg += `- You do not own an item in the slot \`${invSlot_id}\`. You may have already sold it.\n`;
 						continue;
 					}
-					var item = inventoryMod.inventory.get(item_id)!.item;
+					var inventoryEntry = inventoryMod.inventory.get(invSlot_id)!;
 
 					//remove item
-					await UserData.removeItemFromInventory(msg.author.id,inventoryMod,item);
+					await UserData.removeItemFromInventory(msg.author.id,inventoryMod,inventoryMod.inventory.findKey(x => x == inventoryEntry));
 					
 					//give currency
-					editCollectionNumberValue(currencyMod.currencies,"coins",item.sell_price);
-					currencyGained += item.sell_price;
+					editCollectionNumberValue(currencyMod.currencies,"coins",inventoryEntry.item.sell_price);
+					currencyGained += inventoryEntry.item.sell_price;
 				}
 				await currencyMod.update(msg.author.id)
 				
-				msg.channel.send(`You have sold the selected items for a total of ${getCurrencyIcon("coins")} ${currencyGained} ${getCurrencyDisplayName("coins")} ${errormsg.length > 0 ? `\nThe following errors occured:\n${errormsg}` : ""}`)
+				msg.channel.send(`${currencyGained > 0 ? `You have sold the selected items for a total of ${getCurrencyIcon("coins")}` : ``} ${currencyGained} ${getCurrencyDisplayName("coins")} ${errormsg.length > 0 ? `\nThe following errors occured:\n${errormsg}` : ""}`)
 
 			}
 			catch(err)

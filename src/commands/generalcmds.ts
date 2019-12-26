@@ -36,9 +36,9 @@ export const commands = [
 				`**Sell Price:** ${getCurrencyIcon("coins")} ${item.sell_price} ${getCurrencyDisplayName("coins")}`,true)
 				
 				.addField("Stats:",
-				`**ATK:** ${item!.atk}\n`+
-				`**DEF:** ${item!.def}\n`+
-				`**ACC:** ${item!.acc}\n`,true)
+				`🗡️**ATK:** ${item!.atk} + (${item!.bonus_atk_min} ⟷ ${item!.bonus_atk_max})\n`+
+				`🛡️**DEF:** ${item!.def} + (${item!.bonus_def_min} ⟷ ${item!.bonus_def_max})\n`+
+				`⚡**ACC:** ${item!.acc} + (${item!.bonus_acc_min} ⟷ ${item!.bonus_acc_max})\n`,true)
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 				

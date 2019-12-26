@@ -1,6 +1,6 @@
 import * as Discord from "discord.js";
-import {_class,_item,_consumable,_stats, _class_ability} from "../interfaces";
-import {queryPromise, calculateReqExp, clamp } from "../utils";
+import {_class,_item,_consumable,_stats, _class_ability, _user_equipment, _equipment_slot, _inventory_entry} from "../interfaces";
+import {queryPromise, calculateReqExp, clamp, getItemData } from "../utils";
 import {classes, currencies, materials, equipment_slots, class_abilities} from "../staticdata";
 import * as cf from "../config.json";
 
@@ -92,7 +92,7 @@ export class materialsModule
 
 export class equipmentModule
 {
-    equipment: Discord.Collection<string,_item> = new Discord.Collection();
+    equipment: Discord.Collection<string,_user_equipment> = new Discord.Collection();
     public async init(user_id:string) 
     {
         const result = (await queryPromise(`SELECT * FROM user_equipment WHERE user_id=${user_id};`))[0];
@@ -100,19 +100,30 @@ export class equipmentModule
         for (var s of equipment_slots)
         {
             const itemResult = (await queryPromise(`SELECT * FROM items WHERE id='${result[s[1].database_name]}';`))[0];
-            this.equipment.set(s[1].database_name,itemResult);
+            var equipmentEntry: _user_equipment = 
+            {
+                item: itemResult,
+                slotDbName: s[1].database_name,
+                bonus_atk: result[`${s[1].database_name}_bonus_atk`],
+                bonus_def: result[`${s[1].database_name}_bonus_def`],
+                bonus_acc: result[`${s[1].database_name}_bonus_acc`]
+            } 
+            this.equipment.set(s[1].database_name,equipmentEntry);
         }
     }
 
     public getStatIncrease() :_stats
     {
-        var rv :_stats = {acc: 0,atk: 0,current_hp: 0,def: 0,max_hp: 0};
+        var rv :_stats = {atk: 0, bonus_atk: 0, def: 0, bonus_def: 0, acc: 0, bonus_acc:0, current_hp: 0,max_hp: 0};
         for (var item of this.equipment)
         {
-            if (!item[1]) continue;
-            rv.acc += item[1].acc;
-            rv.atk += item[1].atk;
-            rv.def += item[1].def;
+            if (!item[1].item) continue;
+            rv.atk += item[1].item.atk
+            rv.bonus_atk = item[1].bonus_atk;
+            rv.def += item[1].item.def
+            rv.bonus_def = item[1].bonus_def;
+            rv.acc += item[1].item.acc
+            rv.bonus_acc = item[1].bonus_acc;
         }
 
         return rv;
@@ -121,9 +132,9 @@ export class equipmentModule
     public async update(user_id:string)
     {
         var sqlparam = "";
-        for (var id of this.equipment) 
+        for (var eq of this.equipment) 
         {
-            sqlparam += `${id[0]}=${id[1] == undefined || id[1] == null? "NULL" : id[1].id},`
+            sqlparam += `${eq[1].slotDbName}=${eq[1].item ? eq[1].item.id : "NULL"}, ${eq[1].slotDbName}_bonus_atk = ${eq[1].bonus_atk}, ${eq[1].slotDbName}_bonus_acc = ${eq[1].bonus_acc}, ${eq[1].slotDbName}_bonus_def = ${eq[1].bonus_def},`
         }
         await queryPromise(`UPDATE user_equipment SET ${sqlparam.slice(0,-1)} WHERE user_id='${user_id}';`);
     }
@@ -131,34 +142,32 @@ export class equipmentModule
 
 export class inventoryModule
 {
-    inventory: Discord.Collection<number,{item: _item, count: number}> = new Discord.Collection();
+    inventory: Discord.Collection<number,_inventory_entry> = new Discord.Collection();
     isEmpty: boolean = false;
 
     public async init(user_id:string) 
     {
-        const result = await queryPromise(`SELECT item FROM user_inventory WHERE user_id=${user_id}`);
-
+        const result = await queryPromise(`SELECT * FROM user_inventory WHERE user_id=${user_id}`);
         if (result.length == 0) return this.isEmpty = true;
 
-        var itemQuery = "";
-        for (var row of result) itemQuery += `SELECT * from items WHERE id=${row.item};` 
+        var itemQuery = "SELECT * FROM items WHERE";
+        for (var row of result) itemQuery += ` id=${row.item} OR ` 
+        const itemResult = await queryPromise(itemQuery.slice(0,-4)+';');
 
-        const itemResult = await queryPromise(itemQuery);
-        var itemData = [];
+
+        var itemData: Discord.Collection<number,_item> = new Discord.Collection();
         for (var ir of itemResult)
         {
-            if (Array.isArray(ir)) itemData.push(ir[0]);
-            else itemData.push(ir);
+            if (Array.isArray(ir)) itemData.set(ir[0].id, ir[0]);
+            else itemData.set(ir.id, ir);
         }
-
-        const inv :{item: _item, count: number}[] = [];
-        for (var id of itemData)
+        
+        var counter = 1;
+        for (var r of result)
         {
-            if (inv.some(x => x.item.id == id.id)) inv.find(x => x.item.id == id.id)!.count++;
-            else inv.push({item: id, count: 1});
+            this.inventory.set(counter, {item: itemData.get(r.item)!, bonus_atk: r.bonus_atk, bonus_def: r.bonus_def, bonus_acc: r.bonus_acc});
+            counter++;
         }
-        inv.sort((a,b) => a.item.id - b.item.id);
-        for (var i of inv) this.inventory.set(i.item.id,i);
     }
 }
 
@@ -207,9 +216,9 @@ export class statsModule
 
         //calculate gear stats (gear_STAT)
         const gear_stats = equipmentMod.getStatIncrease();
-        this.stats.set("gear_atk",gear_stats.atk);
-        this.stats.set("gear_def",gear_stats.def);
-        this.stats.set("gear_acc",gear_stats.acc);
+        this.stats.set("gear_atk",gear_stats.atk + gear_stats.bonus_atk);
+        this.stats.set("gear_def",gear_stats.def + gear_stats.bonus_def);
+        this.stats.set("gear_acc",gear_stats.acc + gear_stats.bonus_acc);
         
         //calculate totalStats
         this.stats.set("max_hp",basicMod.class!.base_hp + ((basicMod.level!-1) * basicMod.class!.hp_increase));
@@ -389,29 +398,37 @@ export class UserData
         consumablesMod.consumables.sweep(x => x.count == 0);
         await queryPromise(`DELETE FROM user_consumables WHERE consumable_id=${consumable.id} AND user_id=${user_id} LIMIT 1`);
     }
-
-    static async addItemToInventory(user_id:string, inventoryMod: inventoryModule, itemID:number)
+    static async addConsumable(user_id:string, consumablesMod:consumablesModule, consumableID:number)
     {
-        //TODO: add it to the inventory collection.
-        await queryPromise(`INSERT INTO user_inventory (user_id, item) VALUES ('${user_id}', ${itemID})`);
+        //TODO: add it to the consumable collection.
+        await queryPromise(`INSERT INTO user_consumables (user_id, consumable_id) VALUES ('${user_id}', ${consumableID})`);
     }
-    static async removeItemFromInventory(user_id:string, inventoryMod: inventoryModule, item:_item)
+
+    static async addItemToInventory(user_id:string, inventoryMod: inventoryModule, item_id:number, bonus_atk:number,bonus_def:number, bonus_acc:number)
     {
-        const entry = inventoryMod.inventory.get(item.id);
-        if (entry!.count - 1 > 0) {entry!.count -= 1; inventoryMod.inventory.set(item.id,entry!);}
-        else inventoryMod.inventory.delete(item.id);
+        //gett item data
+        var item = await getItemData(item_id) as _item;
+        inventoryMod.inventory.set(inventoryMod.inventory.size, {item: item, bonus_atk: bonus_atk, bonus_def: bonus_def, bonus_acc: bonus_acc});
+        await queryPromise(`INSERT INTO user_inventory (user_id, item, bonus_atk, bonus_acc, bonus_def) VALUES ('${user_id}', ${item_id}, ${bonus_atk},${bonus_acc},${bonus_def})`);
+    }
+    static async removeItemFromInventory(user_id:string, inventoryMod: inventoryModule, entry_id: number)
+    {
+        const entry = inventoryMod.inventory.get(entry_id)!;
+        inventoryMod.inventory.delete(entry_id);
         
-        await queryPromise(`DELETE FROM user_inventory WHERE user_id=${user_id} AND item=${item.id} LIMIT 1`)
+        await queryPromise(`DELETE FROM user_inventory WHERE user_id=${user_id} AND item=${entry.item.id} AND bonus_atk=${entry.bonus_atk} AND bonus_def=${entry.bonus_def} AND bonus_acc=${entry.bonus_acc} LIMIT 1`)
     }
 
-    static async equipItemFromInventory(user_id:string, equipmentMod: equipmentModule, inventoryMod: inventoryModule, slot:string, itemToEquip:_item)
+    static async equipItemFromInventory(user_id:string, equipmentMod: equipmentModule, inventoryMod: inventoryModule, slot:string, itemToEquip:_item, bonus_atk:number, bonus_def:number, bonus_acc: number)
     {
         //put the previous equipped item in the inventory.
-        const previousItem = (await queryPromise(`SELECT ${slot} FROM user_equipment WHERE user_id=${user_id};`))[0]
-        if (previousItem[slot] != null) await UserData.addItemToInventory(user_id, inventoryMod, previousItem[slot]);
+        const previousEquipmentData = (await queryPromise(`SELECT ${slot}, ${slot}_bonus_atk, ${slot}_bonus_def, ${slot}_bonus_acc FROM user_equipment WHERE user_id=${user_id};`))[0]
         
-        equipmentMod.equipment.set(slot,itemToEquip);
-        await UserData.removeItemFromInventory(user_id, inventoryMod, itemToEquip);
+        if (previousEquipmentData[slot] != null) await UserData.addItemToInventory(user_id, inventoryMod, previousEquipmentData[slot], previousEquipmentData[`${slot}_bonus_atk`], previousEquipmentData[`${slot}_bonus_def`], previousEquipmentData[`${slot}_bonus_acc`]);
+        
+
+        equipmentMod.equipment.set(slot, {item: itemToEquip, slotDbName: slot, bonus_acc: bonus_acc, bonus_atk: bonus_atk, bonus_def: bonus_def});
+        await UserData.removeItemFromInventory(user_id, inventoryMod, inventoryMod.inventory.findKey(x => x.item.id == itemToEquip.id && x.bonus_atk == bonus_atk && x.bonus_acc == bonus_acc && x.bonus_def == bonus_def));
     }
 
     //returns true if the user has leveled.
@@ -421,6 +438,8 @@ export class UserData
         {
             try
             {
+                if (basicMod.level! >= cf.level_cap) return resolve(false);
+
                 if (basicMod.exp! + amount > calculateReqExp(basicMod.level!))
                 {
                     amount - calculateReqExp(basicMod.level!);
