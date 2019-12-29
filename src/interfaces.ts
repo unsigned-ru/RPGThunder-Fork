@@ -126,6 +126,14 @@ export interface _zone
   boss_id: number,
 }
 
+export interface _crafting_recipe
+{
+  id: number,
+  category: number,
+  item_id: number,
+  mat_costs: string,
+}
+
 export interface _material
 {
   id:number,

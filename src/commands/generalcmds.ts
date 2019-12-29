@@ -2,7 +2,8 @@ import Discord from 'discord.js';
 import {client, blackjackSessions} from '../main';
 import {equipment_slots, item_qualities, item_types} from '../staticdata';
 import {_class, _item, _item_type, _shop_item, _consumable, _enemy} from '../interfaces';
-import {getItemData, getCurrencyDisplayName, getCurrencyIcon, queryPromise, getGuildPrefix} from '../utils';
+import {getItemData, getCurrencyDisplayName, getCurrencyIcon, queryPromise, getGuildPrefix, isRegistered} from '../utils';
+import { UserData, userDataModules, basicModule } from '../classes/userdata';
 
 export const commands = [
 	{
@@ -52,6 +53,58 @@ export const commands = [
 		},
 	},
 	{
+		name: 'classinfo',
+		catergory: "statistics",
+		aliases: ['cinfo', 'ci'],
+		description: 'Shows all the information about the specified class.',
+		usage: `[prefix]classinfo [Optional: Classname]`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				var c :_class;
+
+				if (args.length == 0) 
+				{
+					if (!isRegistered(msg.author.id)) throw "Please enter the name of the class you wish to see the info of.";
+					const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+					c = basicMod.class!;
+				}
+				else
+				{
+					c = (await queryPromise(`SELECT * FROM classes WHERE LOWER(name)='${args[0].toLowerCase()}'`))[0]
+					if (!c) throw `Could not find a class with name ${args[0].toLowerCase()}!`
+				}
+
+				//We have class info, create embed
+
+				var itemTypesString = "";
+				for (var typeId of c.allowed_item_types.split(",").map(x=> parseInt(x))) itemTypesString+= `${item_types.get(typeId)!.name}\n`
+
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow⛏️
+				.setTitle(`**Class Info -- ${c.name}**`)
+				.setDescription(c.description)
+				.addField(
+					"Stats",
+					`⤒ = *Increase each level*\n`+
+					`❤️ **HP:** ${c.base_hp} + ${c.hp_increase} ⤒\n`+
+					`🛡️ **DEF:** ${c.base_def} + ${c.def_increase} ⤒\n`+
+					`⚡ **ACC:** ${c.base_acc} + ${c.acc_increase} ⤒\n`
+				,true)
+				.addField("Item Types", itemTypesString, true)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
 		name: 'help',
 		aliases: ['commands'],
 		description: 'List help for all commands.',
@@ -73,6 +126,7 @@ export const commands = [
 				.addField("💰**Economy commands**💰",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "economy"}).map(x => `\`${x.name}\``).join(","))
 				.addField("🎲**Gambling commands**🎲",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "gambling"}).map(x => `\`${x.name}\``).join(","))
 				.addField("🕵️**Admin commands**🕵️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "admin"}).map(x => `\`${x.name}\``).join(",")+ ",`rpgthunder setprefix`,`rpgthunder prefix`") 
+				.addField('\u200B',`[Official Website](https://rpgthunder.com/) | [Facebook](https://www.facebook.com/rpgthunder/) | [Twitter](https://twitter.com/RPGThunderBot) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 

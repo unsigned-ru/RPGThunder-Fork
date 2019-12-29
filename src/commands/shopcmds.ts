@@ -2,7 +2,7 @@ import Discord, { User } from 'discord.js';
 import {client} from '../main';
 import cf from "../config.json";
 import {isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue, getEquipmentSlotDisplayName, getGuildPrefix} from "../utils";
-import {zone_shops, shop_categories, zones, item_qualities } from '../staticdata';
+import {zone_shops, item_categories, zones, item_qualities } from '../staticdata';
 import { _shop_item, _consumable, _item, _material } from '../interfaces';
 import { inventoryModule, userDataModules, UserData, currencyModule, basicModule } from '../classes/userdata';
 
@@ -36,7 +36,7 @@ export const commands =
 						shopStrings.push(currentString);
 						currentString = "";
 					}
-					switch(shop_categories.get(entry[1].category_id)!.name)
+					switch(item_categories.get(entry[1].category_id)!.name)
 					{
 						case "item":
 							const item: _item = (await queryPromise(`SELECT * from items WHERE id=${entry[1].entry_id}`))[0];
@@ -111,7 +111,7 @@ export const commands =
 				const shopEntriesWithData : Discord.Collection<string, _item | _consumable | _material> = new Discord.Collection();
 				for(let entry of entries)
 				{
-					switch(shop_categories.get(entry[1].category_id)!.name)
+					switch(item_categories.get(entry[1].category_id)!.name)
 					{
 						case "item":
 							const item: _item = (await queryPromise(`SELECT * from items WHERE id=${entry[1].entry_id}`))[0];
@@ -135,7 +135,7 @@ export const commands =
 
 				//get the item
 				const entryData = shopEntriesWithData.get(itemName);
-				const entry = entries.find(x=> shop_categories.get(x.category_id!)!.name == entryData!.objType && x.entry_id == entryData!.id);
+				const entry = entries.find(x=> item_categories.get(x.category_id!)!.name == entryData!.objType && x.entry_id == entryData!.id);
 
 				//Check if user has enough balance
 				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \`${itemName}\`x${amount}!`

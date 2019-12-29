@@ -1,5 +1,5 @@
 import {Collection} from "discord.js"
-import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility, _class_ability} from './interfaces';
+import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category as _item_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility, _class_ability, _crafting_recipe} from './interfaces';
 import { queryPromise } from './utils';
 
 export var classes: Collection<number,_class> = new Collection();
@@ -26,10 +26,11 @@ export var currencies: Collection<number,_currency> = new Collection();
 export var equipment_slots: Collection<number,_equipment_slot> = new Collection();
 export var materials: Collection<number,_material> = new Collection();
 
+export var craftingRecipes: Collection<number,_crafting_recipe> = new Collection();
 
 export var zones: Collection<number,_zone> = new Collection();
 export var zone_shops: Collection<number,_zone_shop_entry> = new Collection();
-export var shop_categories: Collection<number,_shop_category> = new Collection();
+export var item_categories: Collection<number,_item_category> = new Collection();
 
 export var zone_fish_drops: Collection<number,_zone_gather_drops> = new Collection();
 export var zone_mine_drops: Collection<number,_zone_gather_drops> = new Collection();
@@ -75,7 +76,9 @@ export async function LoadStaticDatabaseData()
 
     zones = await loadDbData("zones");
     zone_shops = await loadDbData("zone_shops");
-    shop_categories = await loadDbData("shop_categories");
+    item_categories = await loadDbData("categories");
+
+    craftingRecipes = await loadDbData("recipes","item_id");
   }
   catch(err)
   {

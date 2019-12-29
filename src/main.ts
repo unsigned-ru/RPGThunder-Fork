@@ -9,7 +9,8 @@ import * as useractioncommands from "./commands/useractioncmds";
 import * as gathercommands from "./commands/gathercmds";
 import * as shopcommands from "./commands/shopcmds";
 import * as gamblecommands from "./commands/gamblecmds";
-import * as admincommands from "./commands/admincmds"
+import * as admincommands from "./commands/admincmds";
+import * as craftingcommands from "./commands/craftingcmds";
 import * as staticData from "./staticdata";
 import {_client, _command_cooldown} from "./interfaces";
 import { BlackJackSession } from './classes/blackjacksession.js';
@@ -46,6 +47,7 @@ gathercommands.SetupCommands();
 shopcommands.SetupCommands();
 gamblecommands.SetupCommands();
 admincommands.SetupCommands();
+craftingcommands.SetupCommands();
 
 
 //Setup events
