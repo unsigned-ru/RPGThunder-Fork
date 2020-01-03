@@ -16,7 +16,7 @@ async function onReady()
 {
     console.log(`Logged in as ${client.c.user.tag}! Bot is ready for use and listening for commands.`);
     updateBotStatus();
-    client.c.setInterval(updateBotStatus,3600000); //update bot status every hour
+    client.c.setInterval(updateBotStatus,3600000); //update bot status every hour    
 }
 
 async function onMSGReceived(msg: Discord.Message)

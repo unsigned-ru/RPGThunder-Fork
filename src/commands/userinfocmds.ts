@@ -1,4 +1,4 @@
-import { client, gather_commands_cooldown, explore_command_cooldown, rest_command_cooldown, zoneBoss_command_cooldown} from "../main";
+import { client, gather_commands_cooldown, explore_command_cooldown, rest_command_cooldown, zoneBoss_command_cooldown, dbl} from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
 import {calculateReqExp, isRegistered, getEquipmentSlotDisplayName, clamp} from "../utils";
@@ -128,8 +128,7 @@ export const commands =
 
 				for (var m of materials)
 				{
-					
-					materialsString += `${m[1].icon_name} **${m[1].display_name}**: ${materialsMod.materials.get(m[1].database_name)}\n`
+					if (materialsMod.materials.get(m[1].database_name)! > 0) materialsString += `${m[1].icon_name} **${m[1].display_name}**: ${materialsMod.materials.get(m[1].database_name)}\n`
 				}
 				
 				const embed = new Discord.RichEmbed()
@@ -154,26 +153,39 @@ export const commands =
 		category: "statistics",
 		aliases: ['inv'],
 		description: 'Lists all items in your inventory and their respective slot they are in.',
-		usage: `[prefix]inventory`,
+		usage: `[prefix]inventory [optional: Page]`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to view your inventory."
 
+				var page = 1;
+				if (parseInt(args[0])) page = parseInt(args[0])
+
 				const [inventoryMod] = <[inventoryModule]> await new UserData(msg.author.id, [userDataModules.inventory]).init();
 
 				if (inventoryMod.isEmpty) throw "You do not own any items!"
-
+				var invPages = []
 				var invString = "";
 
-				for (var id of inventoryMod.inventory) invString += `**${id[0]}** ${id[1].item.icon_name} ${id[1].item.name} [${item_qualities.get(id[1].item.quality)!.name} ${getEquipmentSlotDisplayName(id[1].item.slot)}] 🗡️ ${id[1].item.atk + id[1].bonus_atk} | 🛡️ ${id[1].item.def + id[1].bonus_def} | ⚡ ${id[1].item.acc + id[1].bonus_acc}\n`
+				for (var id of inventoryMod.inventory)
+				{
+					invString += `**${id[0]}** ${id[1].item.icon_name} ${id[1].item.name} [${item_qualities.get(id[1].item.quality)!.name} ${getEquipmentSlotDisplayName(id[1].item.slot)}] 🗡️ ${id[1].item.atk + id[1].bonus_atk} | 🛡️ ${id[1].item.def + id[1].bonus_def} | ⚡ ${id[1].item.acc + id[1].bonus_acc}\n`
+					if (invString.length > 900)
+					{
+						invPages.push(invString);
+						invString = "";
+					}
+				}
+				if (invString.length > 0) invPages.push(invString);
+
+				if (page < 1 || page > invPages.length) throw `Page number must be bigger than 0 and smaller than ${invPages.length+1}`;
 
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
-				.setTitle(`User inventory: ${msg.member.displayName}`)
-				.addField("Items:", invString)
-				.setThumbnail(msg.author.avatarURL)
+				.setTitle(`User inventory: ${msg.member.displayName} | Page ${page}/${invPages.length}`)
+				.addField("Items:", invPages[page-1])
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 				
@@ -330,6 +342,7 @@ export const commands =
 				var explore_cmd_cooldown = 0;
 				var rest_cmd_cooldown = 0;
 				var zoneBoss_cmd_cooldown = 0;
+
 				//Check for cooldown.
 				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
 				{
@@ -365,10 +378,11 @@ export const commands =
 				.setColor('#fcf403') //Yelow
 				.setTitle(`${msg.author.username}'s cooldowns`)
 				.addField("✨ Progress",
-				`${gather_command_cooldown == 0 ? `✅ - mine/chop/harvest/fish\n`: `❌ - mine/chop/harvest/fish **(${Math.round(gather_command_cooldown)}s)**\n`}`+
-				`${explore_cmd_cooldown == 0 ? `✅ - explore\n`:`❌ - explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`+
-				`${rest_cmd_cooldown == 0 ? `✅ - rest\n`: `❌ - rest **(${Math.round(rest_cmd_cooldown)}s)**\n`}`+
-				`${zoneBoss_cmd_cooldown == 0 ? `✅ - Zone Boss\n`:`❌ - Zone Boss **(${Math.round(zoneBoss_cmd_cooldown)}s)**\n`}`
+				`${gather_command_cooldown == 0 ? `✅ - Mine/Chop/Harvest/Fish\n`: `❌ - Mine/Chop/Harvest/Fish **(${Math.round(gather_command_cooldown)}s)**\n`}`+
+				`${explore_cmd_cooldown == 0 ? `✅ - Explore\n`:`❌ - Explore **(${Math.round(explore_cmd_cooldown)}s)**\n`}`+
+				`${rest_cmd_cooldown == 0 ? `✅ - Rest\n`: `❌ - Rest **(${Math.round(rest_cmd_cooldown)}s)**\n`}`+
+				`${zoneBoss_cmd_cooldown == 0 ? `✅ - Zone Boss\n`:`❌ - Zone Boss **(${Math.round(zoneBoss_cmd_cooldown)}s)**\n`}`+
+				`${await dbl.hasVoted(msg.author.id) == false ? `✅ - Vote\n`:`❌ - Vote\n`}`
 				)
 				.setThumbnail(msg.author.avatarURL)
 				.setTimestamp()
@@ -436,6 +450,7 @@ export const commands =
 				{
 					readyString+= "✅ - zone boss\n"
 				}
+				if (await dbl.hasVoted(msg.author.id) == false) readyString+= "✅ - vote\n"
 				if (readyString == "") {msg.channel.send("You have no ready commands!"); return}
 
 				//create embed

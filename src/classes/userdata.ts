@@ -398,25 +398,26 @@ export class UserData
         consumablesMod.consumables.sweep(x => x.count == 0);
         await queryPromise(`DELETE FROM user_consumables WHERE consumable_id=${consumable.id} AND user_id=${user_id} LIMIT 1`);
     }
-    static async addConsumable(user_id:string, consumablesMod:consumablesModule, consumableID:number)
+    static async addConsumable(user_id:string, consumablesMod:consumablesModule|undefined, consumableID:number, amount :number = 1)
     {
         //TODO: add it to the consumable collection.
-        await queryPromise(`INSERT INTO user_consumables (user_id, consumable_id) VALUES ('${user_id}', ${consumableID})`);
+        //TODO: add undefined protectiont to consumablesmod
+        var sql = `('${user_id}', ${consumableID}), `.repeat(amount)
+        await queryPromise(`INSERT INTO user_consumables (user_id, consumable_id) VALUES ${sql.slice(0,-2)}`);
     }
 
-    static async addItemToInventory(user_id:string, inventoryMod: inventoryModule, item_id:number, bonus_atk:number,bonus_def:number, bonus_acc:number)
+    static async addItemToInventory(user_id:string, inventoryMod: inventoryModule|undefined, item_id:number, bonus_atk:number,bonus_def:number, bonus_acc:number)
     {
         //gett item data
         var item = await getItemData(item_id) as _item;
-        inventoryMod.inventory.set(inventoryMod.inventory.size, {item: item, bonus_atk: bonus_atk, bonus_def: bonus_def, bonus_acc: bonus_acc});
+        if (inventoryMod) inventoryMod.inventory.set(inventoryMod.inventory.lastKey()+1, {item: item, bonus_atk: bonus_atk, bonus_def: bonus_def, bonus_acc: bonus_acc});
         await queryPromise(`INSERT INTO user_inventory (user_id, item, bonus_atk, bonus_acc, bonus_def) VALUES ('${user_id}', ${item_id}, ${bonus_atk},${bonus_acc},${bonus_def})`);
     }
     static async removeItemFromInventory(user_id:string, inventoryMod: inventoryModule, entry_id: number)
     {
         const entry = inventoryMod.inventory.get(entry_id)!;
-        inventoryMod.inventory.delete(entry_id);
-        
         await queryPromise(`DELETE FROM user_inventory WHERE user_id=${user_id} AND item=${entry.item.id} AND bonus_atk=${entry.bonus_atk} AND bonus_def=${entry.bonus_def} AND bonus_acc=${entry.bonus_acc} LIMIT 1`)
+        inventoryMod.inventory.delete(entry_id);
     }
 
     static async equipItemFromInventory(user_id:string, equipmentMod: equipmentModule, inventoryMod: inventoryModule, slot:string, itemToEquip:_item, bonus_atk:number, bonus_def:number, bonus_acc: number)
@@ -428,6 +429,7 @@ export class UserData
         
 
         equipmentMod.equipment.set(slot, {item: itemToEquip, slotDbName: slot, bonus_acc: bonus_acc, bonus_atk: bonus_atk, bonus_def: bonus_def});
+
         await UserData.removeItemFromInventory(user_id, inventoryMod, inventoryMod.inventory.findKey(x => x.item.id == itemToEquip.id && x.bonus_atk == bonus_atk && x.bonus_acc == bonus_acc && x.bonus_def == bonus_def));
     }
 

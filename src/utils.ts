@@ -13,6 +13,13 @@ export function capitalizeFirstLetter(string: string)
 	return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+export function getItemDataByName(name: string): Promise<_item|undefined>{ 
+  return new Promise(async (resolve, reject) => {
+    var item: _item = (await queryPromise(`SELECT * FROM items WHERE LOWER(name)='${name.toLowerCase()}'`))[0];
+    return resolve(item);
+  })
+}
+
 /**
  * Awaitable function that executes a query to the database. Throws an error if one occurs.
  * @param str SQL Query to execute.
@@ -144,52 +151,6 @@ export function clamp(number:number,min:number, max:number) {
   return Math.min(Math.max(number, min), max);
 };
 
-export async function createRegisterEmbed(user: Discord.GuildMember) :Promise<Discord.RichEmbed>
-{
-  return new Promise(async function(resolve, reject)
-  {
-    try
-    {
-      if (user == null) reject("User is null.");
-
-      const userCountResult = (await queryPromise(`SELECT COUNT(*) FROM users WHERE user_id=${user.id}`))[0]
-      const userCount = userCountResult[Object.keys(userCountResult)[0]];
-      if (userCount != 0) throw "Skipping on join, user already registered.";
-
-      var availableClassesString: string = "";
-
-      classes.forEach(element => {
-        availableClassesString += `**${element.name}** - *${element.description}*\n`;
-      });
-
-      const embed = new Discord.RichEmbed()
-      
-      .setColor('#fcf403')
-      .setTitle(`Pssst ${user.displayName}...`)
-      .setDescription(`**I noticed you are trying to register, Have a read through this info to get you started!**`)
-
-      .addField("📰 **Summary**","I am a Bot that strives to bring interesting RPG elements into the discord servers I am in! The data across all servers is shared. "+ 
-      "So if we meet again in another server, you'll maintain your class, level, currencies and so on. There are tons of activities to participate in!")
-
-      .addField("👥 **Join us!**","I'd be thrilled to recruit another adventurer with potential! Join the growing RPG community, become the strongest of them all and kick some ass!")
-
-      .addField("❔ **'How?!'**","To join us you will have to create your character first. You can do so by choosing what class you'd like to be! "+
-      "\n\n**When you have made up your mind simply execute the command: `[prefix]register [class]`**")
-
-      .addField("⚔️ **Pick your poison!**","Available classes:\n\n"+availableClassesString)
-
-      .setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
-      .setTimestamp()
-      .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-
-      resolve(embed);
-    }
-    catch(err)
-    {
-        reject(err);
-    }       
-  })
-}
 export async function getGuildPrefix(guild_id:string)
 {
   const result = (await queryPromise(`SELECT * FROM custom_prefix WHERE guild_id=${guild_id}`))[0]

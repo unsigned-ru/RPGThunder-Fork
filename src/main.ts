@@ -1,6 +1,6 @@
 import Discord from 'discord.js';
 import mysql from 'mysql';
-import {token,mysql_host,mysql_user, mysql_pass, mysql_dbname} from "./config.json"
+import {token,mysql_host,mysql_user, mysql_pass, mysql_dbname, top_gg_api_key, webhook_authentication} from "./config.json"
 //cmds and events
 import * as generalevents from "./events/generalevents";
 import * as generalcommands from "./commands/generalcmds";
@@ -12,6 +12,7 @@ import * as gamblecommands from "./commands/gamblecmds";
 import * as admincommands from "./commands/admincmds";
 import * as craftingcommands from "./commands/craftingcmds";
 import * as staticData from "./staticdata";
+import * as webhooks from "./events/webhooks";
 import {_client, _command_cooldown} from "./interfaces";
 import { BlackJackSession } from './classes/blackjacksession.js';
 import { ZoneBossSession } from './classes/zoneBossSession.js';
@@ -49,9 +50,14 @@ gamblecommands.SetupCommands();
 admincommands.SetupCommands();
 craftingcommands.SetupCommands();
 
+//Register webhooks
+const DBL = require("dblapi.js");
+export const dbl = new DBL(top_gg_api_key, { webhookPort: 5000, webhookAuth: webhook_authentication },client.c);
 
 //Setup events
 generalevents.SetupEvents();
+webhooks.setupEvents();
+
 
 //log in
 client.c.login(token);

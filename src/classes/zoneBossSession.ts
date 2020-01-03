@@ -330,10 +330,15 @@ export class ZoneBossSession
       var enemyHpBar = "▰".repeat(Math.floor(enemyHealthPercent/5));
       enemyHpBar = enemyHpBar.padEnd(20,"▱");
 
-      var playerHealthPercent = (this.basicMod.current_hp! / this.statsMod.stats.get("max_hp")!) * 100;
-      var playerHpBar = "▰".repeat(Math.ceil(playerHealthPercent/5));
-      playerHpBar = playerHpBar.padEnd(20,"▱");
-
+      var playerHealthPercent = 0;
+      var playerHpBar = "▱".repeat(20);
+      if (condition != "loss") 
+      {
+        playerHealthPercent = (this.basicMod.current_hp! / this.statsMod.stats.get("max_hp")!) * 100;
+        playerHpBar = "▰".repeat(Math.ceil(playerHealthPercent/5));
+        playerHpBar = playerHpBar.padEnd(20,"▱");
+      }
+      
       var abilityStrings: string[] = [];
       var abilityIcons:string[] = ['1️⃣', '2️⃣', '3️⃣', '4️⃣']
 

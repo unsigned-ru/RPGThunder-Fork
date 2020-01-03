@@ -8,6 +8,7 @@ export interface _client {
 
 export interface _class {
   id: number,
+  icon_name: string,
   name: string,
   base_hp: number,
   base_atk: number,

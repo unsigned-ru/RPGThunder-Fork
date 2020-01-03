@@ -1,7 +1,7 @@
 import { client, con, explore_command_cooldown, zoneBossSessions, rest_command_cooldown, zoneBoss_command_cooldown } from "../main";
 import cf from "../config.json"
-import Discord, { User } from "discord.js"
-import { isRegistered, queryPromise, createRegisterEmbed, capitalizeFirstLetter, getItemData, calculateReqExp, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue, randomIntFromInterval } from "../utils";
+import Discord from "discord.js"
+import { isRegistered, queryPromise, capitalizeFirstLetter, getItemData, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue, randomIntFromInterval } from "../utils";
 import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones, consumables, bosses, bosses_currency_drop_data, bosses_item_drop_data, bosses_material_drop_data, currencies, materials } from "../staticdata";
 import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule, abilityModule, currencyModule, materialsModule } from "../classes/userdata";
 import { Enemy } from "../classes/enemy";
@@ -20,6 +20,8 @@ export const commands =
 		async execute(msg: Discord.Message, args: string[])
 		{
 			var sucess_output :string = "";
+			const [basicMod,inventoryMod,equipmentMod] = <[basicModule,inventoryModule,equipmentModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.inventory,userDataModules.equipment]).init();
+
 			try
 			{
 
@@ -43,16 +45,15 @@ export const commands =
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to equip an item."
 				
 				//Get the users class and data
-				const [basicMod,inventoryMod,equipmentMod] = <[basicModule,inventoryModule,equipmentModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.inventory,userDataModules.equipment]).init();
 				if (inventoryMod.isEmpty) throw "Your inventory is empty, you cannot equip any items."
-				
-				//Iterate over each item_id
+							
+
+				//Iterate over each invslot
 				for (var slot_id of slot_ids)
 				{
 					//Check if user has the item in inventory.
 					const invEntryToEquip = inventoryMod.inventory.get(slot_id);
 					if (!invEntryToEquip) throw "You do not own an item in the inventory slot: "+slot_id
-				
 					const slot = equipment_slots.find(slot => slot.id == invEntryToEquip.item.slot)!;
 
 					//check if the user has already equipped an item of that slot
@@ -63,7 +64,7 @@ export const commands =
 
 					//check if the user is allowed to wear this type.
 					if (!basicMod.class!.allowed_item_types.split(",").includes(invEntryToEquip.item.type.toString())) throw `You cannot equip item __${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ because your class is not allowed to equip the type: \`${item_types.get(invEntryToEquip.item!.type)!.name}\``
-					
+
 					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.database_name,invEntryToEquip.item,invEntryToEquip.bonus_atk,invEntryToEquip.bonus_def,invEntryToEquip.bonus_acc);
 					//add the equipped type to already_equipped_slots.
 					already_equipped_slots.push(invEntryToEquip.item.slot);
@@ -76,6 +77,7 @@ export const commands =
 			{
 				console.log(err);
 				msg.channel.send(sucess_output + err);
+				await equipmentMod.update(msg.author.id);
 			}
 		}
 	},
@@ -103,7 +105,7 @@ export const commands =
 				if(!cons || !cons.cons) throw "You do not own the consumable: "+ args[0]; 
 				
 				//update our stats
-				const [basicMod, equipmentMod, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
+				const [basicMod,, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
 				UserData.heal(basicMod,statMod,cons.cons.hp);
 				basicMod.update(msg.author.id);
 
@@ -125,13 +127,13 @@ export const commands =
 		aliases: [],
 		description: 'Consume your smallest potions untill you reach full health.',
 		usage: `[prefix]heal`,
-		async execute(msg: Discord.Message, args: string[]) 
+		async execute(msg: Discord.Message) 
 		{
 			try
 			{
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
 
-				const [consumablesMod, basicMod, equipmentMod, statMod] = <[consumablesModule,basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.consumables,userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
+				const [consumablesMod, basicMod,, statMod] = <[consumablesModule,basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.consumables,userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
 				
 				if (consumablesMod.isEmpty) throw "You do not own any potions!";
 
@@ -180,13 +182,13 @@ export const commands =
 		aliases: [],
 		description: 'Rest for a night, restore you health daily.',
 		usage: `[prefix]rest`,
-		async execute(msg: Discord.Message, args: string[]) 
+		async execute(msg: Discord.Message) 
 		{
 			try
 			{
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
 
-				const [basicMod, equipmentMod, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
+				const [basicMod,, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
 
 				if (basicMod.current_hp! == statMod.stats.get("max_hp")!) throw "You are already full health!"
 
@@ -236,7 +238,7 @@ export const commands =
 				if (!await isRegistered(target.id)) throw "Cannot gift to a non registered user. Get them to register first!";
 
 				//Start checking if the user owns the item.
-				const [basicMod,consumablesMod,currencyMod,inventoryMod,materialMod] = <[basicModule,consumablesModule,currencyModule,inventoryModule,materialsModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.consumables,userDataModules.currencies,userDataModules.inventory,userDataModules.materials]).init();
+				const [,consumablesMod,currencyMod,inventoryMod,materialMod] = <[basicModule,consumablesModule,currencyModule,inventoryModule,materialsModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.consumables,userDataModules.currencies,userDataModules.inventory,userDataModules.materials]).init();
 
 				var slot_id = parseInt(args[0]);
 				if (slot_id)
@@ -331,7 +333,7 @@ export const commands =
 		aliases: ['adventure'],
 		description: 'Explore your zone! Be careful, you might end up fighting eou might end up fighting enemies!',
 		usage: `[prefix]explore`,
-		async execute(msg: Discord.Message, args: string[]) 
+		async execute(msg: Discord.Message) 
 		{
 			try
 			{
@@ -419,7 +421,7 @@ export const commands =
 							if (randomIntFromInterval(0,100) <= 2) 
 							{
 								basicMod.foundBosses.push(zones.get(basicMod.zone!)!.boss_id);
-								extraInfo += `You have found the location of the boss! You can now fight it!\n`;
+								extraInfo += `**💀You have found the location of the boss! You can now fight it!💀**\n`;
 							}
 						}
 						if (extraInfo.length != 0) winEmbed.addField("**Extra Info:**", extraInfo)
@@ -459,7 +461,7 @@ export const commands =
 		aliases: [],
 		description: 'Fight your the boss of your current zone.',
 		usage: `[prefix]boss`,
-		async execute(msg: Discord.Message, args: string[]) 
+		async execute(msg: Discord.Message) 
 		{
 			try
 			{
@@ -468,7 +470,7 @@ export const commands =
 
 				if (!await isRegistered(msg.author.id)) throw "You must be registered use this command.";
 
-				const [basicMod,consumablesMod,currencyMod,equipmentMod,inventoryMod,materialMod,statsMod,abilityMod] = <[basicModule,consumablesModule,currencyModule,equipmentModule,inventoryModule,materialsModule,statsModule,abilityModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.consumables,userDataModules.currencies,userDataModules.equipment,userDataModules.inventory,userDataModules.materials,userDataModules.stats,userDataModules.abilities]).init();
+				const [basicMod,,currencyMod,equipmentMod,inventoryMod,materialMod,statsMod,abilityMod] = <[basicModule,consumablesModule,currencyModule,equipmentModule,inventoryModule,materialsModule,statsModule,abilityModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.consumables,userDataModules.currencies,userDataModules.equipment,userDataModules.inventory,userDataModules.materials,userDataModules.stats,userDataModules.abilities]).init();
 
 				var zone = zones.get(basicMod.zone!)!;
 				
@@ -521,7 +523,7 @@ export const commands =
 		name: 'register',
 		aliases: [],
 		description: 'Registers a user!',
-		usage: `[prefix]register [class]`,
+		usage: `[prefix]register`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
@@ -530,15 +532,22 @@ export const commands =
 
 				if (await isRegistered(msg.author.id)) throw "You have already registered.";
 
-				if (args.length == 0) 
-				{
-					const embed = await createRegisterEmbed(msg.member);
-					msg.author.send(embed);
-					return;
-				}
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403')
+				.setTitle(`Welcome to RPG Thunder!`)
+				.setDescription(`**To start off your adventure, you must pick a class! What class do you want to be?**`)
+				.setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
-				const selectedClass = classes.find(element => element.name.toLowerCase() == args[0].toLowerCase());
-				if (!selectedClass) throw "Did not find a class with that name.";
+				for (var c of classes) embed.addField(`**${c[1].icon_name} ${c[1].name}**`, c[1].description);
+
+				msg.channel.send(embed);
+
+				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxMatches: 1});
+
+				const selectedClass = classes.find(element => element.name.toLowerCase() == rr.first().content.toLowerCase());
+				if (!selectedClass) throw "Did not find a class with that name. Please try again!";
 
 				var sql = 
 				//user creation.
@@ -573,7 +582,7 @@ export const commands =
 
 				await queryPromise(sql);
 
-				msg.channel.send(`You have sucessfully registered as an ${capitalizeFirstLetter(args[0].toLowerCase())}`);
+				msg.channel.send(`You have sucessfully registered as an ${selectedClass.name}`);
 			}
 			catch(err)
 			{

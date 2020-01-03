@@ -78,7 +78,7 @@ export async function LoadStaticDatabaseData()
     zone_shops = await loadDbData("zone_shops");
     item_categories = await loadDbData("categories");
 
-    craftingRecipes = await loadDbData("recipes","item_id");
+    craftingRecipes = await loadDbData("recipes");
   }
   catch(err)
   {

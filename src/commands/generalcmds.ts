@@ -1,6 +1,6 @@
 import Discord from 'discord.js';
-import {client, blackjackSessions} from '../main';
-import {equipment_slots, item_qualities, item_types} from '../staticdata';
+import {client, blackjackSessions, dbl} from '../main';
+import {equipment_slots, item_qualities, item_types, classes} from '../staticdata';
 import {_class, _item, _item_type, _shop_item, _consumable, _enemy} from '../interfaces';
 import {getItemData, getCurrencyDisplayName, getCurrencyIcon, queryPromise, getGuildPrefix, isRegistered} from '../utils';
 import { UserData, userDataModules, basicModule } from '../classes/userdata';
@@ -53,6 +53,33 @@ export const commands = [
 		},
 	},
 	{
+		name: 'classes',
+		catergory: "statistics",
+		aliases: [],
+		description: 'List all the available classes.',
+		usage: `[prefix]classes`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow⛏️
+				.setTitle(`**Available classes**`)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+
+				for (var c of classes) embed.addField(`**${c[1].icon_name} ${c[1].name}**`, c[1].description);
+
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
 		name: 'classinfo',
 		catergory: "statistics",
 		aliases: ['cinfo', 'ci'],
@@ -83,7 +110,7 @@ export const commands = [
 
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow⛏️
-				.setTitle(`**Class Info -- ${c.name}**`)
+				.setTitle(`**Class Info -- ${c.icon_name} ${c.name}**`)
 				.setDescription(c.description)
 				.addField(
 					"Stats",
@@ -118,7 +145,8 @@ export const commands = [
 				.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403') //Yelow⛏️
 				.setTitle(`**Commands**`)
-				.setDescription(`**Are you a new user? Type \`${prefix}register\` to get started!**`)
+				.setDescription(`**Are you a new user? Type \`${prefix}register\` to get started!**\n\n`+
+				`*Note: Thunder RPG is still in development. New features are being rolled out actively and user accounts will be wiped on official release.*`)
 				.addField("⚙️**Statistic commands**⚙️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "statistics"}).map(x => `\`${x.name}\``).join(","))
 				.addField("**Item commands**",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "items"}).map(x => `\`${x.name}\``).join(","))
 				.addField("⚔️**Fighting commands**⚔️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "fighting"}).map(x => `\`${x.name}\``).join(","))
@@ -126,7 +154,7 @@ export const commands = [
 				.addField("💰**Economy commands**💰",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "economy"}).map(x => `\`${x.name}\``).join(","))
 				.addField("🎲**Gambling commands**🎲",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "gambling"}).map(x => `\`${x.name}\``).join(","))
 				.addField("🕵️**Admin commands**🕵️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "admin"}).map(x => `\`${x.name}\``).join(",")+ ",`rpgthunder setprefix`,`rpgthunder prefix`") 
-				.addField('\u200B',`[Official Website](https://rpgthunder.com/) | [Facebook](https://www.facebook.com/rpgthunder/) | [Twitter](https://twitter.com/RPGThunderBot) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
+				.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Facebook](https://www.facebook.com/rpgthunder/) | [Twitter](https://twitter.com/RPGThunderBot) | [Patreon](https://www.patreon.com/rpgthunder) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
@@ -136,6 +164,27 @@ export const commands = [
 			{
 				console.log(err);
 			}
+		},	
+	},
+	{
+		name: 'vote',
+		aliases: [],
+		description: 'Get some rewards by voting for our bot!',
+		catergory: "economy",
+		usage: `[prefix]vote`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				if (await dbl.hasVoted(msg.author.id) == true) throw "You have already voted in the past 12hrs, it is still on cooldown.";
+				msg.channel.send(`You can vote for our discord bot here:\nhttps://top.gg/bot/646764666508541974/vote`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+			
 		},	
 	},
 ]
