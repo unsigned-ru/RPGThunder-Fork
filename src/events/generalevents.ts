@@ -1,22 +1,34 @@
 import Discord from 'discord.js'
-import {client, blackjackSessions, zoneBossSessions} from '../main';
+import {client, blackjackSessions, zoneBossSessions, traveling} from '../main';
 import {session_category_id} from '../config.json';
 import {queryPromise, getGuildPrefix} from '../utils';
 import { blacklistedChannels } from '../staticdata';
+import { resetLottery, updateLotteryMessage } from '../commands/gamblecmds';
 
 export function SetupEvents()
 {
     console.log("Setting up events...");
     client.c.on('message', onMSGReceived);
     client.c.on('ready', onReady);
+    client.c.on("guildMemberAdd", onUserJoin)
     console.log("Finished setting up events.");
 }
 
+export var resetLotteryJob :any | undefined;
+export var updateLotteryMessageJob :any | undefined;
 async function onReady()
 {
     console.log(`Logged in as ${client.c.user.tag}! Bot is ready for use and listening for commands.`);
     updateBotStatus();
     client.c.setInterval(updateBotStatus,3600000); //update bot status every hour    
+
+    //lotterypick
+    var schedule = require('node-schedule');
+    resetLotteryJob = schedule.scheduleJob('0 18 * * *', resetLottery);
+
+    //lotteryUpdate
+    updateLotteryMessage();
+    updateLotteryMessageJob = schedule.scheduleJob('/15 * * * *', updateLotteryMessage);
 }
 
 async function onMSGReceived(msg: Discord.Message)
@@ -40,11 +52,28 @@ async function onMSGReceived(msg: Discord.Message)
 
         //Check if it starts with required refix
         if (!msg.content.startsWith(prefix)) return;
-
+        //delete message if sent in a blacklisted channel
         if (blacklistedChannels.includes(msg.channel.id)) {await msg.delete(); return;}
-        //Execute command if it exists.
-        if (client.commands.has(command))  client.commands.get(command).execute(msg, args);
-        else if (client.commands.find((x:any) => x.aliases.find((alias:string) => alias == command))) client.commands.find(x => x.aliases.find((alias:string) => alias == command)).execute(msg,args);
+
+        //find command
+        var c_cmd;
+        if (client.commands.has(command)) c_cmd = client.commands.get(command);
+        else if (client.commands.find((x:any) => x.aliases.find((alias:string) => alias == command))) c_cmd = client.commands.find(x => x.aliases.find((alias:string) => alias == command));
+
+        if (!c_cmd) return;
+
+        //Check if we're traveling
+        if (traveling.has(msg.author.id))
+        {
+            if (c_cmd.execute_while_travelling) c_cmd.execute(msg,args)
+            else
+            {
+                var d = traveling.get(msg.author.id)!;
+                var remainingTime = (d.getTime() - new Date().getTime()) / 1000;
+                msg.channel.send(`You cannot execute that command while traveling, you will arrive in ${Math.round(remainingTime)}s!`)
+            }
+        }
+        else c_cmd.execute(msg,args);
     }
     catch (error) 
     {
@@ -52,6 +81,16 @@ async function onMSGReceived(msg: Discord.Message)
         msg.reply('there was an error trying to execute that command!');
     }
     
+}
+
+async function onUserJoin(member: Discord.GuildMember)
+{
+    //check if the member has an active session and give the perms when joining.
+    const bs = blackjackSessions.find(x => x.user.id == member.id);
+    if (bs) bs.cmdChannel!.overwritePermissions(member,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
+
+    const zbs = zoneBossSessions.find(x => x.user.id == member.id);
+    if (zbs) zbs.cmdChannel!.overwritePermissions(member,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
 }
 
 async function changePrefixCommand(msg:Discord.Message, args:string[])

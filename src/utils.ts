@@ -3,6 +3,7 @@ import * as cf from "./config.json";
 import { _item } from "./interfaces";
 import Discord from "discord.js";
 import { classes, equipment_slots, materials, currencies } from "./staticdata";
+import { equipmentModule } from "./classes/userdata";
 
 /**
  * Capitalize the first letter of a string
@@ -19,6 +20,14 @@ export function getItemDataByName(name: string): Promise<_item|undefined>{
     return resolve(item);
   })
 }
+
+export function getEquipmentInfoString(slot: string, equipmentMod:equipmentModule): string
+{
+  var e = equipmentMod.equipment.get(slot);
+  if (!e || !e.item) return "None";
+  return `${e.item.icon_name} ${e.item.name} [🗡️${e.item.atk + e.bonus_atk} | 🛡️${e.item.def + e.bonus_def} | ⚡${e.item.acc + e.bonus_acc}]`
+}
+
 
 /**
  * Awaitable function that executes a query to the database. Throws an error if one occurs.
@@ -118,6 +127,34 @@ export function editCollectionNumberValue(collection: Discord.Collection<any,num
 export function calculateReqExp(level:number) :number
 {
   return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level ** cf.exp_req_multiplier)-level)));
+}
+
+export function getCooldownForCollection(user_id:string,collection :Discord.Collection<string,Date>) :number
+{
+  return (collection.get(user_id)!.getTime() - new Date().getTime());
+}
+
+export function formatTime(ms:number) :string
+{
+  if (ms / 6.048e+8 >= 1) return `${Math.round(ms / 6.048e+8)} week(s)`;
+  else if (ms / 8.64e+7 >= 1) return `${Math.round(ms / 8.64e+7)} day(s)`;
+  else if (ms / 3.6e+6 >= 1) return `${Math.round(ms / 3.6e+6)} hour(s)`;
+  else if (ms / 60000 >= 1) return `${Math.round(ms / 60000)} minute(s)`;
+  else if (ms / 1000 >= 1) return `${Math.round(ms / 1000)} second(s)`;
+  else return "unknown";
+}
+
+export function setCooldownForCollection(user_id:string,cooldown:number,collection :Discord.Collection<string,Date>)
+{
+  var d = new Date();
+  d.setTime(d.getTime() + (cooldown * 1000))
+  collection.set(user_id, d);
+
+  setTimeout((user_id: string, collection:Discord.Collection<string,Date>) => 
+  {
+    collection.delete(user_id);
+  }
+  ,cooldown*1000,user_id, collection)
 }
 
 /**

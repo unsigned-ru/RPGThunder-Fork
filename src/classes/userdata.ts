@@ -26,6 +26,8 @@ export class basicModule
     current_hp: number | undefined;
     foundBosses: number[] = [];
     unlockedZones: number[] = [];
+    daily_isReady: boolean | undefined;
+    weekly_isReady: boolean | undefined;
 
     public async init(user_id:string)
     {
@@ -38,6 +40,9 @@ export class basicModule
         this.current_hp = result.current_hp;
         this.foundBosses = result.found_bosses.split(",").filter((x:string) => x.trim().length > 0).map((x:string) => parseInt(x));
         this.unlockedZones = result.unlocked_zones.split(",").filter((x:string) => x.trim().length > 0).map((x:string) => parseInt(x));
+        this.daily_isReady = result.daily_ready;
+        this.weekly_isReady = result.weekly_ready;
+
     }
 
     public async update(user_id:string)
@@ -389,14 +394,15 @@ export class UserData
 
         return damage;
     }
-    static async removeConsumable(user_id:string, consumablesMod:consumablesModule, consumable: _consumable)
+    static async removeConsumable(user_id:string, consumablesMod:consumablesModule, consumable: _consumable, amount: number = 1)
     {
         //Remove from collection
+        //TODO: add the amount to 
         const temp = consumablesMod.consumables.get(consumable.id)!;
-        temp.count -= 1;
+        temp.count -= amount;
         consumablesMod.consumables.set(consumable.id,temp);
-        consumablesMod.consumables.sweep(x => x.count == 0);
-        await queryPromise(`DELETE FROM user_consumables WHERE consumable_id=${consumable.id} AND user_id=${user_id} LIMIT 1`);
+        consumablesMod.consumables.sweep(x => x.count <= 0);
+        await queryPromise(`DELETE FROM user_consumables WHERE consumable_id=${consumable.id} AND user_id=${user_id} LIMIT ${amount}`);
     }
     static async addConsumable(user_id:string, consumablesMod:consumablesModule|undefined, consumableID:number, amount :number = 1)
     {

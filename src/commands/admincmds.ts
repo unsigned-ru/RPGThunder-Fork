@@ -6,6 +6,7 @@ import { queryPromise } from '../utils';
 export const commands = [
 	{
 		name: 'blacklist',
+		execute_while_travelling: true,
 		category: "admin",
 		aliases: [],
 		description: 'Blacklist a channel in your server and prevent commands from executing there. Execute this again to undo the blacklisting./',

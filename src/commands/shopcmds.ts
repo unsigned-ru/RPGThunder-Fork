@@ -191,6 +191,8 @@ export const commands =
 				const [inventoryMod, currencyMod] = <[inventoryModule,currencyModule]> await new UserData(msg.author.id, [userDataModules.inventory,userDataModules.currencies]).init();
 				if (inventoryMod.isEmpty) throw "Your inventory is empty.";
 
+				var invEntriesToRemove = [] 
+
 				var errormsg = "";
 				var currencyGained = 0;
 				for (var invSlot_id of invSlot_ids)
@@ -201,19 +203,37 @@ export const commands =
 						errormsg += `- You do not own an item in the slot \`${invSlot_id}\`. You may have already sold it.\n`;
 						continue;
 					}
-					var inventoryEntry = inventoryMod.inventory.get(invSlot_id)!;
-
-					//remove item
-					await UserData.removeItemFromInventory(msg.author.id,inventoryMod,inventoryMod.inventory.findKey(x => x == inventoryEntry));
-					
-					//give currency
-					editCollectionNumberValue(currencyMod.currencies,"coins",inventoryEntry.item.sell_price);
-					currencyGained += inventoryEntry.item.sell_price;
+					var entry = inventoryMod.inventory.get(invSlot_id)!
+					invEntriesToRemove.push(entry);
+					currencyGained += entry.item.sell_price;
 				}
-				await currencyMod.update(msg.author.id)
 				
-				msg.channel.send(`${currencyGained > 0 ? `You have sold the selected items for a total of ${getCurrencyIcon("coins")}` : ``} ${currencyGained} ${getCurrencyDisplayName("coins")} ${errormsg.length > 0 ? `\nThe following errors occured:\n${errormsg}` : ""}`)
+				var entryString = "";
+				for (let entry of invEntriesToRemove)
+				{
+					entryString += `${entry.item.icon_name} ${entry.item.name} - ${getCurrencyIcon("coins")} ${entry.item.sell_price} ${getCurrencyDisplayName("coins")}\n`;
+				}
 
+				var confirmEmbed = new Discord.RichEmbed()
+				.setTitle(`Sale Confirmation - ${msg.author.username}`)
+				.setDescription(`**Are you sure you wish to sell the following items for ${getCurrencyIcon("coins")} ${currencyGained} ${getCurrencyDisplayName("coins")}?**`)
+				.addField(`Items`, entryString)
+				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setColor('#fcf403')
+				if (errormsg.length > 0) confirmEmbed.addField("⚠️Warnings⚠️",errormsg)
+				msg.channel.send(confirmEmbed);
+				
+				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id, {maxMatches: 1, time: 20000});
+				if (rr.first().content.toLowerCase() != "yes") return;
+
+				msg.channel.send(`You have sold the selected items for a total of ${getCurrencyIcon("coins")} ${currencyGained} ${getCurrencyDisplayName("coins")}`);
+
+				//remove items
+				for (let entry of invEntriesToRemove) await UserData.removeItemFromInventory(msg.author.id,inventoryMod,inventoryMod.inventory.findKey(x => x == entry));
+
+				//give currency
+				editCollectionNumberValue(currencyMod.currencies,"coins",currencyGained);
+				await currencyMod.update(msg.author.id);
 			}
 			catch(err)
 			{

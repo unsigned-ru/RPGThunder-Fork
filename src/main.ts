@@ -20,10 +20,14 @@ import { ZoneBossSession } from './classes/zoneBossSession.js';
 export const client: _client = { c:new Discord.Client(), commands: new Discord.Collection()};
 
 //Cooldowns
-export var gather_commands_cooldown :_command_cooldown[] = []; //TODO: change system
-export var explore_command_cooldown :_command_cooldown[] = []; //TODO: change system
-export var zoneBoss_command_cooldown :_command_cooldown[] = []; //TODO: change system
-export var rest_command_cooldown :_command_cooldown[] = []; //TODO: change system
+export var gather_commands_cooldown : Discord.Collection<string,Date> = new Discord.Collection();
+export var explore_command_cooldown : Discord.Collection<string,Date> = new Discord.Collection();
+export var zoneBoss_command_cooldown: Discord.Collection<string,Date> = new Discord.Collection();
+export var rest_command_cooldown: Discord.Collection<string,Date> = new Discord.Collection();
+export var traveling : Discord.Collection<string,Date> = new Discord.Collection();
+export var coinflip_cooldown : Discord.Collection<string,Date> = new Discord.Collection();
+
+
 
 export var blackjackSessions :BlackJackSession[] = [];
 export var zoneBossSessions :ZoneBossSession[] = []

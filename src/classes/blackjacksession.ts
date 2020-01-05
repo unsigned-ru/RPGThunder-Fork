@@ -42,14 +42,13 @@ export class BlackJackSession
       //if the channel exists delete it first. then create a channel for play and add permissions for user.
       if (this.bjGuild!.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes("blackjack"))) await this.bjGuild.channels.find(x => x.name.includes(this.user.id.slice(0,4))).delete();
 
-      const newchannel = (await this.bjGuild!.createChannel(`blackjack-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory,
-      permissionOverwrites: [
-        {id: this.user.id, allowed:["VIEW_CHANNEL","SEND_MESSAGES","READ_MESSAGES","READ_MESSAGE_HISTORY"]}
-      ]}));
-
+      const newchannel = (await this.bjGuild!.createChannel(`blackjack-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory}));
+      await newchannel.lockPermissions();
+      if (client.c.guilds.get(official_server_id)!.members.has(this.user.id)) newchannel.overwritePermissions(this.user,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
+      
       this.cmdChannel = newchannel as Discord.TextChannel;
     
-      this.invite = await this.cmdChannel.createInvite({maxAge: 86400});
+      this.invite = await this.cmdChannel.createInvite({unique: true, maxAge: 0});
       
       this.destoryTimerID = setTimeout(this.destroySession,180000,this,false) //3min timeout
       await this.promptStart();
@@ -93,16 +92,21 @@ export class BlackJackSession
 
   async destroySession(session:BlackJackSession,loss:boolean)
   {
-    if (session.cmdChannel!){
-      session.bjGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete().catch((err)=> {console.log(err)})
+    try
+    {
+      clearTimeout(session.destoryTimerID);
+      if (session.invite) await session.invite.delete();
+      if (session.cmdChannel!) await session.bjGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete();
+      if (session.hasEnded) session.endGame("timeoutEnded")
+      else if (loss) session.endGame("timeoutLoss")
+      else session.endGame("timeout")
+  
+      blackjackSessions.splice(blackjackSessions.indexOf(session),1);
     }
-    if (session.invite) session.invite.delete().catch((err)=> {console.log(err)})
-
-    if (session.hasEnded) session.endGame("timeoutEnded")
-    else if (loss) session.endGame("timeoutLoss")
-    else session.endGame("timeout")
-
-    blackjackSessions.splice(blackjackSessions.indexOf(session),1);
+    catch(err)
+    {
+      console.log(err);
+    }
   }
 
   createDeck(this:BlackJackSession)

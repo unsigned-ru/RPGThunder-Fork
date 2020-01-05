@@ -104,6 +104,7 @@ export const commands =
 				//Parse name string
 				var recipeName = args.map(x => x.trim()).join(" ").toLowerCase();
 
+				var confirmString;
 				//Find the item & find the recipe for the item
 				var recipe;
 				var item = await getItemDataByName(recipeName);
@@ -112,20 +113,24 @@ export const commands =
 				if (item)
 				{
 					recipe = craftingRecipes.find(x => x.item_id == item!.id && x.category == 1);
+					confirmString = `${item.icon_name} ${item.name}`;
 				}
 				else if (cons)
 				{
 					recipe = craftingRecipes.find(x => x.item_id == cons.id && x.category == 2);
+					confirmString = `${cons.icon_name} ${cons.name}`;
 				}
 				else if (mat)
 				{
 					recipe = craftingRecipes.find(x => x.item_id == mat.id && x.category == 3);
+					confirmString = `${mat.icon_name} ${mat.display_name}`;
 				}
 				else
 				{
 					throw `Could not find an item named: \`${recipeName}\``;
 				}
 				if (!recipe) throw `Could not find a recipe for the item: \`${recipeName}\``
+
 
 				//get userdata.
 				const [materialMod] = <[materialsModule]> await new UserData(msg.author.id, [userDataModules.materials]).init();
@@ -141,6 +146,23 @@ export const commands =
 
 				//Check if we have enough materials to craft the amount of items
 				for (let cost of costs) if (materialMod.materials.get(cost[1].material.database_name)! < cost[1].amount) throw `You do not own enough ${cost[1].material.icon_name} ${cost[1].material.display_name} to craft that item.`;
+				var costString = "";
+				for (let c of costs)
+				{
+					costString += `${c[1].material.icon_name} ${c[1].amount} | `
+				}
+				var confirmEmbed = new Discord.RichEmbed()
+				.setTitle(`Crafting confirmation - ${msg.author.username}`)
+				.setDescription(`Are you sure you want to craft **${confirmString}** x${amount}\n costs: ${costString.slice(0,-3)}`)
+				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setColor('#fcf403')
+
+				msg.channel.send(confirmEmbed);
+
+				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id,{time: 20000, maxMatches: 1});
+
+				if (rr.first().content.toLowerCase() != "yes") return;
+
 
 				const embed = new Discord.RichEmbed()
 				.setColor('#42f569') //Yelow

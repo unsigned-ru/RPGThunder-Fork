@@ -1,6 +1,6 @@
 import Discord from 'discord.js';
 import {client, blackjackSessions, dbl} from '../main';
-import {equipment_slots, item_qualities, item_types, classes} from '../staticdata';
+import {equipment_slots, item_qualities, item_types, classes, zones} from '../staticdata';
 import {_class, _item, _item_type, _shop_item, _consumable, _enemy} from '../interfaces';
 import {getItemData, getCurrencyDisplayName, getCurrencyIcon, queryPromise, getGuildPrefix, isRegistered} from '../utils';
 import { UserData, userDataModules, basicModule } from '../classes/userdata';
@@ -9,6 +9,7 @@ export const commands = [
 	{
 		name: 'itemdata',
 		catergory: "statistics",
+		execute_while_travelling: true,
 		aliases: ['id'],
 		description: 'Shows all the information about an item.',
 		usage: `[prefix]itemdata [itemID/ItemName]`,
@@ -53,8 +54,39 @@ export const commands = [
 		},
 	},
 	{
+		name: 'zones',
+		catergory: "statistics",
+		execute_while_travelling: true,
+		aliases: ['areas'],
+		description: 'List all the available zones.',
+		usage: `[prefix]zones`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				var zoneString = "";
+				for (var zone of zones.values()) zoneString += `**${zone.name}** | lvl: ${zone.level_suggestion}\n`;
+
+				const embed = new Discord.RichEmbed()
+				.setColor('#fcf403') //Yelow⛏️
+				.setTitle(`**Available Zones**`)
+				.addField("Zones", zoneString)
+				.setTimestamp()
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+				
+				msg.channel.send(embed);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
 		name: 'classes',
 		catergory: "statistics",
+		execute_while_travelling: true,
 		aliases: [],
 		description: 'List all the available classes.',
 		usage: `[prefix]classes`,
@@ -83,6 +115,7 @@ export const commands = [
 		name: 'classinfo',
 		catergory: "statistics",
 		aliases: ['cinfo', 'ci'],
+		execute_while_travelling: true,
 		description: 'Shows all the information about the specified class.',
 		usage: `[prefix]classinfo [Optional: Classname]`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -134,40 +167,69 @@ export const commands = [
 	{
 		name: 'help',
 		aliases: ['commands'],
+		execute_while_travelling: true,
 		description: 'List help for all commands.',
 		usage: `[prefix]help`,
 		async execute(msg: Discord.Message, args: string[]) 
 		{
 			try
 			{	
+				if (args.length == 0)
+				{
+					var prefix = await getGuildPrefix(msg.guild.id)
+					const embed = new Discord.RichEmbed()
+					.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
+					.setColor('#fcf403') //Yelow⛏️
+					.setTitle(`**Commands**`)
+					.setDescription(`**Are you a new user? Type \`${prefix}register\` to get started!**\n\n`+
+					`*Note: Thunder RPG is still in development. New features are being rolled out actively and user accounts will be wiped on official release.*`)
+					.addField("⚙️**Statistic commands**⚙️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "statistics"}).map(x => `\`${x.name}\``).join(","))
+					.addField("**Item commands**",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "items"}).map(x => `\`${x.name}\``).join(","))
+					.addField("⚔️**Fighting commands**⚔️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "fighting"}).map(x => `\`${x.name}\``).join(","))
+					.addField("⛏️**Gathering commands**⛏️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "gathering"}).map(x => `\`${x.name}\``).join(","))
+					.addField("💰**Economy commands**💰",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "economy"}).map(x => `\`${x.name}\``).join(","))
+					.addField("🎲**Gambling commands**🎲",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "gambling"}).map(x => `\`${x.name}\``).join(","))
+					.addField("🕵️**Admin commands**🕵️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "admin"}).map(x => `\`${x.name}\``).join(",")+ ",`rpgthunder setprefix`,`rpgthunder prefix`") 
+					.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Facebook](https://www.facebook.com/rpgthunder/) | [Twitter](https://twitter.com/RPGThunderBot) | [Patreon](https://www.patreon.com/rpgthunder) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
+					.setTimestamp()
+					.setFooter(`use ${prefix}help [command] to get extra info about the command.`, 'http://159.89.133.235/DiscordBotImgs/logo.png');
+
+					return msg.channel.send(embed);
+				}
+
+				//get command by alias or name
+				var cmd;
+				if (client.commands.has(args[0].toLowerCase())) cmd = client.commands.get(args[0].toLowerCase());
+				else if (client.commands.find((x:any) => x.aliases.find((alias:string) => alias == args[0].toLowerCase()))) cmd = client.commands.find(x => x.aliases.find((alias:string) => alias == args[0].toLowerCase()));
+				
+				if (!cmd) throw "Could not find a command with that name!";
+
+				//Create an embed with its info
 				var prefix = await getGuildPrefix(msg.guild.id)
 				const embed = new Discord.RichEmbed()
-				.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403') //Yelow⛏️
-				.setTitle(`**Commands**`)
-				.setDescription(`**Are you a new user? Type \`${prefix}register\` to get started!**\n\n`+
-				`*Note: Thunder RPG is still in development. New features are being rolled out actively and user accounts will be wiped on official release.*`)
-				.addField("⚙️**Statistic commands**⚙️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "statistics"}).map(x => `\`${x.name}\``).join(","))
-				.addField("**Item commands**",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "items"}).map(x => `\`${x.name}\``).join(","))
-				.addField("⚔️**Fighting commands**⚔️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "fighting"}).map(x => `\`${x.name}\``).join(","))
-				.addField("⛏️**Gathering commands**⛏️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "gathering"}).map(x => `\`${x.name}\``).join(","))
-				.addField("💰**Economy commands**💰",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "economy"}).map(x => `\`${x.name}\``).join(","))
-				.addField("🎲**Gambling commands**🎲",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "gambling"}).map(x => `\`${x.name}\``).join(","))
-				.addField("🕵️**Admin commands**🕵️",client.commands.filter((x) => {return x.category && x.category.toLowerCase() == "admin"}).map(x => `\`${x.name}\``).join(",")+ ",`rpgthunder setprefix`,`rpgthunder prefix`") 
-				.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Facebook](https://www.facebook.com/rpgthunder/) | [Twitter](https://twitter.com/RPGThunderBot) | [Patreon](https://www.patreon.com/rpgthunder) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
+				.setTitle(`**Command info -- ${cmd.name}**`)
+				.setDescription(cmd.description)
+				.addField("**Info**",
+				`**Usage: \`${cmd.usage.replace("[prefix]",prefix)}\`**\n`+
+				`**Aliases:** ${cmd.aliases.map((x:string) => "`"+x+"`").join(",")}\n`+
+				`**Can execute while travelling:** \`${cmd.execute_while_travelling == true ? "`yes`":"`no`"}\``)
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
-				msg.channel.send(embed);
+				//send the embed
+				return msg.channel.send(embed);
 			}
 			catch(err)
 			{
+				msg.channel.send(err);
 				console.log(err);
 			}
 		},	
 	},
 	{
 		name: 'vote',
+		execute_while_travelling: true,
 		aliases: [],
 		description: 'Get some rewards by voting for our bot!',
 		catergory: "economy",

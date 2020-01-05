@@ -1,7 +1,7 @@
 import { client, gather_commands_cooldown } from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
-import { isRegistered, randomIntFromInterval, queryPromise, getMaterialDisplayName, getMaterialIcon } from "../utils";
+import { isRegistered, randomIntFromInterval, queryPromise, getMaterialDisplayName, getMaterialIcon, setCooldownForCollection, getCooldownForCollection, formatTime } from "../utils";
 import { zone_mine_drops, zones, zone_chop_drops, zone_fish_drops, zone_harvest_drops } from "../staticdata";
 import { basicModule, UserData, userDataModules, consumablesModule, currencyModule, equipmentModule, inventoryModule, materialsModule, statsModule } from "../classes/userdata";
 
@@ -29,16 +29,9 @@ export const commands =
 				if (currentZoneDrops.size == 0) throw "There is nothing to mine in this zone!";
 
 				//Check for cooldown.
-				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
-				{
-					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
-					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
-				}
+				if (gather_commands_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,gather_commands_cooldown))}!`;
+				
+				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
 
 				//get a random one,
 				const drop = currentZoneDrops.random();
@@ -80,16 +73,10 @@ export const commands =
 				if (currentZoneDrops.size == 0) throw "There is nothing to harvest in this zone!";
 
 				//Check for cooldown.
-				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
-				{
-					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
-					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
-				}
+				if (gather_commands_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,gather_commands_cooldown))}!`;
+
+				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
+
 
 				//get a random one,
 				const drop = currentZoneDrops.random();
@@ -119,9 +106,7 @@ export const commands =
 			try
 			{	
 				//Check if user is registered
-				if (!await isRegistered(msg.author.id)) throw "You must be registered to chop for wood!"
-
-				
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to chop for wood!";
 
 				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
 
@@ -132,16 +117,10 @@ export const commands =
 				if (currentZoneDrops.size == 0) throw "There is nothing to chop in this zone!";
 
 				//Check for cooldown.
-				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
-				{
-					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
-					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
-				}
+				if (gather_commands_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,gather_commands_cooldown))}!`;
+
+				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
+
 
 				//get a random one,
 				const drop = currentZoneDrops.random();
@@ -183,18 +162,9 @@ export const commands =
 				if (currentZoneDrops.size == 0) throw "There is nothing to fish for in this zone!";
 
 				//Check for cooldown.
-				if (gather_commands_cooldown.find(x=> x.user_id == msg.author.id))
-				{
-					const difference = (new Date().getTime() - gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.gather_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.gather_cooldown - difference)} seconds!`;
-					gather_commands_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					gather_commands_cooldown.push({user_id: msg.author.id, date: new Date()});
-				}
+				if (gather_commands_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,gather_commands_cooldown))}!`;
 
-				
+				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
 
 				//get a random one,
 				const drop = currentZoneDrops.random();

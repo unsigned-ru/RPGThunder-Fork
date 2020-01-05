@@ -105,6 +105,20 @@ export interface _item_quality{
   name: string
 }
 
+export interface _lottery{
+  id: number,
+  ticket_cost: number,
+  is_finished: boolean,
+  winner_id: string,
+}
+
+export interface _lottery_entry{
+  id: number,
+  user_id: string,
+  lottery_id: number,
+  tickets: number,
+}
+
 export interface _shop_item
 {
   [key: string]: any; //used for ID
@@ -125,6 +139,9 @@ export interface _zone
   id: number,
   name: string,
   boss_id: number,
+  x_loc: number,
+  y_loc: number,
+  level_suggestion: string,
 }
 
 export interface _crafting_recipe

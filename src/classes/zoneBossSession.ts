@@ -63,15 +63,14 @@ export class ZoneBossSession
         
         //if the channel exists delete it first. then create a channel for play and add permissions for user.
         if (this.sessionGuild!.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes(this.boss.name.toLowerCase().split(" ").join('-')))) await this.sessionGuild.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes(this.boss.name.toLowerCase().split(" ").join('-'))).delete();
-  
-        const newchannel = (await this.sessionGuild!.createChannel(`${this.boss.name}-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory,
-        permissionOverwrites: [
-          {id: this.user.id, allowed:["VIEW_CHANNEL","SEND_MESSAGES","READ_MESSAGES","READ_MESSAGE_HISTORY"]}
-        ]}));
+
+        const newchannel = (await this.sessionGuild!.createChannel(`${this.boss.name}-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory}));
+        await newchannel.lockPermissions();
+        newchannel.overwritePermissions(this.user,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
   
         this.cmdChannel = newchannel as Discord.TextChannel;
       
-        this.invite = await this.cmdChannel.createInvite({maxAge: 86400});
+        this.invite = await this.cmdChannel.createInvite({maxAge: 0, unique: true});
         
         //TODO: Add destroytimer
         this.destroyTimerID = setTimeout(this.destroySession,180000,this,true) //3min timeout
@@ -300,7 +299,7 @@ export class ZoneBossSession
         this.materialMod.update(this.user.id);
         this.currencyMod.update(this.user.id);
         clearTimeout(this.destroyTimerID)
-        this.destroyTimerID = setTimeout(this.destroySession,60000,this,false) //1min timeout
+        this.destroyTimerID = setTimeout(await this.destroySession,60000,this,false) //1min timeout
       } 
       catch (err) 
       {
@@ -309,14 +308,18 @@ export class ZoneBossSession
     }
     async destroySession(session:ZoneBossSession, timeout: boolean = false)
     {
-      if (session.cmdChannel!) session.sessionGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete().catch((err)=> {console.log(err)})
-
-      if (session.invite) session.invite.delete().catch((err)=> {console.log(err)})
-
-      if (zoneBossSessions.includes(session)) zoneBossSessions.splice(zoneBossSessions.indexOf(session));
-
-      if (timeout) session.endSession("timeout");
-
+      try
+      {
+        clearTimeout(session.destroyTimerID);
+        if (session.invite) await session.invite.delete();
+        if (session.cmdChannel!) await session.sessionGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete();
+        if (zoneBossSessions.includes(session)) zoneBossSessions.splice(zoneBossSessions.indexOf(session));
+        if (timeout) session.endSession("timeout");
+      }
+      catch(err)
+      {
+        console.log(err);
+      }
     }
     async createSessionEmbed(status: string, color: string, condition = "",rewardString: string = "", extraInfo :string = "")
     {
@@ -399,8 +402,7 @@ export class ZoneBossSession
           case "exit":
             if (this.hasEnded || !this.isStarted)
             {
-              clearTimeout(this.destroyTimerID);
-              this.destroySession(this,false);
+              await this.destroySession(this,false);
             }
             break;
         }

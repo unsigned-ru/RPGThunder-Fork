@@ -1,11 +1,11 @@
-import { client, con, explore_command_cooldown, zoneBossSessions, rest_command_cooldown, zoneBoss_command_cooldown } from "../main";
+import { client, con, explore_command_cooldown, zoneBossSessions, rest_command_cooldown, zoneBoss_command_cooldown, traveling } from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
-import { isRegistered, queryPromise, capitalizeFirstLetter, getItemData, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue, randomIntFromInterval } from "../utils";
+import { isRegistered, queryPromise, getItemData, getCurrencyDisplayName, getCurrencyIcon, getMaterialDisplayName, getMaterialIcon, getEquipmentSlotDisplayName, editCollectionNumberValue, randomIntFromInterval, setCooldownForCollection, getCooldownForCollection, formatTime } from "../utils";
 import { classes, equipment_slots, item_types, enemies, enemies_item_drop_data, enemies_currency_drop_data, item_qualities, enemies_material_drop_data, zones, consumables, bosses, bosses_currency_drop_data, bosses_item_drop_data, bosses_material_drop_data, currencies, materials } from "../staticdata";
 import { consumablesModule, UserData, userDataModules, basicModule, equipmentModule, statsModule, inventoryModule, abilityModule, currencyModule, materialsModule } from "../classes/userdata";
 import { Enemy } from "../classes/enemy";
-import { _item, _consumable } from "../interfaces";
+import { _item, _consumable, _zone } from "../interfaces";
 import { ZoneBossSession } from "../classes/zoneBossSession";
 import { Boss } from "../classes/boss";
 
@@ -84,7 +84,7 @@ export const commands =
 	{
 		name: 'consume',
 		category: "items",
-		aliases: ['csm'],
+		aliases: ['csm','eat','use'],
 		description: 'Consume a consumable',
 		usage: `[prefix]consume [consumableID/consumableName]`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -97,22 +97,30 @@ export const commands =
 				if (args.length == 0) throw "Please enter the id of the consumable you wish to consume.\nUsage: `"+this.usage+"`";
 
 				const [consumablesMod] =  <[consumablesModule]> await new UserData(msg.author.id,[userDataModules.consumables]).init();
+				var inputName = args.join(" ").trim().toLowerCase(); 
+				var cons;
+				if (parseInt(args[0]))
+				{
+					cons = consumablesMod.consumables.get(parseInt(args[0]))
+					args.splice(0,1);
+				}
+				else cons = consumablesMod.consumables.find(x => x.cons.name.toLowerCase() == inputName);
 
-				
-				var cons = parseInt(args[0]) ? consumablesMod.consumables.get(parseInt(args[0])) : consumablesMod.consumables.find(x => x.cons.name.toLowerCase() == args.join(" ").trim().toLowerCase());
+				var amount = 1;
+				if (parseInt(args[args.length-1])) amount = parseInt(args[args.length-1]);
 
 				//check if user owns the consumable
-				if(!cons || !cons.cons) throw "You do not own the consumable: "+ args[0]; 
-				
+				if(!cons || !cons.cons) throw `\`${msg.author.username}\` does not own the consumable: ${inputName}`
+				if (cons.count < amount) throw `\`${msg.author.username}\` does not own enough of that consumable.`
 				//update our stats
 				const [basicMod,, statMod] = <[basicModule,equipmentModule,statsModule]> await new UserData(msg.author.id,[userDataModules.basic,userDataModules.equipment,userDataModules.stats]).init();
-				UserData.heal(basicMod,statMod,cons.cons.hp);
+				UserData.heal(basicMod,statMod,cons.cons.hp * amount);
 				basicMod.update(msg.author.id);
 
 				//remove from user inventory
-				UserData.removeConsumable(msg.author.id,consumablesMod,cons.cons);
-
-				msg.channel.send(`You have sucessfully consumed ${cons.cons.icon_name} ${cons.cons.name}!`);
+				for (let i = 0; i < amount; i++) UserData.removeConsumable(msg.author.id,consumablesMod,cons.cons);
+				
+				msg.channel.send(`\`${msg.author.username}\` has sucessfully consumed ${cons.cons.icon_name} ${cons.cons.name} x${amount}!`);
 			}
 			catch(err)
 			{
@@ -180,7 +188,7 @@ export const commands =
 		name: 'rest',
 		category: "fighting",
 		aliases: [],
-		description: 'Rest for a night, restore you health daily.',
+		description: 'Rest for a night, restore your health daily.',
 		usage: `[prefix]rest`,
 		async execute(msg: Discord.Message) 
 		{
@@ -193,21 +201,262 @@ export const commands =
 				if (basicMod.current_hp! == statMod.stats.get("max_hp")!) throw "You are already full health!"
 
 				//Check for cooldown.
-				if (rest_command_cooldown.find(x=> x.user_id == msg.author.id))
-				{
-					const difference = (new Date().getTime() - rest_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.rest_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.rest_cooldown - difference)} seconds!`;
-					rest_command_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					rest_command_cooldown.push({user_id: msg.author.id, date: new Date()});
-				}
+				if (rest_command_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,rest_command_cooldown))}!`;
+
+				setCooldownForCollection(msg.author.id, cf.rest_cooldown, rest_command_cooldown);
 
 				UserData.resetHP(basicMod,statMod);
 				basicMod.update(msg.author.id);
 
 				msg.channel.send(`You have rested and your health has been fully restored!`);
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'daily',
+		category: "statistics",
+		aliases: [],
+		execute_while_travelling: true,
+		description: 'Claim a reward daily.',
+		usage: `[prefix]daily`,
+		async execute(msg: Discord.Message) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
+
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id,[userDataModules.basic]).init();
+
+
+				if (!basicMod.daily_isReady) 
+				{
+					var d = new Date((await queryPromise(`SELECT EXECUTE_AT FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME = '${msg.author.id}_daily'`))[0].EXECUTE_AT);
+					throw `That command is on cooldown for another ${(formatTime(Math.abs(d.getTime() - (new Date().getTime()))))}`;
+				}
+
+				const [currencyMod, materialMod] = <[currencyModule,materialsModule]> await new UserData(msg.author.id,[userDataModules.currencies,userDataModules.materials]).init();
+
+				var embed = new Discord.RichEmbed()
+				.setTitle(`Daily Reward -- ${msg.author.username}`)
+				.setDescription(`You have claimed your daily reward!`)
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setColor('#fcf403')
+
+				var rewardString = "";
+				//coins
+				var coins = randomIntFromInterval(100,300);
+				if (randomIntFromInterval(0,100) < 1) coins = 5000;
+				editCollectionNumberValue(currencyMod.currencies,"coins",coins);
+				rewardString += `${getCurrencyIcon("coins")} ${coins} ${getCurrencyDisplayName("coins")}\n`
+				
+				var material = materials.filter(x => x.database_name == "wood" || x.database_name == "iron_ore" || x.database_name == "common_fish").random();
+				var materialAmount = randomIntFromInterval(1,10);
+				editCollectionNumberValue(materialMod.materials, material.database_name, materialAmount);
+				rewardString += `${material.icon_name} ${materialAmount} ${material.display_name}\n`
+
+				var potionAmount = randomIntFromInterval(1,3);
+				var cons = consumables.get(1)!;
+				if (randomIntFromInterval(0,200) < 1) potionAmount = 20;
+				UserData.addConsumable(msg.author.id,undefined,1,potionAmount);
+				rewardString += `${cons.icon_name} ${potionAmount} ${cons.name}\n`
+
+				if (randomIntFromInterval(0,100) < 1)
+				{
+					var rareMat = materials.filter(x => x.database_name == "ruby" || x.database_name == "amethyst").random();
+					var rareMatAmount = randomIntFromInterval(1,5);
+					editCollectionNumberValue(materialMod.materials, rareMat.database_name, rareMatAmount);
+					rewardString += `${rareMat.icon_name} ${rareMatAmount} ${rareMat.display_name}\n`
+				}
+
+				currencyMod.update(msg.author.id);
+				materialMod.update(msg.author.id);
+				
+				embed.addField("Rewards:",rewardString)
+				msg.channel.send(embed);
+
+				await queryPromise(
+				`CREATE EVENT ${msg.author.id}_daily
+				ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
+				ON COMPLETION NOT PRESERVE
+				ENABLE
+				DO UPDATE users SET daily_ready=1 WHERE user_id = ${msg.author.id};
+				UPDATE users SET daily_ready=0 WHERE user_id = ${msg.author.id};`)
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'weekly',
+		category: "statistics",
+		aliases: [],
+		execute_while_travelling: true,
+		description: 'Claim a reward weekly.',
+		usage: `[prefix]weekly`,
+		async execute(msg: Discord.Message) 
+		{
+			try
+			{
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
+
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id,[userDataModules.basic]).init();
+
+
+				if (!basicMod.weekly_isReady) 
+				{
+					var d = new Date((await queryPromise(`SELECT EXECUTE_AT FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME = '${msg.author.id}_weekly'`))[0].EXECUTE_AT);
+					throw `That command is on cooldown for another ${(formatTime(Math.abs(d.getTime() - (new Date().getTime()))))}`;
+				}
+
+				const [currencyMod, materialMod] = <[currencyModule,materialsModule]> await new UserData(msg.author.id,[userDataModules.currencies,userDataModules.materials]).init();
+
+				var embed = new Discord.RichEmbed()
+				.setTitle(`Weekly Reward -- ${msg.author.username}`)
+				.setDescription(`You have claimed your weekly reward!`)
+				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setColor('#fcf403')
+
+				var rewardString = "";
+				//coins
+				var coins = randomIntFromInterval(500,1500);
+				if (randomIntFromInterval(0,100) < 1) coins = 10000;
+				editCollectionNumberValue(currencyMod.currencies,"coins",coins);
+				rewardString += `${getCurrencyIcon("coins")} ${coins} ${getCurrencyDisplayName("coins")}\n`
+
+				//valor
+				var valor = randomIntFromInterval(1,5);
+				if (randomIntFromInterval(0,100) < 1) valor = 20;
+				editCollectionNumberValue(currencyMod.currencies,"valor",valor);
+				rewardString += `${getCurrencyIcon("valor")} ${valor} ${getCurrencyDisplayName("valor")}\n`
+				
+				var material = materials.filter(x => x.database_name == "wood" || x.database_name == "iron_ore" || x.database_name == "common_fish").random();
+				var materialAmount = randomIntFromInterval(5,20);
+				editCollectionNumberValue(materialMod.materials, material.database_name, materialAmount);
+				rewardString += `${material.icon_name} ${materialAmount} ${material.display_name}\n`
+
+				var potionAmount = randomIntFromInterval(2,7);
+				var cons = consumables.get(1)!;
+				if (randomIntFromInterval(0,200) < 1) potionAmount = 25;
+				UserData.addConsumable(msg.author.id,undefined,1,potionAmount);
+				rewardString += `${cons.icon_name} ${potionAmount} ${cons.name}\n`
+
+				if (randomIntFromInterval(0,100) < 2)
+				{
+					var rareMat = materials.filter(x => x.database_name == "ruby" || x.database_name == "amethyst").random();
+					var rareMatAmount = randomIntFromInterval(1,5);
+					editCollectionNumberValue(materialMod.materials, rareMat.database_name, rareMatAmount);
+					rewardString += `${rareMat.icon_name} ${rareMatAmount} ${rareMat.display_name}\n`
+				}
+
+				currencyMod.update(msg.author.id);
+				materialMod.update(msg.author.id);
+				
+				embed.addField("Rewards:",rewardString)
+				msg.channel.send(embed);
+
+				await queryPromise(
+				`CREATE EVENT ${msg.author.id}_weekly
+				ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 WEEK
+				ON COMPLETION NOT PRESERVE
+				ENABLE
+				DO UPDATE users SET weekly_ready=1 WHERE user_id = ${msg.author.id};
+				UPDATE users SET weekly_ready=0 WHERE user_id = ${msg.author.id};`)
+			}
+			catch(err)
+			{
+				console.log(err);
+				msg.channel.send(err);
+			}
+		},
+	},
+	{
+		name: 'travel',
+		category: "statistics",
+		aliases: ['travelling'],
+		description: 'Travel to another zone.',
+		usage: `[prefix]travel [Zone]`,
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			try
+			{
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
+				if (!await isRegistered(msg.author.id)) throw "You must be registered to use this command.";
+				if (args.length == 0)
+				{
+					//show the unlocked zones.
+					var zoneString = "";
+
+					for (var uc of basicMod.unlockedZones)
+					{
+						let zone = zones.get(uc)!;
+						zoneString += `**${zone.name}** | lvl: ${zone.level_suggestion}\n`;
+					}
+
+					var embed = new Discord.RichEmbed()
+					.setTitle(`Travelling -- Unlocked zones: ${msg.author.username}`)
+					.setDescription(`To travel you must enter what zone you'd like to travel to, here is a list of your unlocked zones.`)
+					.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+					.setColor('#fcf403')
+
+					zoneString.length > 0 ? embed.addField("Zones:", zoneString) : embed.addField("Zones:", "You have no unlocked zones");
+
+					return msg.channel.send(embed);
+				}
+
+				var inputName = args.map(x => x.trim()).join(" ").toLowerCase();
+				var zone = zones.find(x => x.name.toLowerCase() == inputName);
+
+				if (!zone) throw `Could not find a zone with name: \`${inputName}\``;
+
+				if (basicMod.zone == zone.id) throw `You are already in the zone: \`${zone.name}\``;
+
+				if (!basicMod.unlockedZones.includes(zone.id)) throw `You have not unlocked the zone \`${zone.name}\` yet.`;
+
+				var currentZone = zones.get(basicMod.zone!);
+
+				var distance = Math.abs(currentZone!.x_loc - zone.x_loc) + Math.abs(currentZone!.y_loc - zone.y_loc);
+
+				//Todo: add perks for travel time reduction here
+
+				var travelTime = cf.travel_time_per_chunk * distance; //in seconds
+
+				var embed = new Discord.RichEmbed()
+				.setTitle(`Travel to ${zone.name} - ${msg.author.username}`)
+				.setDescription(`The travel time will be **${travelTime}s**.\n*During this period you will not be able to use any other commands.*\n**Are you sure you would like to travel to ${zone.name}?**`)
+				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setColor('#fcf403')
+
+				msg.channel.send(embed);
+				
+				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id, {maxMatches: 1, time: 20000});
+				if (rr.first().content.toLowerCase() != "yes") return;
+
+				//Add to traveling cds
+				var d = new Date();
+				d.setSeconds(d.getSeconds() + travelTime);
+				traveling.set(msg.author.id,d);
+				
+				//Set timeout
+				setTimeout((basicMod:basicModule, msg: Discord.Message, zone:_zone, traveling:any) => 
+				{
+					msg.channel.send(`\`${msg.author.username}\` has arrived at ${zone.name}`);
+					basicMod.zone = zone.id;
+					basicMod.update(msg.author.id);
+					traveling.delete(msg.author.id);
+
+				}, travelTime*1000, basicMod, msg, zone,  traveling)
+
+				msg.channel.send("You have started travelling!");
+
 			}
 			catch(err)
 			{
@@ -311,10 +560,14 @@ export const commands =
 				if (cons)
 				{
 					const [targetConsumableMod] = <[consumablesModule]> await new UserData(target.id, [userDataModules.consumables]).init();
-					await UserData.removeConsumable(msg.author.id,consumablesMod,cons.cons);
-					await UserData.addConsumable(target.id,targetConsumableMod,cons.cons.id);
+					
+					//Check if we have enough to gift
+					if (amount > cons.count) throw `You do not own enough ${cons.cons.icon_name} ${cons.cons.name}(s) to send that.`;
 
-					return await msg.channel.send(`You have sucessfully gifted \`${target.username}\` ${cons.cons.icon_name} ${cons.cons.name}`);
+					await UserData.removeConsumable(msg.author.id,consumablesMod,cons.cons,amount);
+					await UserData.addConsumable(target.id,targetConsumableMod,cons.cons.id,amount);
+
+					return await msg.channel.send(`You have sucessfully gifted \`${target.username}\` ${cons.cons.icon_name} ${cons.cons.name} x${amount}`);
 				}
 
 
@@ -340,15 +593,9 @@ export const commands =
 				if (!await isRegistered(msg.author.id)) throw "You must be registered to explore.";
 
 				//Check for cooldown.
-				if (explore_command_cooldown.find(x=> x.user_id == msg.author.id))
+				if (explore_command_cooldown.has(msg.author.id))
 				{
-					const difference = (new Date().getTime() - explore_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.explore_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.explore_cooldown - difference)} seconds!`;
-					explore_command_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					explore_command_cooldown.push({user_id: msg.author.id, date: new Date()});
+					throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,explore_command_cooldown))}!`;
 				}
 
 				//get users data
@@ -361,10 +608,13 @@ export const commands =
 
 				//Find a enemy from the static loaded data.
 				const enemyData = enemies.filter(x => x.encounter_zones.split(',').find(x => parseInt(x) == basicMod.zone!) != undefined && x.min_encounter_level <= basicMod!.level!).random();
+				if (!enemyData) throw "There are no enemies in this zone.";
 				const item_drops = enemies_item_drop_data.filter(x => x.enemy_id == enemyData.id).array();
 				const currency_drops = enemies_currency_drop_data.filter(x => x.enemy_id == enemyData.id).array();
 				const material_drops = enemies_material_drop_data.filter(x => x.enemy_id == enemyData.id).array();
 				const enemy = new Enemy(enemyData,currency_drops,item_drops,material_drops,basicMod.level!);
+
+				setCooldownForCollection(msg.author.id, cf.explore_cooldown, explore_command_cooldown);
 
 				//fight it.
 				var result;
@@ -415,7 +665,7 @@ export const commands =
 						.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
 						var extraInfo = "";
-						if (hasLeveled) extraInfo += `${msg.author.username} has reached level ${basicMod.level}. HP was regenerated.`
+						if (hasLeveled) extraInfo += `${msg.author.username} has reached level ${basicMod.level}. HP was regenerated.\n`
 						if (!basicMod.foundBosses.includes(zones.get(basicMod.zone!)!.boss_id))
 						{
 							if (randomIntFromInterval(0,100) <= 2) 
@@ -484,16 +734,7 @@ export const commands =
 				if (zoneBossSessions.find(x => x.user.id == msg.author.id)) throw "You still have an open session please end your previous session!";
 		
 				//Check for cooldown.
-				if (zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id))
-				{
-					const difference = (new Date().getTime() - zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id)!.date.getTime()) / 1000;
-					if (difference < cf.zoneBoss_cooldown) throw `Ho there!\nThat command is on cooldown for another ${Math.round(cf.zoneBoss_cooldown - difference)} seconds!`;
-					zoneBoss_command_cooldown.find(x=> x.user_id == msg.author.id)!.date = new Date();
-				}
-				else
-				{
-					zoneBoss_command_cooldown.push({user_id: msg.author.id, date: new Date()});
-				}
+				if (zoneBoss_command_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,zoneBoss_command_cooldown))}!`;
 
 				//create an instance of the boss class.
 				var bossdata = bosses.get(zone.boss_id)!;
@@ -509,6 +750,8 @@ export const commands =
 				await msg.channel.send(`${msg.author.username} has started fighting the boss **${boss.name}** of zone **${zone.name}**\nClick the link below to join or watch!`);
 				msg.channel.send(bossSession.invite!.url);
 
+				//set the cooldown
+				setCooldownForCollection(msg.author.id, cf.zoneBoss_cooldown, zoneBoss_command_cooldown);
 
 			}
 			catch(err)
@@ -524,7 +767,7 @@ export const commands =
 		aliases: [],
 		description: 'Registers a user!',
 		usage: `[prefix]register`,
-		async execute(msg: Discord.Message, args: string[]) 
+		async execute(msg: Discord.Message) 
 		{
 			try
 			{
@@ -546,7 +789,7 @@ export const commands =
 
 				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxMatches: 1});
 
-				const selectedClass = classes.find(element => element.name.toLowerCase() == rr.first().content.toLowerCase());
+				const selectedClass = classes.find(element => rr.first().content.toLowerCase().includes(element.name.toLowerCase()));
 				if (!selectedClass) throw "Did not find a class with that name. Please try again!";
 
 				var sql = 

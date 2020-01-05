@@ -10,7 +10,7 @@ export function setupEvents()
         console.log(`top.gg webhook is running.`);
       });
       
-      dbl.webhook.on('vote', onVote);
+    dbl.webhook.on('vote', onVote);
 }
 
 async function onVote(vote:any)
