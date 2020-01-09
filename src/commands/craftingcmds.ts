@@ -1,9 +1,9 @@
 import { client} from "../main";
 import Discord from "discord.js"
 import { isRegistered, getItemData, queryPromise, getItemDataByName, editCollectionNumberValue, randomIntFromInterval} from "../utils";
-import { craftingRecipes, item_categories, consumables, materials } from "../staticdata";
+import { craftingRecipes, item_categories, consumables, materials, classes, item_types } from "../staticdata";
 import { _item, _material } from "../interfaces";
-import { userDataModules, UserData, materialsModule } from "../classes/userdata";
+import { userDataModules, UserData, materialsModule, basicModule } from "../classes/userdata";
 
 export const commands = 
 [
@@ -32,9 +32,9 @@ export const commands =
 					var costs: Discord.Collection<string,{material: _material, amount: number}> = new Discord.Collection();
 					for (let costString of recipe.mat_costs.split(","))
 					{
-						var material_amount_keypair = costString.split('-');
-						var mat = materials.find(x => x.database_name == material_amount_keypair[0]);
-						costs.set(mat.database_name, {material: mat, amount: parseInt(material_amount_keypair[1])})
+						var material_amount_keypair = costString.split('-').map(x=> parseInt(x));
+						var mat = materials.get(material_amount_keypair[0])!;
+						costs.set(mat.database_name, {material: mat, amount: material_amount_keypair[1]})
 					}
 					var costString = "";
 					for (let c of costs)
@@ -58,7 +58,7 @@ export const commands =
 							recipesString += `${mat.icon_name} **${mat.display_name}** ⟷ ${costString.slice(0,-2)}\n`;  
 							break;
 					}
-					if (recipesString.length > 900) 
+					if (recipesString.length > 800) 
 					{
 						recipePages.push(recipesString);
 						recipesString = "";
@@ -104,7 +104,11 @@ export const commands =
 				//Parse name string
 				var recipeName = args.map(x => x.trim()).join(" ").toLowerCase();
 
+				//Get userdata & class
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+
 				var confirmString;
+				var errormsg = "";
 				//Find the item & find the recipe for the item
 				var recipe;
 				var item = await getItemDataByName(recipeName);
@@ -114,6 +118,10 @@ export const commands =
 				{
 					recipe = craftingRecipes.find(x => x.item_id == item!.id && x.category == 1);
 					confirmString = `${item.icon_name} ${item.name}`;
+					//Check if we're high enough level
+					if (basicMod.level! < item.level_req) errormsg += `You are not high enough level to equip ${item.icon_name} ${item.name} item (lvl req: ${item.level_req})\n`;
+					//check if we're allowed to wear the item type
+					if (!basicMod.class?.allowed_item_types.split(",").map(x => parseInt(x)).includes(item.type)) errormsg += `You will not be able to equip ${item.icon_name} ${item.name} because your class is not allowed to wear the type: ${item_types.get(item.type)?.name} \n`;
 				}
 				else if (cons)
 				{
@@ -139,13 +147,13 @@ export const commands =
 				var costs: Discord.Collection<string,{material: _material, amount: number}> = new Discord.Collection();
 				for (let costString of recipe.mat_costs.split(","))
 				{
-					var material_amount_keypair = costString.split('-');
-					var material = materials.find(x => x.database_name == material_amount_keypair[0]);
-					costs.set(material.database_name, {material: material, amount: parseInt(material_amount_keypair[1]) * amount})
+					var material_amount_keypair = costString.split('-').map(x=> parseInt(x));
+					var material = materials.get(material_amount_keypair[0])!;
+					costs.set(material.database_name, {material: material, amount: material_amount_keypair[1] * amount})
 				}
 
 				//Check if we have enough materials to craft the amount of items
-				for (let cost of costs) if (materialMod.materials.get(cost[1].material.database_name)! < cost[1].amount) throw `You do not own enough ${cost[1].material.icon_name} ${cost[1].material.display_name} to craft that item.`;
+				for (let cost of costs) if (materialMod.materials.get(cost[1].material.id)! < cost[1].amount) throw `You do not own enough ${cost[1].material.icon_name} ${cost[1].material.display_name} to craft that item.`;
 				var costString = "";
 				for (let c of costs)
 				{
@@ -156,12 +164,15 @@ export const commands =
 				.setDescription(`Are you sure you want to craft **${confirmString}** x${amount}\n costs: ${costString.slice(0,-3)}`)
 				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403')
+				if (errormsg.length > 0) confirmEmbed.addField("⚠️Warnings⚠️",errormsg)
 
-				msg.channel.send(confirmEmbed);
+				var confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
+				await confirmMessage.react("✅");
+				await confirmMessage.react("❌");
+				var rr = await confirmMessage.awaitReactions((m:Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
+				
 
-				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id,{time: 20000, maxMatches: 1});
-
-				if (rr.first().content.toLowerCase() != "yes") return;
+				if (rr.first().emoji.name != '✅') return;
 
 
 				const embed = new Discord.RichEmbed()
@@ -192,11 +203,11 @@ export const commands =
 					case 3:
 						//material
 						outputTitle = `${msg.author.username} sucessfully crafted ${mat.icon_name} ${mat.display_name} ${amount > 1 ? `x${amount}` : ""}`;
-						editCollectionNumberValue(materialMod.materials, mat.database_name, amount)
+						editCollectionNumberValue(materialMod.materials, mat.id, amount)
 						break;
 				}
 				//Remove the materials from module
-				for (let cost of costs) editCollectionNumberValue(materialMod.materials, cost[1].material.database_name, -cost[1].amount)
+				for (let cost of costs) editCollectionNumberValue(materialMod.materials, cost[1].material.id, -cost[1].amount)
 
 				//update
 				await materialMod.update(msg.author.id);

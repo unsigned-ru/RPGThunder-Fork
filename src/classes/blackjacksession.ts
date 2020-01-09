@@ -42,7 +42,7 @@ export class BlackJackSession
       //if the channel exists delete it first. then create a channel for play and add permissions for user.
       if (this.bjGuild!.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes("blackjack"))) await this.bjGuild.channels.find(x => x.name.includes(this.user.id.slice(0,4))).delete();
 
-      const newchannel = (await this.bjGuild!.createChannel(`blackjack-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory}));
+      const newchannel = (await this.bjGuild!.createChannel(`blackjack-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory,rateLimitPerUser: 1}));
       await newchannel.lockPermissions();
       if (client.c.guilds.get(official_server_id)!.members.has(this.user.id)) newchannel.overwritePermissions(this.user,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
       
@@ -63,31 +63,31 @@ export class BlackJackSession
   async promptStart(this:BlackJackSession)
   {
     const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //Yelow
-        .setTitle(`Blackjack -- Start`)
-        .setDescription("Hello, I will your dealer today. Please make sure you know how to play blackjack before starting the session. Here's some information before we begin.")
-        .addField("**Session Commands**",
-        `Once you start the game you do not need to use a command prefix when playing.
-        Instead you can type the command plainly as text.
-        Here are the available commands during play:
-        
-        \`hit\` - Ask the dealer to add another card to your hand.
-        \`stay\` - Stay with your current hand.`)
+    .setColor('#fcf403') //Yelow
+    .setTitle(`Blackjack -- Start`)
+    .setDescription("Hello, I will your dealer today. Please make sure you know how to play blackjack before starting the session. Here's some information before we begin.")
+    .addField("**Session Commands**",
+    `Once you start the game you do not need to use a command prefix when playing.
+    Instead you can type the command plainly as text.
+    Here are the available commands during play:
+    
+    \`hit\` - Ask the dealer to add another card to your hand.
+    \`stay\` - Stay with your current hand.`)
 
-        .addField("**The Table**",
-        `After starting, an embed will appear which will update live as the game progesses.`)
+    .addField("**The Table**",
+    `After starting, an embed will appear which will update live as the game progesses.`)
 
-        .addField("**Timing**",
-        `You have a 2 minute timer running for every move you have to make. If you do not make a move in time the dealer wins and the sessions closes.`)
+    .addField("**Timing**",
+    `You have a 2 minute timer running for every move you have to make. If you do not make a move in time the dealer wins and the sessions closes.`)
 
-        .addField("**Starting**",
-        `To start the game please type \`start\``)
+    .addField("**Starting**",
+    `To start the game please type \`start\``)
 
-        .setTimestamp()
-        .setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
-        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
-        
-        await this.cmdChannel!.send(embed) as Discord.Message
+    .setTimestamp()
+    .setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
+    .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+    
+    await this.cmdChannel!.send(embed) as Discord.Message
   }
 
   async destroySession(session:BlackJackSession,loss:boolean)
@@ -96,12 +96,11 @@ export class BlackJackSession
     {
       clearTimeout(session.destoryTimerID);
       if (session.invite) await session.invite.delete();
-      if (session.cmdChannel!) await session.bjGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete();
-      if (session.hasEnded) session.endGame("timeoutEnded")
-      else if (loss) session.endGame("timeoutLoss")
-      else session.endGame("timeout")
-  
-      blackjackSessions.splice(blackjackSessions.indexOf(session),1);
+      if (session.cmdChannel!) await session.bjGuild!.channels.get(session.cmdChannel!.id)!.delete();
+      if (loss && !session.hasEnded) await session.endGame("timeoutLoss")
+      else if (!session.hasEnded) await session.endGame("timeout")
+      
+      blackjackSessions.delete(session.user.id);
     }
     catch(err)
     {
@@ -204,7 +203,7 @@ export class BlackJackSession
 
   async start(this:BlackJackSession)
   {
-    clearTimeout(this.destoryTimerID)
+    clearTimeout(this.destoryTimerID);
     this.destoryTimerID = setTimeout(this.destroySession,120000,this,true) //2min timeout
     this.isStarted = true;
     this.createDeck();
@@ -236,7 +235,6 @@ export class BlackJackSession
 
     if (playerData.value > 21) this.endGame("loss");
     else this.boardMsg!.edit(this.createBoardEmbed("You hit, your turn!","#48ff00"));
-    //TODO: add end of round.
   }
 
   async stand(this:BlackJackSession)
@@ -258,16 +256,6 @@ export class BlackJackSession
         await sleep(1000);
         continue;
       }
-      const chanceToDraw = (21 - dealerData.value) * 6;
-      const rng = randomIntFromInterval(0,100);
-      if (dealerData.value == playerData.value && chanceToDraw > rng)
-      {
-        //Draw card for dealer from deck.
-        this.dealerCards.push(this.deck.shift()!)
-        await this.boardMsg!.edit(this.createBoardEmbed("Drawing Cards...","#ffe100"))
-        await sleep(1000);
-        break;
-      }
       else
       {
         break;
@@ -275,51 +263,56 @@ export class BlackJackSession
     }
 
     //check result of game.
-    if (dealerData.value == playerData.value) this.endGame("push");
-    else if (playerData.value == 21) this.endGame("win",true);
-    else if (dealerData.value > 21) this.endGame("win");
-    else if (dealerData.value > playerData.value) this.endGame("loss");
-    else if (dealerData.value < playerData.value) this.endGame("win");
+    if (dealerData.value == playerData.value) await this.endGame("push");
+    else if (playerData.value == 21) await this.endGame("win",true);
+    else if (dealerData.value > 21) await this.endGame("win");
+    else if (dealerData.value > playerData.value) await this.endGame("loss");
+    else if (dealerData.value < playerData.value) await this.endGame("win");
   }
 
   async endGame(result:string, isBlackjack: boolean = false)
   {
-    //Get users balance.
-    const [currencyMod] = <[currencyModule]> await new UserData(this.user.id,[userDataModules.currencies]).init();
-    this.hasEnded = true;
-    switch(result)
+    try
     {
-      case "timeoutEnded":
-        break;
-      case "timeoutLoss":
-        this.executedChannel.send(`\`${this.user.username}\` their blackjack session expired and lost: ${getCurrencyIcon("coins")} ${this.amount.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
-        editCollectionNumberValue(currencyMod.currencies,"coins", -this.amount);
-        break;
-        case "timeout":
-        this.executedChannel.send(`\`${this.user.username}\` their blackjack session expired.`)
-        break;
-      case "win":
-        this.boardMsg!.edit(this.createBoardEmbed("You win!","#00ff37",result))
-        var amountwon = 0;
-        if (isBlackjack) amountwon = (this.amount)*1.5;
-        else amountwon = this.amount;
-        editCollectionNumberValue(currencyMod.currencies,"coins", amountwon);
-        this.executedChannel.send(`\`${this.user.username}\` has won their blackjack session and earned: ${getCurrencyIcon("coins")} ${amountwon.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")!.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
-        break;
-      case "push":
-        this.boardMsg!.edit(this.createBoardEmbed("Push!","#ffee00",result))
-        this.executedChannel.send(`\`${this.user.username}\` their blackjack session ended in a push!`);
-        break;
-      case "loss":
-        this.boardMsg!.edit(this.createBoardEmbed("You lose!","#ff0000",result))
-        editCollectionNumberValue(currencyMod.currencies,"coins", -this.amount);
-        this.executedChannel.send(`\`${this.user.username}\` has lost their blackjack session and lost: ${getCurrencyIcon("coins")} ${this.amount.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
-        break;
+      //Get users balance.
+      const [currencyMod] = <[currencyModule]> await new UserData(this.user.id,[userDataModules.currencies]).init();
+      this.hasEnded = true;
+      switch(result)
+      {
+        case "timeoutLoss":
+          await this.executedChannel.send(`\`${this.user.username}\` their blackjack session expired and lost: ${getCurrencyIcon("coins")} ${this.amount.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
+          editCollectionNumberValue(currencyMod.currencies,"coins", -this.amount);
+          break;
+          case "timeout":
+          await this.executedChannel.send(`\`${this.user.username}\` their blackjack session expired.`)
+          break;
+        case "win":
+          await this.boardMsg!.edit(this.createBoardEmbed("You win!","#00ff37",result))
+          var amountwon = 0;
+          if (isBlackjack) amountwon = (this.amount)*1.5;
+          else amountwon = this.amount;
+          editCollectionNumberValue(currencyMod.currencies,"coins", amountwon);
+          await this.executedChannel.send(`\`${this.user.username}\` has won their blackjack session and earned: ${getCurrencyIcon("coins")} ${amountwon.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")!.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
+          break;
+        case "push":
+          await this.boardMsg!.edit(this.createBoardEmbed("Push!","#ffee00",result))
+          await this.executedChannel.send(`\`${this.user.username}\` their blackjack session ended in a push!`);
+          break;
+        case "loss":
+          await this.boardMsg!.edit(this.createBoardEmbed("You lose!","#ff0000",result))
+          editCollectionNumberValue(currencyMod.currencies,"coins", -this.amount);
+          await this.executedChannel.send(`\`${this.user.username}\` has lost their blackjack session and lost: ${getCurrencyIcon("coins")} ${this.amount.toFixed(0)} ${getCurrencyDisplayName("coins")} \nTheir new balance is: ${getCurrencyIcon("coins")} ${currencyMod.currencies.get("coins")?.toFixed(0)} ${getCurrencyDisplayName("coins")}`)
+          break;
+      }
+      await currencyMod.update(this.user.id);
+      await this.cmdChannel!.send("The game has ended, when you are finished looking at the board please type `exit`")
+      clearTimeout(this.destoryTimerID);
+      this.destoryTimerID = setTimeout(this.destroySession, 10000,this,false)
     }
-    currencyMod.update(this.user.id);
-    this.cmdChannel!.send("The game has ended, when you are finished looking at the board please type `exit`")
-    clearTimeout(this.destoryTimerID);
-    this.destoryTimerID = setTimeout(this.destroySession, 10000,this,false)
+    catch(err)
+    {
+      console.log(err);
+    }
   }
   
   
@@ -341,7 +334,7 @@ export class BlackJackSession
           if (!this.hasEnded && this.isStarted && !this.isStanding) this.stand();
           break;
         case "exit":
-          if (this.hasEnded) {clearTimeout(this.destoryTimerID); this.destroySession(this,false);}
+          if (this.hasEnded) {this.destroySession(this,false);}
           break;
       }
       

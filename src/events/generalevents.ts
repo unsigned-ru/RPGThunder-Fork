@@ -2,7 +2,7 @@ import Discord from 'discord.js'
 import {client, blackjackSessions, zoneBossSessions, traveling} from '../main';
 import {session_category_id} from '../config.json';
 import {queryPromise, getGuildPrefix} from '../utils';
-import { blacklistedChannels } from '../staticdata';
+import { blacklistedChannels, custom_prefixes } from '../staticdata';
 import { resetLottery, updateLotteryMessage } from '../commands/gamblecmds';
 
 export function SetupEvents()
@@ -28,7 +28,7 @@ async function onReady()
 
     //lotteryUpdate
     updateLotteryMessage();
-    updateLotteryMessageJob = schedule.scheduleJob('/15 * * * *', updateLotteryMessage);
+    updateLotteryMessageJob = schedule.scheduleJob('*/15 * * * *', updateLotteryMessage);
 }
 
 async function onMSGReceived(msg: Discord.Message)
@@ -47,7 +47,7 @@ async function onMSGReceived(msg: Discord.Message)
         if (command == "rpgthunder") {changePrefixCommand(msg,args); return;}
 
         //Get prefix
-        const prefix = await getGuildPrefix(msg.guild.id);
+        const prefix = getGuildPrefix(msg.guild.id);
         command = command.slice(prefix.length);
 
         //Check if it starts with required refix
@@ -110,11 +110,11 @@ async function changePrefixCommand(msg:Discord.Message, args:string[])
 
                 if(result) await queryPromise(`UPDATE custom_prefix SET prefix='${args[1]}' WHERE guild_id=${msg.guild.id}`);
                 else await queryPromise(`INSERT INTO custom_prefix(guild_id,prefix) VALUES('${msg.guild.id}','${args[1]}')`);
-            
+                custom_prefixes.set(msg.guild.id,{id: 0, guild_id: msg.guild.id, prefix: args[1]});
                 msg.reply(`Prefix has been changed to \`${args[1]}\`.`);
                 break;
             case "prefix":
-                msg.reply(`This guilds' prefix is \`${await getGuildPrefix(msg.guild.id)}\``);
+                msg.reply(`This guilds' prefix is \`${getGuildPrefix(msg.guild.id)}\``);
         }
     }
     catch(err){console.log(err);}

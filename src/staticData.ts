@@ -1,5 +1,5 @@
 import {Collection} from "discord.js"
-import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drops, _zone_shop_entry, _shop_category as _item_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility, _class_ability, _crafting_recipe} from './interfaces';
+import {_class,_item_type,_equipment_slot, _item_quality, _enemy, _enemy_currency_drop_data, _enemy_item_drop_data, _shop_item, _consumable, _enemy_material_drop_data, _zone, _zone_gather_drop, _zone_shop_entry, _shop_category as _item_category, _material, _currency, _boss, _boss_item_drop_data, _boss_currency_drop_data, _boss_material_drop_data, _boss_abbility, _class_ability, _crafting_recipe, _custom_prefix} from './interfaces';
 import { queryPromise } from './utils';
 
 export var classes: Collection<number,_class> = new Collection();
@@ -32,19 +32,21 @@ export var zones: Collection<number,_zone> = new Collection();
 export var zone_shops: Collection<number,_zone_shop_entry> = new Collection();
 export var item_categories: Collection<number,_item_category> = new Collection();
 
-export var zone_fish_drops: Collection<number,_zone_gather_drops> = new Collection();
-export var zone_mine_drops: Collection<number,_zone_gather_drops> = new Collection();
-export var zone_harvest_drops: Collection<number,_zone_gather_drops> = new Collection();
-export var zone_chop_drops: Collection<number,_zone_gather_drops> = new Collection();
+export var zone_fish_drops: Collection<number,_zone_gather_drop> = new Collection();
+export var zone_mine_drops: Collection<number,_zone_gather_drop> = new Collection();
+export var zone_harvest_drops: Collection<number,_zone_gather_drop> = new Collection();
+export var zone_chop_drops: Collection<number,_zone_gather_drop> = new Collection();
 export var blacklistedChannels: string[] = [];
+export var custom_prefixes: Collection<string,_custom_prefix> = new Collection();
 
 
 export async function LoadStaticDatabaseData()
 {
   try
   {
-    blacklistedChannels = (await queryPromise(`SELECT channel_id FROM blacklisted_channels`) as Array<any>).map(x => x.channel_id);
 
+    blacklistedChannels = (await queryPromise(`SELECT channel_id FROM blacklisted_channels`) as Array<any>).map(x => x.channel_id);
+    custom_prefixes = await loadDbData("custom_prefix","guild_id");
     materials = await loadDbData("materials");
     currencies = await loadDbData("currencies");
     equipment_slots = await loadDbData("equipment_slots");
@@ -79,6 +81,8 @@ export async function LoadStaticDatabaseData()
     item_categories = await loadDbData("categories");
 
     craftingRecipes = await loadDbData("recipes");
+
+    
   }
   catch(err)
   {
@@ -86,7 +90,7 @@ export async function LoadStaticDatabaseData()
   }
 }
 
-async function loadDbData(tableName:string, id_name: string = "id") :Promise<Collection<number,any>>
+async function loadDbData(tableName:string, id_name: string = "id") :Promise<Collection<any,any>>
 {
   return new Promise(async function(resolve, reject)
   {
@@ -97,7 +101,7 @@ async function loadDbData(tableName:string, id_name: string = "id") :Promise<Col
       var query = `SELECT * FROM ${tableName}`;
       var queryResult = await queryPromise(query);
       
-      var returnValue: Collection<number,any> = new Collection();
+      var returnValue: Collection<any,any> = new Collection();
 
       //iterate over values and add it to the collection
       for (var row of queryResult) returnValue.set(row[id_name],row);

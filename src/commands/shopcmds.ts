@@ -2,8 +2,8 @@ import Discord, { User } from 'discord.js';
 import {client} from '../main';
 import cf from "../config.json";
 import {isRegistered, queryPromise, getCurrencyDisplayName, getCurrencyIcon, editCollectionNumberValue, getEquipmentSlotDisplayName, getGuildPrefix} from "../utils";
-import {zone_shops, item_categories, zones, item_qualities } from '../staticdata';
-import { _shop_item, _consumable, _item, _material } from '../interfaces';
+import {zone_shops, item_categories, zones, item_qualities, item_types } from '../staticdata';
+import { _shop_item, _consumable, _item, _material, _inventory_entry } from '../interfaces';
 import { inventoryModule, userDataModules, UserData, currencyModule, basicModule } from '../classes/userdata';
 
 export const commands = 
@@ -87,23 +87,25 @@ export const commands =
 				if (!await isRegistered(msg.author.id))throw "You must be registered to use this command!";
 
 				var amount = 1;
-				var itemName;
+				var inputItemName;
 				//Check args
 				if (args.length == 0) throw "Please enter the item you wish to buy!\nUsage: `"+this.usage+"`"
 
 				if (parseInt(args[args.length -1]))
 				{
 					amount = parseInt(args[args.length -1]);
-					itemName = args.slice(0, -1).join(" ").toLowerCase();
+					inputItemName = args.slice(0, -1).join(" ").toLowerCase();
 				}
 				else
 				{
-					itemName = args.join(" ").toLowerCase();
+					inputItemName = args.join(" ").toLowerCase();
 				}
 
 				if (amount <= 0) throw "You cannot buy amounts smaller than 0.";
 
 				const [basicMod,currencyMod] = <[basicModule,currencyModule]> await new UserData(msg.author.id, [userDataModules.basic,userDataModules.currencies]).init();
+
+				if (!zones.get(basicMod.zone!)!.has_town) throw "This town has no shop!"
 
 				const entries = zone_shops.filter(x => x.zone_id == basicMod.zone!);
 
@@ -131,18 +133,55 @@ export const commands =
 					}
 				}
 				//Check if the users input item exists in the list
-				if (!shopEntriesWithData.has(itemName)) throw "Could not find an item with that name in the shop."
+				if (!shopEntriesWithData.has(inputItemName)) throw "Could not find an item with that name in the shop."
 
 				//get the item
-				const entryData = shopEntriesWithData.get(itemName);
+				const entryData = shopEntriesWithData.get(inputItemName);
 				const entry = entries.find(x=> item_categories.get(x.category_id!)!.name == entryData!.objType && x.entry_id == entryData!.id);
 
 				//Check if user has enough balance
-				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \`${itemName}\`x${amount}!`
+				if (currencyMod.currencies.get("coins")! < amount * entry.entry_price) throw `You do not have enough ${getCurrencyIcon("coins")} ${getCurrencyDisplayName("coins")} to buy \`${inputItemName}\`x${amount}!`
+				
+				var errormsg = "";
+				var itemName;
+				var itemIcon;
+				switch(entryData!.objType)
+				{
+					case "item":
+						let item = (entryData as _item);
+						itemName = item.name;
+						itemIcon = item.icon_name;
+						if (item.level_req > basicMod.level!) errormsg += `You are not high enough level to equip ${item.icon_name} ${item.name} (lvl req: ${item.level_req})\n`;
+						if (!basicMod.class?.allowed_item_types.split(",").map(x => parseInt(x)).includes(item.type))  errormsg +=`You will not be able to equip ${item.icon_name} ${item.name} because your class is not allowed to wear the type: ${item_types.get(item.type)?.name}\n`;
+						break;
+					case "consumable":
+						let cons = (entryData as _consumable);
+						itemName = cons.name;
+						itemIcon = cons.icon_name;
+						break;
+					case "material":
+						let mat = (entryData as _material);
+						itemName = mat.display_name;
+						itemIcon = mat.icon_name;
+						break;
+				}
+				let price = amount * entry.entry_price;
+				//ask for confirmation
+				var confirmEmbed = new Discord.RichEmbed()
+				.setTitle(`Buy Confirmation - ${msg.author.username}`)
+				.setDescription(`**Are you sure you wish to buy ${itemIcon} ${itemName} x${amount} for ${getCurrencyIcon("coins")} ${price} ${getCurrencyDisplayName("coins")}?**`)
+				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+				.setColor('#fcf403')
+				if (errormsg.length > 0) confirmEmbed.addField("⚠️Warnings⚠️",errormsg)
+				
+				var confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
+				await confirmMessage.react("✅");
+				await confirmMessage.react("❌");
+				var rr = await confirmMessage.awaitReactions((m:Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
+				if (rr.first().emoji.name != '✅') return;
+
 				//Add it to the appropriate inventory.
 				let sql = "";
-				
-				let price = amount * entry.entry_price;
 				switch(entryData!.objType)
 				{
 					case "item":
@@ -183,15 +222,30 @@ export const commands =
 				//Check if user is registered
 				if (!await isRegistered(msg.author.id))throw "You must be registered to use this command!";
 
-				const invSlot_ids = args.map(x => parseInt(x));
-				//Check args
-				if (invSlot_ids.length == 0) throw "Please enter the inventory slots of the items you wish to sell.\nUsage: `"+this.usage+"`"
+				//check if the zone the player is in has a town.
+				const [basicMod] = <[basicModule]> await new UserData(msg.author.id, [userDataModules.basic]).init();
+				if(zones.get(basicMod.zone!)!.has_town == false) throw `You cannot sell items in this zone. It does not have a town!`
+
 
 				//Get data
 				const [inventoryMod, currencyMod] = <[inventoryModule,currencyModule]> await new UserData(msg.author.id, [userDataModules.inventory,userDataModules.currencies]).init();
 				if (inventoryMod.isEmpty) throw "Your inventory is empty.";
 
-				var invEntriesToRemove = [] 
+				var invEntriesToRemove: _inventory_entry[] = [] 
+				var invSlot_ids = args.map(x => parseInt(x));
+				var fromToArgs = args[0].split("-").map(x => parseInt(x));
+				//Check args
+				if (args[0] == "all") 
+				{
+					invSlot_ids = [];
+					invEntriesToRemove = inventoryMod.inventory.array()
+				}
+				else if (fromToArgs.length == 2) 
+				{
+					invSlot_ids = [];
+					invEntriesToRemove = inventoryMod.inventory.filter((value, key) => key >= fromToArgs[0] && key <= fromToArgs[1]).array();
+				}
+				else if (invSlot_ids.length == 0) throw "Please enter the inventory slots of the items you wish to sell.\nUsage: `"+this.usage+"`"
 
 				var errormsg = "";
 				var currencyGained = 0;
@@ -205,26 +259,31 @@ export const commands =
 					}
 					var entry = inventoryMod.inventory.get(invSlot_id)!
 					invEntriesToRemove.push(entry);
-					currencyGained += entry.item.sell_price;
 				}
-				
+				var entryStrings = [];
 				var entryString = "";
 				for (let entry of invEntriesToRemove)
 				{
 					entryString += `${entry.item.icon_name} ${entry.item.name} - ${getCurrencyIcon("coins")} ${entry.item.sell_price} ${getCurrencyDisplayName("coins")}\n`;
+					currencyGained += entry.item.sell_price;
+					if (entryString.length > 850) { entryStrings.push(entryString); entryString = "";}
 				}
+				if (entryString.length > 0) entryStrings.push(entryString);
+
 
 				var confirmEmbed = new Discord.RichEmbed()
 				.setTitle(`Sale Confirmation - ${msg.author.username}`)
 				.setDescription(`**Are you sure you wish to sell the following items for ${getCurrencyIcon("coins")} ${currencyGained} ${getCurrencyDisplayName("coins")}?**`)
-				.addField(`Items`, entryString)
 				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403')
+				for (let s of entryStrings) confirmEmbed.addField(`Items`, s);
 				if (errormsg.length > 0) confirmEmbed.addField("⚠️Warnings⚠️",errormsg)
-				msg.channel.send(confirmEmbed);
 				
-				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id, {maxMatches: 1, time: 20000});
-				if (rr.first().content.toLowerCase() != "yes") return;
+				var confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
+				await confirmMessage.react("✅");
+				await confirmMessage.react("❌");
+				var rr = await confirmMessage.awaitReactions((m:Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
+				if (rr.first().emoji.name != '✅') return;
 
 				msg.channel.send(`You have sold the selected items for a total of ${getCurrencyIcon("coins")} ${currencyGained} ${getCurrencyDisplayName("coins")}`);
 

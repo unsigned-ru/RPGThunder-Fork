@@ -60,15 +60,15 @@ export const commands =
 					if (already_equipped_slots.includes(invEntryToEquip.item.slot)) { throw "You have already equipped an item in the slot: "+ slot.display_name}
 					
 					//check if the users level is high enough
-					if (invEntryToEquip.item.level_req > basicMod.level!) throw `You are not high enough level to equip item ${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}`;
+					if (invEntryToEquip.item.level_req > basicMod.level!) throw `You are not high enough level to equip item ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name} (requirement: ${invEntryToEquip.item.level_req})`;
 
 					//check if the user is allowed to wear this type.
-					if (!basicMod.class!.allowed_item_types.split(",").includes(invEntryToEquip.item.type.toString())) throw `You cannot equip item __${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ because your class is not allowed to equip the type: \`${item_types.get(invEntryToEquip.item!.type)!.name}\``
+					if (!basicMod.class!.allowed_item_types.split(",").includes(invEntryToEquip.item.type.toString())) throw `You cannot equip item __ ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ because your class is not allowed to equip the type: \`${item_types.get(invEntryToEquip.item!.type)!.name}\``
 
 					await UserData.equipItemFromInventory(msg.author.id,equipmentMod,inventoryMod,slot.database_name,invEntryToEquip.item,invEntryToEquip.bonus_atk,invEntryToEquip.bonus_def,invEntryToEquip.bonus_acc);
 					//add the equipped type to already_equipped_slots.
 					already_equipped_slots.push(invEntryToEquip.item.slot);
-					sucess_output += `You have sucessfully equipped: __${invEntryToEquip.item.id} - ${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ in the slot: ${slot.display_name}!\n`
+					sucess_output += `You have sucessfully equipped: __${invEntryToEquip.item.icon_name} ${invEntryToEquip.item.name}__ in the slot: ${slot.display_name}!\n`
 				}
 				await equipmentMod.update(msg.author.id);
 				msg.channel.send(sucess_output);
@@ -159,7 +159,9 @@ export const commands =
 						let csmedString = "";
 						for (let ca of consumedAmounts) csmedString += `${consumables.get(ca[0])!.icon_name} ${consumables.get(ca[0])!.name} x${ca[1]}\n`
 						msg.channel.send(`You have run out of potions, your current health is ${basicMod.current_hp}/${statMod.stats.get("max_hp")}\nYou have consumed:\n${csmedString}`);
-						break;
+						//update the health
+						basicMod.update(msg.author.id);
+						return;
 					}
 					
 					//Heal us up and remove consumable
@@ -254,9 +256,9 @@ export const commands =
 				editCollectionNumberValue(currencyMod.currencies,"coins",coins);
 				rewardString += `${getCurrencyIcon("coins")} ${coins} ${getCurrencyDisplayName("coins")}\n`
 				
-				var material = materials.filter(x => x.database_name == "wood" || x.database_name == "iron_ore" || x.database_name == "common_fish").random();
+				var material = materials.filter(x => x.id == 1 || x.id == 2 || x.id == 5 || x.id == 6 || x.id == 7 || x.id == 8 || x.id == 9 || x.id == 10).random();
 				var materialAmount = randomIntFromInterval(1,10);
-				editCollectionNumberValue(materialMod.materials, material.database_name, materialAmount);
+				editCollectionNumberValue(materialMod.materials, material.id, materialAmount);
 				rewardString += `${material.icon_name} ${materialAmount} ${material.display_name}\n`
 
 				var potionAmount = randomIntFromInterval(1,3);
@@ -267,9 +269,9 @@ export const commands =
 
 				if (randomIntFromInterval(0,100) < 1)
 				{
-					var rareMat = materials.filter(x => x.database_name == "ruby" || x.database_name == "amethyst").random();
+					var rareMat = materials.filter(x => x.id == 3 || x.id == 4).random();
 					var rareMatAmount = randomIntFromInterval(1,5);
-					editCollectionNumberValue(materialMod.materials, rareMat.database_name, rareMatAmount);
+					editCollectionNumberValue(materialMod.materials, rareMat.id, rareMatAmount);
 					rewardString += `${rareMat.icon_name} ${rareMatAmount} ${rareMat.display_name}\n`
 				}
 
@@ -337,9 +339,9 @@ export const commands =
 				editCollectionNumberValue(currencyMod.currencies,"valor",valor);
 				rewardString += `${getCurrencyIcon("valor")} ${valor} ${getCurrencyDisplayName("valor")}\n`
 				
-				var material = materials.filter(x => x.database_name == "wood" || x.database_name == "iron_ore" || x.database_name == "common_fish").random();
+				var material = materials.filter(x => x.id == 1 || x.id == 2 || x.id == 5 || x.id == 6 || x.id == 7 || x.id == 8 || x.id == 9 || x.id == 10).random();
 				var materialAmount = randomIntFromInterval(5,20);
-				editCollectionNumberValue(materialMod.materials, material.database_name, materialAmount);
+				editCollectionNumberValue(materialMod.materials, material.id, materialAmount);
 				rewardString += `${material.icon_name} ${materialAmount} ${material.display_name}\n`
 
 				var potionAmount = randomIntFromInterval(2,7);
@@ -350,9 +352,9 @@ export const commands =
 
 				if (randomIntFromInterval(0,100) < 2)
 				{
-					var rareMat = materials.filter(x => x.database_name == "ruby" || x.database_name == "amethyst").random();
+					var rareMat = materials.filter(x => x.id == 3 || x.id == 4).random();
 					var rareMatAmount = randomIntFromInterval(1,5);
-					editCollectionNumberValue(materialMod.materials, rareMat.database_name, rareMatAmount);
+					editCollectionNumberValue(materialMod.materials, rareMat.id, rareMatAmount);
 					rewardString += `${rareMat.icon_name} ${rareMatAmount} ${rareMat.display_name}\n`
 				}
 
@@ -435,10 +437,13 @@ export const commands =
 				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403')
 
-				msg.channel.send(embed);
+				var confirmMessage = await msg.channel.send(embed) as Discord.Message;
+				await confirmMessage.react("✅");
+				await confirmMessage.react("❌");
+				var rr = await confirmMessage.awaitReactions((m:Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
 				
-				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id, {maxMatches: 1, time: 20000});
-				if (rr.first().content.toLowerCase() != "yes") return;
+
+				if (rr.first().emoji.name != '✅') return;
 
 				//Add to traveling cds
 				var d = new Date();
@@ -541,14 +546,14 @@ export const commands =
 				if (materials.find(x => x.display_name.toLowerCase() == name))
 				{
 					var materialData = materials.find(x => x.display_name.toLowerCase() == name)!;
-					var materialAmount = materialMod.materials.get(materialData.database_name)!;
+					var materialAmount = materialMod.materials.get(materialData.id)!;
 
 					//Check if we have enough to gift
 					if (amount > materialAmount) throw "You do not own enough of that material to send that.";
 
 					const [targetMaterialMod] = <[materialsModule]> await new UserData(target.id, [userDataModules.materials]).init();
-					editCollectionNumberValue(materialMod.materials, materialData.database_name,-amount);
-					editCollectionNumberValue(targetMaterialMod.materials, materialData.database_name,+amount);
+					editCollectionNumberValue(materialMod.materials, materialData.id,-amount);
+					editCollectionNumberValue(targetMaterialMod.materials, materialData.id,+amount);
 
 					materialMod.update(msg.author.id);
 					targetMaterialMod.update(target.id);
@@ -641,13 +646,13 @@ export const commands =
 						{
 							queryPromise(`INSERT INTO user_inventory (user_id,item) VALUES (${msg.author.id}, ${itemDrop})`);
 							const itemDropData = itemDropsItemData.find(x=> x.id == itemDrop)!
-							rewardEmbedString += `**${itemDrop}** - ${itemDropData.icon_name} ${itemDropData.name} [${item_qualities.find(x => x.id == itemDropData.quality)!.name} ${getEquipmentSlotDisplayName(itemDropData.slot)}]\n`
+							rewardEmbedString += `${itemDropData.icon_name} ${itemDropData.name} [${item_qualities.find(x => x.id == itemDropData.quality)!.name} ${getEquipmentSlotDisplayName(itemDropData.slot)}]\n`
 						}
 						var materialQueryString = ""
 						for (var materialDrop of enemy.material_drops)
 						{
-							materialQueryString += `${materialDrop.material_name} = ${materialDrop.material_name} + ${materialDrop.amount.toFixed(0)},`;
-							rewardEmbedString += `${getMaterialIcon(materialDrop.material_name)} ${getMaterialDisplayName(materialDrop.material_name)} ${materialDrop.amount.toFixed()}\n`
+							materialQueryString += `${materials.get(materialDrop.material_id)!.database_name} = ${materials.get(materialDrop.material_id)!.database_name} + ${materialDrop.amount.toFixed(0)},`;
+							rewardEmbedString += `${getMaterialIcon(materials.get(materialDrop.material_id)!.database_name)} ${getMaterialDisplayName(materials.get(materialDrop.material_id)!.database_name)} ${materialDrop.amount.toFixed()}\n`
 						}
 						if (enemy.material_drops.length >0) queryPromise("UPDATE user_materials SET "+ materialQueryString.slice(0,-1)+" WHERE user_id="+msg.author.id);
 
@@ -731,7 +736,7 @@ export const commands =
 				if (!basicMod.foundBosses.includes(bosses.get(zone.boss_id)!.id)) throw "You have not found this zone's boss yet. Explore some more!";
 
 				//check for an active session.
-				if (zoneBossSessions.find(x => x.user.id == msg.author.id)) throw "You still have an open session please end your previous session!";
+				if (zoneBossSessions.has(msg.author.id)) throw "You still have an open session please end your previous session!";
 		
 				//Check for cooldown.
 				if (zoneBoss_command_cooldown.has(msg.author.id)) throw `Ho there!\nThat command is on cooldown for another ${formatTime(getCooldownForCollection(msg.author.id,zoneBoss_command_cooldown))}!`;
@@ -744,7 +749,7 @@ export const commands =
 				const boss = new Boss(bossdata,currency_drops,item_drops,material_drops);
 
 				const bossSession = new ZoneBossSession(msg.channel as Discord.TextChannel,msg.author,boss,zone.name,basicMod,equipmentMod, statsMod, abilityMod,currencyMod,materialMod,inventoryMod);
-				zoneBossSessions.push(bossSession);
+				zoneBossSessions.set(msg.author.id,bossSession);
 				await bossSession.initAsync();
 			
 				await msg.channel.send(`${msg.author.username} has started fighting the boss **${boss.name}** of zone **${zone.name}**\nClick the link below to join or watch!`);

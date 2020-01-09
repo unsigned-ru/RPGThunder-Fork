@@ -29,8 +29,8 @@ export var coinflip_cooldown : Discord.Collection<string,Date> = new Discord.Col
 
 
 
-export var blackjackSessions :BlackJackSession[] = [];
-export var zoneBossSessions :ZoneBossSession[] = []
+export var blackjackSessions :Discord.Collection<string,BlackJackSession> = new Discord.Collection();
+export var zoneBossSessions :Discord.Collection<string,ZoneBossSession> = new Discord.Collection();
 
 //setup SQL connection as an export
 export const con = mysql.createConnection({
@@ -62,6 +62,34 @@ export const dbl = new DBL(top_gg_api_key, { webhookPort: 5000, webhookAuth: web
 generalevents.SetupEvents();
 webhooks.setupEvents();
 
+//add console input
+const readline = require('readline');
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 //log in
 client.c.login(token);
+
+rl.prompt();
+
+rl.on('line', (line:string) => {
+  var args = line.trim().split(" ");
+  var command = args.splice(0,1)[0];
+
+  switch(command.toLowerCase())
+  {
+    case "say":
+      var channel_id = args.splice(0,1)[0]
+      var message = args.join(" ");
+      if (client.c.channels.has(channel_id)) (client.c.channels.get(channel_id) as Discord.TextChannel).send(message);
+      break;
+    case "dm":
+      var user_id = args.splice(0,1)[0]
+      var message = args.join(" ");
+      if (client.c.users.has(user_id)) client.c.users.get(user_id)!.send(message);
+      break;
+  }
+  rl.prompt();
+});

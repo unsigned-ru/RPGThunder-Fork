@@ -19,7 +19,7 @@ export class Enemy{
     {
       this.name = enemyData.name
       const proposedlvl = randomIntFromInterval(ul - enemyData.enemy_level_offset_min, ul + enemyData.enemy_level_offset_min);
-      this.level = proposedlvl >= 1 ? proposedlvl : 1;
+      this.level = clamp(proposedlvl, 1, enemyData.max_level);
       this.max_hp = enemyData.base_hp + (clamp(this.level - enemyData.base_level, 0, Number.MAX_VALUE) * enemyData.hp_increase);
       this.current_hp = this.max_hp;
       this.atk = enemyData.base_atk + (clamp(this.level - enemyData.base_level, 0, Number.MAX_VALUE) * enemyData.atk_increase);
@@ -87,7 +87,7 @@ export class Enemy{
       }
 
       //Calculate the materialDrops the mob wil have
-      const materialDropChances: {name: string, chance: number}[] = [];
+      const materialDropChances: {id: number, chance: number}[] = [];
       var materialChanceCounter = 0;
 
       for (var materialDrop of materialDrops)
@@ -96,24 +96,24 @@ export class Enemy{
         {
           //100% drop chance.
           const proposedAmount = randomIntFromInterval((materialDrop.base_amount_min + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase)), (materialDrop.base_amount_max + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase)));
-          this.material_drops.push({material_name: materialDrop.material_name, amount: proposedAmount});
+          this.material_drops.push({material_id: materialDrop.material_id, amount: proposedAmount});
           continue;
         }
         //drop chance below 100% 
         materialChanceCounter += materialDrop.base_drop_chance + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.drop_chance_increase);
-        materialDropChances.push({name: materialDrop.material_name, chance: materialChanceCounter});
+        materialDropChances.push({id: materialDrop.material_id, chance: materialChanceCounter});
       }
       
       const materialDropChanceRNG = randomIntFromInterval(0,100); //generate rng.
   
       //Get the dropped material and add it to the material drops.
-      for (var materialDropChance of materialDropChances.reverse())
+      for (var materialDropChance of materialDropChances)
       {
         if (materialDropChanceRNG <= materialDropChance.chance)
         {
-          const materialDrop = materialDrops.find(x => x.material_name == materialDropChance.name)!;
+          const materialDrop = materialDrops.find(x=> x.material_id == materialDropChance.id)!;
           const proposedAmount = randomIntFromInterval(materialDrop.base_amount_min + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase), (materialDrop.base_amount_max + (clamp(this.level - ul,0,Number.MAX_VALUE) * materialDrop.amount_increase)));
-          this.material_drops.push({material_name: materialDrop.material_name, amount: proposedAmount});
+          this.material_drops.push({material_id: materialDrop.material_id, amount: proposedAmount});
           break;
         }
       }

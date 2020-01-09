@@ -2,7 +2,7 @@ import {con} from "./main";
 import * as cf from "./config.json";
 import { _item } from "./interfaces";
 import Discord from "discord.js";
-import { classes, equipment_slots, materials, currencies } from "./staticdata";
+import { classes, equipment_slots, materials, currencies, custom_prefixes } from "./staticdata";
 import { equipmentModule } from "./classes/userdata";
 
 /**
@@ -53,17 +53,17 @@ export function getCurrencyDisplayName(currencyDbName:string) :string
 
 export function getCurrencyIcon(currencyDbName:string) :string
 {
-  return currencies.find(x => x.database_name == currencyDbName)!.icon_name;
+  return currencies.find(x => x.database_name == currencyDbName)?.icon_name;
 }
 
 export function getMaterialDisplayName(materialDbName:string) :string
 {
-  return materials.find(x => x.database_name == materialDbName).display_name!;
+  return materials.find(x => x.database_name == materialDbName)?.display_name;
 }
 
 export function getMaterialIcon(materialDbName:string) :string
 {
-  return materials.find(x => x.database_name == materialDbName).icon_name!;
+  return materials.find(x => x.database_name == materialDbName)?.icon_name;
 }
 
 export function getEquipmentSlotDisplayName(equipmentSlot:string | number) :string
@@ -141,7 +141,7 @@ export function formatTime(ms:number) :string
   else if (ms / 3.6e+6 >= 1) return `${Math.round(ms / 3.6e+6)} hour(s)`;
   else if (ms / 60000 >= 1) return `${Math.round(ms / 60000)} minute(s)`;
   else if (ms / 1000 >= 1) return `${Math.round(ms / 1000)} second(s)`;
-  else return "unknown";
+  else return `${ms} milisecond(s)`;
 }
 
 export function setCooldownForCollection(user_id:string,cooldown:number,collection :Discord.Collection<string,Date>)
@@ -188,9 +188,8 @@ export function clamp(number:number,min:number, max:number) {
   return Math.min(Math.max(number, min), max);
 };
 
-export async function getGuildPrefix(guild_id:string)
+export function getGuildPrefix(guild_id:string)
 {
-  const result = (await queryPromise(`SELECT * FROM custom_prefix WHERE guild_id=${guild_id}`))[0]
-  if (result) return result.prefix;
+  if (custom_prefixes.has(guild_id)) return custom_prefixes.get(guild_id)!.prefix;
   else return '$';
 }

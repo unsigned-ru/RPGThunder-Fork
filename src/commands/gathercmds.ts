@@ -2,8 +2,9 @@ import { client, gather_commands_cooldown } from "../main";
 import cf from "../config.json"
 import Discord from "discord.js"
 import { isRegistered, randomIntFromInterval, queryPromise, getMaterialDisplayName, getMaterialIcon, setCooldownForCollection, getCooldownForCollection, formatTime } from "../utils";
-import { zone_mine_drops, zones, zone_chop_drops, zone_fish_drops, zone_harvest_drops } from "../staticdata";
+import { zone_mine_drops, zones, zone_chop_drops, zone_fish_drops, zone_harvest_drops, materials } from "../staticdata";
 import { basicModule, UserData, userDataModules, consumablesModule, currencyModule, equipmentModule, inventoryModule, materialsModule, statsModule } from "../classes/userdata";
+import { _material, _zone_gather_drop } from "../interfaces";
 
 export const commands = 
 [
@@ -33,15 +34,36 @@ export const commands =
 				
 				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
 
-				//get a random one,
-				const drop = currentZoneDrops.random();
-				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
+				//Setup their chance counters
+				var chanceCollection: Discord.Collection<number,{drop: _zone_gather_drop, counter: number}> = new Discord.Collection();
 
+				var counter = 0;
+				for (let drop of currentZoneDrops)
+				{
+					counter += drop[1].drop_chance;
+					chanceCollection.set(drop[0],{drop: drop[1], counter: counter})
+				}
+				
+				//generate RNG 0 - counted chance
+				const rng = randomIntFromInterval(0,counter);
+				var drop = currentZoneDrops.first();
+
+				for (let dc of chanceCollection.sort((a,b) => a.counter - b.counter))
+				{
+					if (rng <= dc[1].counter)
+					{
+						drop = dc[1].drop
+						break;
+					}
+				}
+
+				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
+				
 				//update user in database
-				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+				await queryPromise(`UPDATE user_materials SET ${materials.get(drop.material_id)!.database_name}=${materials.get(drop.material_id)!.database_name} + ${amount} WHERE user_id=${msg.author.id}`);
 
 				//return with a message
-				msg.channel.send(`\`${msg.author.username}\` mined in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
+				msg.channel.send(`\`${msg.author.username}\` mined in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(materials.get(drop.material_id)!.database_name)} ${amount} ${getMaterialDisplayName(materials.get(drop.material_id)!.database_name)}`)
 			}
 			catch(err)
 			{
@@ -77,16 +99,33 @@ export const commands =
 
 				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
 
+				//Setup their chance counters
+				var chanceCollection: Discord.Collection<number,{drop: _zone_gather_drop, counter: number}> = new Discord.Collection();
 
-				//get a random one,
-				const drop = currentZoneDrops.random();
+				var counter = 0;
+				for (let drop of currentZoneDrops)
+				{
+					counter += drop[1].drop_chance;
+					chanceCollection.set(drop[0],{drop: drop[1], counter: counter})
+				}
+				
+				//generate RNG 0 - counted chance
+				const rng = randomIntFromInterval(0,counter);
+				var drop = currentZoneDrops.first();
+				for (let dc of chanceCollection.sort((a,b) => a.counter - b.counter))
+				{
+					if (rng <= dc[1].counter)
+					{
+						drop = dc[1].drop
+						break;
+					}
+				}
 				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
-
 				//update user in database
-				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+				await queryPromise(`UPDATE user_materials SET ${materials.get(drop.material_id)!.database_name}=${materials.get(drop.material_id)!.database_name} + ${amount} WHERE user_id=${msg.author.id}`);
 
 				//return with a message
-				msg.channel.send(`\`${msg.author.username}\` went harvesting in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
+				msg.channel.send(`\`${msg.author.username}\` went harvesting in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(materials.get(drop.material_id)!.database_name)} ${amount} ${getMaterialDisplayName(materials.get(drop.material_id)!.database_name)}`)
 			}
 			catch(err)
 			{
@@ -121,16 +160,36 @@ export const commands =
 
 				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
 
+				//Setup their chance counters
+				var chanceCollection: Discord.Collection<number,{drop: _zone_gather_drop, counter: number}> = new Discord.Collection();
 
-				//get a random one,
-				const drop = currentZoneDrops.random();
+				var counter = 0;
+				for (let drop of currentZoneDrops)
+				{
+					counter += drop[1].drop_chance;
+					chanceCollection.set(drop[0],{drop: drop[1], counter: counter})
+				}
+				
+				//generate RNG 0 - counted chance
+				const rng = randomIntFromInterval(0,counter);
+
+				var drop = currentZoneDrops.first();
+				for (let dc of chanceCollection.sort((a,b) => a.counter - b.counter))
+				{
+					if (rng <= dc[1].counter)
+					{
+						drop = dc[1].drop
+						break;
+					}
+				}
+
 				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
 
 				//update user in database
-				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+				await queryPromise(`UPDATE user_materials SET ${materials.get(drop.material_id)!.database_name}=${materials.get(drop.material_id)!.database_name} + ${amount} WHERE user_id=${msg.author.id}`);
 
 				//return with a message
-				msg.channel.send(`\`${msg.author.username}\` chopped in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
+				msg.channel.send(`\`${msg.author.username}\` chopped in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(materials.get(drop.material_id)!.database_name)} ${amount} ${getMaterialDisplayName(materials.get(drop.material_id)!.database_name)}`)
 			}
 			catch(err)
 			{
@@ -166,15 +225,36 @@ export const commands =
 
 				setCooldownForCollection(msg.author.id, cf.gather_cooldown, gather_commands_cooldown);
 
-				//get a random one,
-				const drop = currentZoneDrops.random();
+				//Setup their chance counters
+				var chanceCollection: Discord.Collection<number,{drop: _zone_gather_drop, counter: number}> = new Discord.Collection();
+
+				var counter = 0;
+				for (let drop of currentZoneDrops)
+				{
+					counter += drop[1].drop_chance;
+					chanceCollection.set(drop[0],{drop: drop[1], counter: counter})
+				}
+				
+				//generate RNG 0 - counted chance
+				const rng = randomIntFromInterval(0,counter);
+				var drop = currentZoneDrops.first();
+				
+				for (let dc of chanceCollection.sort((a,b) => a.counter - b.counter))
+				{
+					if (rng <= dc[1].counter)
+					{
+						drop = dc[1].drop
+						break;
+					}
+				}
+
 				const amount = randomIntFromInterval(drop.min_amount,drop.max_amount);
 
 				//update user in database
-				await queryPromise(`UPDATE user_materials SET ${drop.material_name}=${drop.material_name} + ${amount} WHERE user_id=${msg.author.id}`);
+				await queryPromise(`UPDATE user_materials SET ${materials.get(drop.material_id)!.database_name}=${materials.get(drop.material_id)!.database_name} + ${amount} WHERE user_id=${msg.author.id}`);
 
 				//return with a message
-				msg.channel.send(`\`${msg.author.username}\` fished in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(drop.material_name)} ${amount} ${getMaterialDisplayName(drop.material_name)}`)
+				msg.channel.send(`\`${msg.author.username}\` fished in ${zones.get(basicMod.zone!)!.name} and received ${getMaterialIcon(materials.get(drop.material_id)!.database_name)} ${amount} ${getMaterialDisplayName(materials.get(drop.material_id)!.database_name)}`)
 			}
 			catch(err)
 			{

@@ -5,7 +5,7 @@ import {official_server_id,session_category_id} from "../config.json"
 import { sleep, clamp, randomIntFromInterval, getCurrencyIcon, getCurrencyDisplayName, getMaterialIcon, getMaterialDisplayName, getItemData, getEquipmentSlotDisplayName, editCollectionNumberValue } from "../utils";
 import { statsModule, equipmentModule, basicModule, abilityModule, UserData, currencyModule, materialsModule, inventoryModule } from "./userdata";
 import { _boss_abbility, _item } from "../interfaces";
-import { item_qualities, zones } from "../staticdata";
+import { item_qualities, zones, materials } from "../staticdata";
 
 export class ZoneBossSession
 {
@@ -64,15 +64,13 @@ export class ZoneBossSession
         //if the channel exists delete it first. then create a channel for play and add permissions for user.
         if (this.sessionGuild!.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes(this.boss.name.toLowerCase().split(" ").join('-')))) await this.sessionGuild.channels.find(x => x.name.includes(this.user.id.slice(0,4)) && x.name.includes(this.boss.name.toLowerCase().split(" ").join('-'))).delete();
 
-        const newchannel = (await this.sessionGuild!.createChannel(`${this.boss.name}-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory}));
+        const newchannel = (await this.sessionGuild!.createChannel(`${this.boss.name}-#${this.user.id.slice(0,4)}`, {type: "text", parent: parentCategory, rateLimitPerUser: 1}));
         await newchannel.lockPermissions();
         newchannel.overwritePermissions(this.user,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
-  
         this.cmdChannel = newchannel as Discord.TextChannel;
       
         this.invite = await this.cmdChannel.createInvite({maxAge: 0, unique: true});
         
-        //TODO: Add destroytimer
         this.destroyTimerID = setTimeout(this.destroySession,180000,this,true) //3min timeout
         await this.promptStart();
       }
@@ -144,7 +142,7 @@ export class ZoneBossSession
       {
         this.log.unshift(`${this.boss.name}: `+ this.boss.pre_dialogue.splice(0,1)[0]);
         this.sessionMsg.edit(await this.createSessionEmbed("Intro Dialogue","#00fff2"));
-        await sleep(1500);
+        await sleep(1000);
       }
       //Player turn.
       this.sessionMsg.edit(await this.createSessionEmbed("Your turn!","#61ff64"));
@@ -195,7 +193,7 @@ export class ZoneBossSession
       if (this.boss.current_hp <= 0) return this.endSession("win");
       await this.sessionMsg!.edit(await this.createSessionEmbed("Enemy Turn", "#00fff2"))
       this.isPlayerTurn = false;
-      await sleep(1500);
+      await sleep(1000);
       
       this.enemyAttack();
     }
@@ -265,8 +263,8 @@ export class ZoneBossSession
             } 
             for (var md of this.boss.material_drops) 
             {
-              rewardString += `${getMaterialIcon(md.material_name)} ${md.amount} ${getMaterialDisplayName(md.material_name)}\n`
-              editCollectionNumberValue(this.materialMod.materials,md.material_name,md.amount);
+              rewardString += `${materials.get(md.material_id)?.icon_name} ${md.amount} ${materials.get(md.material_id)?.display_name}\n`
+              editCollectionNumberValue(this.materialMod.materials,md.material_id,md.amount);
             }
             var itemdrops = await getItemData(this.boss.item_drops) as _item[];
             for (var id of itemdrops) 
@@ -312,8 +310,8 @@ export class ZoneBossSession
       {
         clearTimeout(session.destroyTimerID);
         if (session.invite) await session.invite.delete();
-        if (session.cmdChannel!) await session.sessionGuild!.channels.find(x => x.id == session.cmdChannel!.id).delete();
-        if (zoneBossSessions.includes(session)) zoneBossSessions.splice(zoneBossSessions.indexOf(session));
+        if (session.cmdChannel!) await session.sessionGuild!.channels.get(session.cmdChannel!.id)!.delete();
+        if (zoneBossSessions.has(session.user.id)) zoneBossSessions.delete(session.user.id);
         if (timeout) session.endSession("timeout");
       }
       catch(err)

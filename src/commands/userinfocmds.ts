@@ -61,14 +61,14 @@ export const commands =
 
 				.addField("Currencies:",currencyString,false)
 
-				// .addField("Equipment:",
-				// `**Main Hand:**  ${equipmentMod.equipment.get("main_hand")!.item == null ? "" : equipmentMod.equipment.get("main_hand")!.item.icon_name} ${equipmentMod.equipment.get("main_hand")!!.item == null ? "None" : equipmentMod.equipment.get("main_hand")!.item.name}\n`+
-				// `**Off Hand:** ${equipmentMod.equipment.get("off_hand")!.item == null ? "" : equipmentMod.equipment.get("off_hand")!.item.icon_name} ${equipmentMod.equipment.get("off_hand")!.item == null ? "None" : equipmentMod.equipment.get("off_hand")!.item.name}\n`+
-				// `**Head:** ${equipmentMod.equipment.get("head")!.item == null ? "" : equipmentMod.equipment.get("head")!.item.icon_name} ${equipmentMod.equipment.get("head")!.item == null ? "None" : equipmentMod.equipment.get("head")!.item.name}\n`+
-				// `**Chest:** ${equipmentMod.equipment.get("chest")!.item == null ? "" : equipmentMod.equipment.get("chest")!.item.icon_name} ${equipmentMod.equipment.get("chest")!.item == null ? "None" : equipmentMod.equipment.get("chest")!.item.name}\n`+
-				// `**Legs:** ${equipmentMod.equipment.get("legs")!.item == null ? "" : equipmentMod.equipment.get("legs")!.item.icon_name} ${equipmentMod.equipment.get("legs")!.item == null ? "None" : equipmentMod.equipment.get("legs")!.item.name}\n`+
-				// `**Feet:** ${equipmentMod.equipment.get("feet")!.item == null ? "" : equipmentMod.equipment.get("feet")!.item.icon_name} ${equipmentMod.equipment.get("feet")!.item == null ? "None" : equipmentMod.equipment.get("feet")!.item.name}\n`+
-				// `**Trinket:** ${equipmentMod.equipment.get("trinket")!.item == null ? "" : equipmentMod.equipment.get("trinket")!.item.icon_name} ${equipmentMod.equipment.get("trinket")!.item == null ? "None" : equipmentMod.equipment.get("trinket")!.item.name}\n`)
+				.addField("Equipment:",
+				`**Main Hand:** ${getEquipmentInfoString("main_hand",equipmentMod)}\n`+
+				`**Off Hand:** ${getEquipmentInfoString("off_hand",equipmentMod)}\n`+
+				`**Head:** ${getEquipmentInfoString("head",equipmentMod)}\n`+
+				`**Chest:** ${getEquipmentInfoString("chest",equipmentMod)}\n`+
+				`**Legs:** ${getEquipmentInfoString("legs",equipmentMod)}\n`+
+				`**Feet:** ${getEquipmentInfoString("feet",equipmentMod)}\n`+
+				`**Trinket:** ${getEquipmentInfoString("trinket",equipmentMod)}\n`)
 				.setThumbnail(user.user.avatarURL)
 
 				.setTimestamp()
@@ -82,96 +82,6 @@ export const commands =
 			}
 		},
 	},
-	{
-		name: 'equipment',
-		category: "statistics",
-		execute_while_travelling: true,
-		aliases: ['gear','eq'],
-		description: 'Shows a users equipment.',
-		usage: `[prefix]equipment [optional: @User]`,
-		async execute(msg: Discord.Message, args: string[]) 
-		{	
-			var user: Discord.GuildMember;
-
-			//check if there is a mentioned arg.
-			if (msg.mentions.members.size > 0)
-			{
-				user = msg.mentions.members.first();
-			}
-			else
-			{
-				user = msg.member;
-			}
-			//Get UserData
-			try {
-				if (!await isRegistered(user.user.id)) throw "User must be registered to use that command.";
-
-				var [equipmentMod] = <[equipmentModule]> await new UserData(user.id,[userDataModules.equipment]).init();
-
-				//Create an embedd with the profile data.
-				const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //Yelow
-				.setTitle(`User equipment: ${user.user.username}`)
-
-				.addField("Equipment:",
-				`**Main Hand:** ${getEquipmentInfoString("main_hand",equipmentMod)}\n`+
-				`**Off Hand:** ${getEquipmentInfoString("off_hand",equipmentMod)}\n`+
-				`**Head:** ${getEquipmentInfoString("head",equipmentMod)}\n`+
-				`**Chest:** ${getEquipmentInfoString("chest",equipmentMod)}\n`+
-				`**Legs:** ${getEquipmentInfoString("legs",equipmentMod)}\n`+
-				`**Feet:** ${getEquipmentInfoString("feet",equipmentMod)}\n`+
-				`**Trinket:** ${getEquipmentInfoString("trinket",equipmentMod)}\n`)
-				.setTimestamp()
-				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-
-				msg.channel.send(embed);
-			}
-			catch(err){
-				console.log(err);
-				msg.channel.send(err);
-			}
-		},
-	},
-	// {
-	// 	name: 'currencies',
-	// 	category: "statistics",
-	// 	aliases: ['$','curr','coins'],
-	// 	execute_while_travelling: true,
-	// 	description: 'Lists all currencies and their amounts.',
-	// 	usage: `[prefix]currencies`,
-	// 	async execute(msg: Discord.Message, args: string[]) 
-	// 	{
-	// 		try
-	// 		{
-	// 			if (!await isRegistered(msg.author.id)) throw "You must be registered to view your materials.";
-
-	// 			//get userdata
-	// 			const [currenciesMod] = <[currencyModule]> await new UserData(msg.author.id, [userDataModules.currencies]).init();
-
-	// 			var currencyString = "";
-
-	// 			for (var c of currencies)
-	// 			{
-	// 				currencyString += `${c[1].icon_name} **${c[1].display_name}**: ${currenciesMod.currencies.get(c[1].database_name)}\n`
-	// 			}
-				
-	// 			const embed = new Discord.RichEmbed()
-	// 			.setColor('#fcf403') //Yelow
-	// 			.setTitle(`User currencies: ${msg.author.username}`)
-	// 			.addField("Currencies:", currencyString)
-	// 			.setThumbnail(msg.author.avatarURL)
-	// 			.setTimestamp()
-	// 			.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-				
-	// 			msg.channel.send(embed);
-	// 		}
-	// 		catch(err)
-	// 		{
-	// 			console.log(err);
-	// 			msg.channel.send(err);
-	// 		}
-	// 	},
-	// },
 	{
 		name: 'materials',
 		category: "statistics",
@@ -192,7 +102,7 @@ export const commands =
 
 				for (var m of materials)
 				{
-					if (materialsMod.materials.get(m[1].database_name)! > 0) materialsString += `${m[1].icon_name} **${m[1].display_name}**: ${materialsMod.materials.get(m[1].database_name)}\n`
+					if (materialsMod.materials.get(m[1].id)! > 0) materialsString += `${m[1].icon_name} **${m[1].display_name}**: ${materialsMod.materials.get(m[1].id)}\n`
 				}
 				
 				const embed = new Discord.RichEmbed()
@@ -216,7 +126,7 @@ export const commands =
 		name: 'inventory',
 		category: "statistics",
 		execute_while_travelling: true,
-		aliases: ['inv'],
+		aliases: ['inv','inverse'],
 		description: 'Lists all items in your inventory and their respective slot they are in.',
 		usage: `[prefix]inventory [optional: Page]`,
 		async execute(msg: Discord.Message, args: string[]) 
@@ -475,9 +385,9 @@ export const commands =
 				{
 					try
 					{
-						if (await dbl.hasVoted(msg.author.id) == false) return `✅ - Vote`;
+						if (await dbl.hasVoted(msg.author.id) == false) return `✅ - Vote\n`;
 					}
-					catch(err){return "❌ - Vote [**API DOWN**]"}
+					catch(err){return "❌ - Vote [**API DOWN**]\n"}
 					return "";
 				}.call(this);
 

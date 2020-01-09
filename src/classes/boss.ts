@@ -1,6 +1,7 @@
 import { _enemy, _currency_drop, _enemy_currency_drop_data, _enemy_item_drop_data, _enemy_material_drop_data, _material_drop, _boss, _boss_currency_drop_data, _boss_item_drop_data, _boss_material_drop_data, _boss_abbility } from "../interfaces";
-import { randomIntFromInterval} from "../utils";
-import { bosses_abilities } from "../staticdata";
+import { randomIntFromInterval, clamp} from "../utils";
+import { bosses_abilities, materials } from "../staticdata";
+import { DiscordAPIError, Collection } from "discord.js";
 
 export class Boss{
     name: string;
@@ -102,7 +103,7 @@ export class Boss{
       }
 
       //Calculate the materialDrops the mob wil have
-      const materialDropChances: {name: string, chance: number}[] = [];
+      const materialDropChances: Collection<number,number> = new Collection();
       var materialChanceCounter = 0;
 
       for (var materialDrop of materialDrops)
@@ -111,24 +112,24 @@ export class Boss{
         {
           //100% drop chance.
           const proposedAmount = randomIntFromInterval(materialDrop.amount_min,materialDrop.amount_max);
-          this.material_drops.push({material_name: materialDrop.material_name, amount: proposedAmount});
+          this.material_drops.push({material_id: materialDrop.material_id, amount: proposedAmount});
           continue;
         }
         //drop chance below 100% 
         materialChanceCounter += materialDrop.drop_chance;
-        materialDropChances.push({name: materialDrop.material_name, chance: materialChanceCounter});
+        materialDropChances.set(materialDrop.material_id,materialChanceCounter);
       }
       
       const materialDropChanceRNG = randomIntFromInterval(0,100); //generate rng.
   
       //Get the dropped material and add it to the material drops.
-      for (var materialDropChance of materialDropChances.reverse())
+      for (var materialDropChance of materialDropChances.sort((a,b) => b - a))
       {
-        if (materialDropChanceRNG <= materialDropChance.chance)
+        if (materialDropChanceRNG <= materialDropChance[1])
         {
-          const materialDrop = materialDrops.find(x => x.material_name == materialDropChance.name)!;
+          const materialDrop = materialDrops.find(x => x.material_id == materialDropChance[0])!;
           const proposedAmount = randomIntFromInterval(materialDrop.amount_min,materialDrop.amount_max);
-          this.material_drops.push({material_name: materialDrop.material_name, amount: proposedAmount});
+          this.material_drops.push({material_id: materialDrop.material_id, amount: proposedAmount});
           break;
         }
       }
@@ -136,7 +137,8 @@ export class Boss{
     
     takeDamage(damageToTake: number) :number
     {
-      const damage = damageToTake - (this.def / 3);
+
+      const damage = damageToTake * 0.25 + clamp(((damageToTake *0.75 ) - (this.def / 3)), 0, Number.MAX_VALUE);
       this.current_hp -= damage
       if (this.current_hp <= 0) this.current_hp = 0;
 

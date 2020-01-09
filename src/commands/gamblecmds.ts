@@ -111,7 +111,7 @@ export const commands = [
 				if (blackjackSessions.find(x => x.user.id == msg.author.id)) throw "You still have an open session please end your previous session!"
 
 				const bjSession = new BlackJackSession(msg.channel as Discord.TextChannel,msg.author,amount);
-				blackjackSessions.push(bjSession);
+				blackjackSessions.set(msg.author.id, bjSession);
 				await bjSession.initAsync();
 			
 				await msg.channel.send(`${msg.author.username} has started a Blackjack Session ${getCurrencyIcon("coins")} ${amount} ${coins_display_name}!\nClick the link below to join or watch!`);
@@ -163,6 +163,11 @@ export const commands = [
 
 				//check if the amount is not 0 or below
 				if (amount <= 0) throw "You must buy atleast 1 ticket!";
+				
+				var data = (await queryPromise(`SELECT tickets FROM lottery_entries WHERE user_id=${msg.author.id} AND lottery_id=${lottery.id}`))[0];
+				if (data && data.tickets + amount > 10) throw `You may not buy more than 10 tickets per lottery. ${data.tickets} + ${amount} > 10`;
+				
+				
 
 				//confirm
 				var confirmEmbed = new Discord.RichEmbed()
@@ -171,10 +176,12 @@ export const commands = [
 				.setTimestamp()
 				.setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
 				.setColor('#fcf403')
-				msg.channel.send(confirmEmbed);
-
-				var rr = await msg.channel.awaitMessages((m:Discord.Message) => m.author.id == msg.author.id, {maxMatches: 1, time: 20000});
-				if (rr.first().content.toLowerCase() != "yes") return;
+				
+				var confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
+				await confirmMessage.react("✅");
+				await confirmMessage.react("❌");
+				var rr = await confirmMessage.awaitReactions((m:Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
+				if (rr.first().emoji.name != '✅') return;
 
 				//check if we are inside of the database already
 				if ((await queryPromise(`SELECT COUNT(*) FROM lottery_entries WHERE user_id=${msg.author.id} AND lottery_id=${lottery.id}`))[0]["COUNT(*)"] > 0)
@@ -215,13 +222,16 @@ export async function updateLotteryMessage()
 {
 	try
 	{
-		//Get Message
-		var message = await (client.c.channels.get(cf.lottery_channel_id) as Discord.TextChannel).fetchMessage(cf.lottery_message_id);
+		
 		
 		//Get all data from database
 		var lottery: _lottery = (await queryPromise("SELECT * FROM lotteries WHERE is_finished=0 LIMIT 1"))[0]
 
 		var lotteryEntries: _lottery_entry[] = await queryPromise(`SELECT * FROM lottery_entries WHERE lottery_id = ${lottery.id}`);
+
+
+		//Get Message
+		var message = await (client.c.channels.get(cf.lottery_channel_id) as Discord.TextChannel).fetchMessage(lottery.message_id);
 
 		var totalEntries = lotteryEntries.reduce((prev,curr) => prev + curr.tickets,0);
 		var embed = new Discord.RichEmbed()
@@ -271,15 +281,19 @@ export async function resetLottery()
 	//delete old entries from old lottery
 	await queryPromise(`DELETE FROM lottery_entries WHERE lottery_id=${lottery.id}`);
 
-	//create new lottery
-	await queryPromise(`INSERT INTO lotteries (ticket_cost) VALUES (${randomIntFromInterval(100, 500)})`);
-
 	//announce winner
 	//get user.
-	var announcementChannel = (client.c.channels.get(cf.announcements_channel_id)! as TextChannel)
+	var lotteryChannel = (client.c.channels.get(cf.lottery_channel_id)! as TextChannel)
 	var user = client.c.users.get(winnerid);
-	announcementChannel.send(`@everyone\n✨\`${user!.username}\` has won the lottery and received ${getCurrencyIcon("coins")} ${ticketPool.length*lottery.ticket_cost} ${getCurrencyDisplayName("coins")}✨`);
+	await lotteryChannel.send(`✨\`${user!.username}\` has won the lottery and received ${getCurrencyIcon("coins")} ${ticketPool.length*lottery.ticket_cost} ${getCurrencyDisplayName("coins")}✨`);
 	user!.send(`✨ You have won the lottery and received ${getCurrencyIcon("coins")} ${ticketPool.length*lottery.ticket_cost} ${getCurrencyDisplayName("coins")}`);
+
+	//Create new lotteryMessage
+	var message = await lotteryChannel.send(`Starting new lottery...`) as Discord.Message;
+
+	//create new lottery
+	await queryPromise(`INSERT INTO lotteries (ticket_cost,message_id) VALUES (${randomIntFromInterval(100, 500)},${message.id})`);
+
 
 	//update message
 	updateLotteryMessage();

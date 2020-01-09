@@ -110,6 +110,7 @@ export interface _lottery{
   ticket_cost: number,
   is_finished: boolean,
   winner_id: string,
+  message_id: string,
 }
 
 export interface _lottery_entry{
@@ -142,6 +143,7 @@ export interface _zone
   x_loc: number,
   y_loc: number,
   level_suggestion: string,
+  has_town: boolean,
 }
 
 export interface _crafting_recipe
@@ -176,14 +178,21 @@ export interface _currency
   display_name: string,
   icon_name: string
 }
+export interface _custom_prefix
+{
+  id: number,
+  guild_id: string,
+  prefix: string,
+}
 
-export interface _zone_gather_drops
+export interface _zone_gather_drop
 {
   id: number,
   zone_id: number,
-  material_name: string,
+  material_id: number,
   min_amount: number,
   max_amount: number,
+  drop_chance: number,
 }
 
 
@@ -208,6 +217,7 @@ export interface _enemy
   name: string,
 
   base_level: number,
+  max_level: number,
   base_hp: number,
   base_atk: number,
   base_def: number,
@@ -270,7 +280,7 @@ export interface _enemy_currency_drop_data{
 export interface _boss_material_drop_data{
   id: number,
   boss_id: number,
-  material_name: string,
+  material_id: number,
   amount_min: number,
   amount_max: number,
   drop_chance: number,
@@ -279,7 +289,7 @@ export interface _boss_material_drop_data{
 export interface _enemy_material_drop_data{
   id: number,
   enemy_id: number,
-  material_name: string,
+  material_id: number,
   base_amount_min: number,
   base_amount_max: number,
   amount_increase: number,
@@ -307,7 +317,7 @@ export interface _currency_drop{
 }
 
 export interface _material_drop{
-  material_name: string,
+  material_id: number,
   amount: number,
 }
 

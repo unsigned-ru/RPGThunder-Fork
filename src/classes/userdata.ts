@@ -75,22 +75,21 @@ export class currencyModule
 
 export class materialsModule
 {
-    materials: Discord.Collection<string,number> = new Discord.Collection();
+    materials: Discord.Collection<number,number> = new Discord.Collection();
 
     public async init(user_id:string) 
     {
         const result = (await queryPromise(`SELECT * FROM user_materials WHERE user_id=${user_id};`))[0];
         for (var m of materials)
         {
-            const name = Object.keys(result).find(x => x == m[1].database_name)!
-            this.materials.set(name,result[name]);
+            this.materials.set(m[0],result[m[1].database_name]);
         }
     }
 
     public async update(user_id:string)
     {
         var sqlparam = "";
-        for (var currency of this.materials) sqlparam += `${currency[0]}=${currency[1]},`
+        for (var mat of this.materials) sqlparam += `${materials.get(mat[0])?.database_name}=${mat[1]},`
         await queryPromise(`UPDATE user_materials SET ${sqlparam.slice(0,-1)} WHERE user_id='${user_id}';`);
     }
 }
