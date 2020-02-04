@@ -1,29 +1,38 @@
 import Discord from 'discord.js';
-import mongo from 'mongodb'
 import * as cf from './config.json'
-import { DataManager } from './dataManager.js';
+import { DataManager } from './classes/dataManager.js';
+
 import * as userActionCommands from "./commands/userActionCommands"
-import * as statisticCommands from "./commands/statisticCommands"
-import * as generalCommands from "./commands/generalCommands"
-import * as generalEvents from "./events/generalEvents"
+import * as userInfoCommands from "./commands/userInfoCommands"
+import * as generalInfoCommands from "./commands/generalInfoCommands"
+import * as economyCommands from "./commands/economyCommands"
+import * as gambleCommands from "./commands/gamblingCommands"
+import * as adminCommands from "./commands/adminCommands"
+import * as professionCommands from "./commands/professionCommands"
+
+import { _command } from './interfaces.js';
 
 
 export const client = new Discord.Client();
-export const commands = new Discord.Collection<string,any>();
+export const commands = new Discord.Collection<string,_command>();
 
+//calls setup events and setup all commands when finished loading in data.
 DataManager.initializeData();
 
-setupCommands();
 
+client.login(cf.DEVMODE ? cf.dev_token : cf.official_token);
 
-//log in
-client.login(cf.token);
+//Register webhooks
+const DBL = require("dblapi.js");
+export const dbl = cf.DEVMODE ? undefined : new DBL(cf.topgg_token, { webhookPort: 5000, webhookAuth: cf.topgg_webhook },client);
 
-function setupCommands()
+export function setupAllCommands()
 {
-  generalCommands.SetupCommands();
-  statisticCommands.SetupCommands();
+  generalInfoCommands.SetupCommands();
+  adminCommands.SetupCommands();
+  userInfoCommands.SetupCommands();
   userActionCommands.SetupCommands();
-  generalEvents.SetupEvents();
-  
+  gambleCommands.SetupCommands();
+  economyCommands.SetupCommands();
+  professionCommands.SetupCommands();
 }
