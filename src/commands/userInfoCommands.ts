@@ -1,7 +1,7 @@
 import Discord from "discord.js"
-import { commands } from "../main";
+import { commands, dbl } from "../main";
 import { DataManager } from "../classes/dataManager";
-import { round, CC, clamp, filterItemArray, sortItemArray } from "../utils";
+import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString } from "../utils";
 import { _equipmentItem, _materialItem, _consumableItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
 import { User } from "../classes/user";
 import { _command } from "../interfaces";
@@ -199,11 +199,11 @@ export const cmds: _command[] =
 			.setTitle(`User experience: ${user.class.icon} ${msg.author.username}`);
 
 			var levelPercentage = (user.exp / user.getRequiredExp()) * 100;
-			var progressBar = "▰".repeat(Math.ceil(levelPercentage/(20/3)));
-			progressBar = progressBar.padEnd(15,"▱");
+			let progressBar = "<:expBar:674948948103790610>".repeat(Math.ceil(levelPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(levelPercentage/(20/3))); 
+
 
 			embed.setDescription(
-				`**Level:** ${user.level}\n`+
+				`<:level:674945451866325002> ${user.level}\n`+
 				`**exp:** ${round(user.exp)}/${user.getRequiredExp()}\n\n`+
 				`${round(levelPercentage)}%\n`+
 				`${progressBar}`
@@ -228,12 +228,11 @@ export const cmds: _command[] =
 			.setTitle(`User health: ${user.class.icon} ${msg.author.username}`);
 
 			var hpPercentage = (user.hp / user.getStats().base.hp) * 100;
-			var progressBar = "▰".repeat(Math.ceil(hpPercentage/(20/3)));
-			progressBar = progressBar.padEnd(15,"▱");
+			let progressBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(hpPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(hpPercentage/(20/3))); 
 
 			embed.setDescription(
-				`**Level:** ${user.level}\n`+
-				`**hp:** ${round(user.hp)}/${user.getStats().base.hp}\n\n`+
+				`<:level:674945451866325002> ${user.level}\n`+
+				`**HP:** ${round(user.hp)}/${user.getStats().base.hp}\n\n`+
 				`${round(hpPercentage)}%\n`+
 				`❤️ ${progressBar}`
 				);
@@ -314,6 +313,67 @@ export const cmds: _command[] =
 		},
 	},
 	{
+		name: 'spellbook',
+		category: CC.UserInfo,
+		executeWhileTravelling: true,
+		mustBeRegistered: true,
+		aliases: [],
+		description: 'Shows the abilities available to your class.',
+		usage: `[prefix]spellbook [page] -[query1] -[query2]...`,
+		execute(msg, args, user: User) 
+		{	
+			const embed = new Discord.RichEmbed()
+			.setColor('#fcf403') //Yelow
+
+			let showAll = false;
+			let pages = []
+			let abilityString = "";
+			let maxAbilities = 8;
+			let abilityCounter = 0;
+			let selectedPage = 1;
+
+			//check for input of page to display
+			if (!isNaN(+args[0])) {selectedPage = +args[0]; args.splice(0,1)}
+
+			//check for input of -params
+			for(let p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
+			{
+				
+				switch(p[0].toLowerCase())
+				{
+					case "maxitems":
+						if (!isNaN(+p[1])) if (+p[1] < cf.inventory_maxItemsLimit && +p[1] > 0) maxAbilities = +p[1];
+					break;
+					case "all":
+						showAll = true;
+					break;
+
+				}
+			}
+			let spellbook = showAll ? user.class.spellbook.slice() : user.class.spellbook.filter(x => x.level <= user.level).slice();
+
+			for (let a of spellbook)
+			{
+				if (abilityCounter >= maxAbilities) {pages.push(abilityString); abilityString = ""; abilityCounter = 0;}
+				let ad = DataManager.getAbility(a.ability);
+
+				abilityString += `${ad.id} - ${ad.icon} __${ad.name}__\n`;
+				abilityString += `${constructAbilityDataString(ad,a.level)}\n\n`;
+				abilityCounter++;
+			}
+			if (abilityString.length > 0) pages.push(abilityString);
+
+			if (pages.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you have no abilities that fit your query.`)
+
+			//clamp the selectedpage to the min and max values
+			selectedPage = clamp(selectedPage, 1, pages.length);
+
+			embed.setTitle(`__User Spellbook: ${msg.author.username}__ | Page ${selectedPage}/${pages.length}`);
+			embed.setDescription(pages[selectedPage-1]);
+			msg.channel.send(embed);
+		},
+	},
+	{
 		name: 'cooldown',
         aliases: ['cd'],
         category: CC.Cooldowns,
@@ -321,7 +381,7 @@ export const cmds: _command[] =
         usage: `[prefix]cooldown`,
         executeWhileTravelling: true,
         mustBeRegistered: true,
-		execute(msg: Discord.Message, args, user: User) 
+		async execute(msg: Discord.Message, args, user: User) 
 		{
 			let cd_cmds = commands.filter(x => x.cooldown != undefined);
 			
@@ -338,7 +398,9 @@ export const cmds: _command[] =
 				if (remainingcd) cdString += `❌ - ${cmd[1].cooldown!.name} 🕙${remainingcd}\n`
 				else cdString += `✅ - ${cmd[1].cooldown!.name}\n`;
 				alreadyDone.push(cmd[1].cooldown!.name);
-			} 
+			}
+			try { cdString += (await dbl.hasVoted(msg.author.id)) == false ? `✅ - vote\n`: `❌ - vote\n`; }
+			catch(err) { cdString += "❌ - Vote [**API DOWN**]\n" }
 
 			embed.setDescription(cdString);
 			msg.channel.send(embed);
@@ -352,7 +414,7 @@ export const cmds: _command[] =
         usage: `[prefix]ready`,
         executeWhileTravelling: true,
         mustBeRegistered: true,
-		execute(msg: Discord.Message, args, user: User) 
+		async execute(msg: Discord.Message, args, user: User) 
 		{
 			let cd_cmds = commands.filter(x => x.cooldown != undefined);
 			
@@ -368,18 +430,12 @@ export const cmds: _command[] =
 				if (user.getCooldown(cmd[1].cooldown!.name) == undefined) rdString += `✅ - ${cmd[1].cooldown!.name}\n`;
 				alreadyDone.push(cmd[1].cooldown!.name);
 			} 
-
+			try { rdString += (await dbl.hasVoted(msg.author.id)) == false ? `✅ - vote\n`: ``; } catch(err) {}
+			
 			embed.setDescription(rdString);
 			msg.channel.send(embed);
         }
     },
 ]
 
-export function SetupCommands()
-{
-    for (let cmd of cmds)
-    {
-        commands.set(cmd.name, cmd);
-        console.log("command: '"+cmd.name+"' Registered.");
-    };
-}
+export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}

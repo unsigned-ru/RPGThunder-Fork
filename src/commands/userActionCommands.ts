@@ -9,6 +9,7 @@ import cf from "../config.json"
 import { CronJob } from "cron";
 import { Enemy } from "../classes/enemy";
 import { Zone } from "../classes/zone";
+import { ZoneBossSession } from "../classes/zoneBossSession";
 
 export const cmds: _command[] = 
 [
@@ -94,7 +95,7 @@ export const cmds: _command[] =
         usage: `[prefix]explore`,
         executeWhileTravelling: true,
         mustBeRegistered: true,
-        cooldown: { name: "explore", duration:60 },
+        cooldown: { name: "explore", duration: 60 },
 		execute(msg: Discord.Message, args: string[], user: User) 
 		{
             let zone = user.getZone();
@@ -162,6 +163,12 @@ export const cmds: _command[] =
                 }
                 if (rewardString.length > 0) embed.addField("**Rewards**",rewardString);
                 msg.channel.send(embed);
+                
+                if (!user.found_bosses.includes(zone.boss) && randomIntFromInterval(0,100) <= 100) //1.2
+                {
+                    user.found_bosses.push(zone.boss);
+                    msg.channel.send(`**\`${msg.author.username}\` has found the lair of \`${zone.name}'s\` boss!**`);
+                }
             }
         }
     },
@@ -290,24 +297,28 @@ export const cmds: _command[] =
 		},
     },
     {
-		name: 'i',
-		category: CC.hidden,
+		name: 'boss',
+		category: CC.Fighting,
 		aliases: ['travelling'],
-		description: 'Travel to another zone.',
-        usage: `[prefix]travel [Zone]`,
+		description: "Fight the current zone's boss. **You must unlock this first by exploring.**",
+        usage: `[prefix]boss`,
         executeWhileTravelling: false,
         mustBeRegistered: true,
-		async execute(msg, args: string[], user:User) 
+		async execute(msg: Discord.Message, args: string[], user:User) 
 		{
-            user.addItemToInventoryFromId(+args[0], +args[1])
+            if (!user.found_bosses.includes(user.getZone().boss)) return msg.channel.send(`\`${msg.author.username}\`, you have not found the boss of \`${user.getZone().name}\` yet. To find it, explore some more!`);
+
+            let bd = DataManager.getBossData(user.getZone().boss);
+            if (!bd) return msg.channel.send(`\`${msg.author.username}\`, a problem occured getting the boss data. Please inform an administrator.`);
+            // if (user.abilities.filter(x => x.ability != null).size == 0) return msg.channel.send(`\`${msg.author.username}\`, you cannot enter a turn based battle without abilities equipped.`);
+
+            if (!await awaitConfirmMessage(`Are you sure you would like to battle **${bd?.name}**?`, `⚠️ The suggested minimum level requirement is ${bd?.level}. ⚠️`, msg, user)) return;
+        
+            let bs = new ZoneBossSession(msg.author, user, msg.channel as Discord.TextChannel, bd);
+            DataManager.sessions.set(msg.author.id, bs);
+            await bs.initialize();
 		},
-	},
+    },
 ]
 
-export function SetupCommands()
-{
-    for (let cmd of cmds)
-    {
-        commands.set(cmd.name, cmd);
-    };
-}
+export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}

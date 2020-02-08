@@ -82,11 +82,4 @@ export const cmds: _command[] =
 	},
 ]
 
-export function SetupCommands()
-{
-    for (let cmd of cmds)
-    {
-        commands.set(cmd.name, cmd);
-        console.log("command: '"+cmd.name+"' Registered.");
-    };
-}
+export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}

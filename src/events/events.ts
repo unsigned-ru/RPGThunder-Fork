@@ -9,27 +9,30 @@ import cf from "../config.json"
 import { cmds } from '../commands/userActionCommands';
 
 //is called once the data is finished loading in.
-export function SetupEvents()
+export async function SetupEvents()
 {
     console.log("Setting up events...");
     client.on('message', onMSGReceived);
     client.on('ready', onReady);
     client.on("guildMemberAdd", onUserJoin)
-
-    new CronJob("*/15 * * * *", on_hpRegenTick, undefined, true);
-    !cf.DEVMODE ? new CronJob("*/15 * * * *", DataManager.pushDatabaseUpdate, undefined, true, undefined, DataManager) : undefined;
-    !cf.DEVMODE ? new CronJob("*/15 * * * *", DataManager.activeLottery.updateMessage, undefined, true, undefined, DataManager, true) : undefined;
-    
-    !cf.DEVMODE ? dbl.webhook.on('vote', onVote) : undefined;
-
     console.log("Finished setting up events.");
 }
 
 function onReady()
 {
-    console.log(`Logged in as ${client.user.tag}! Bot is ready for use and listening for commands.`);
+    console.log(`Logged in as ${client.user.tag}! Bot is ready for use and listening for commands.`);    
+}
+
+export function onFinishedLoadingDataAndReady()
+{
+    console.log("Setting up CRON Jobs...");
+    new CronJob("*/15 * * * *", on_hpRegenTick, undefined, true);
+    !cf.DEVMODE ? new CronJob("*/15 * * * *", DataManager.pushDatabaseUpdate, undefined, true, undefined, DataManager) : undefined;
+    !cf.DEVMODE ? new CronJob("*/15 * * * *", DataManager.activeLottery.updateMessage, undefined, true, undefined, DataManager, true) : undefined;
+    !cf.DEVMODE ? dbl.webhook.on('vote', onVote) : undefined;
     new CronJob("0 */1 * * *", updateBotStatus, undefined, true, undefined, updateBotStatus, true);
     new CronJob(DataManager.activeLottery.drawDate, DataManager.drawLottery, undefined, true, undefined, DataManager);
+    console.log("Finished setting up CRON Jobs...");
 }
 
 function onVote(vote:any)
@@ -39,11 +42,10 @@ function onVote(vote:any)
     let ud = DataManager.getUser(u.id);
     if (!ud) return u.send(`✨ Thank you for voting! ✨\n\nUnfortunately you could not receive a reward due to not being registered. Consider registering by using \`$register\``);
     
-    var coins = randomIntFromInterval(1,10,true)
+    var coins = randomIntFromInterval(2,10,true)
     ud.getCurrency(1).value += coins;
     var valor = 1;
     ud.getCurrency(2).value += valor;
-    ud.setCooldown
     return u.send(`✨ Thank you for voting! ✨\n\nYou have received the following rewards:\n- ${constructCurrencyString(1,coins)}\n- ${constructCurrencyString(2,valor)}`);
 }
 

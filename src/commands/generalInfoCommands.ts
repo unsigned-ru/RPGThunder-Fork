@@ -4,7 +4,7 @@ import { groupArrayBy, round, CC, getServerPrefix } from "../utils";
 import { _equipmentItem, _materialItem, _consumableItem, _anyItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";
 import {_command } from "../interfaces";
-import { _class } from "../classes/class";
+import { Class } from "../classes/class";
 
 export const cmds: _command[] = 
 [
@@ -188,7 +188,7 @@ export const cmds: _command[] =
 		usage: `[prefix]classinfo [Optional: Classname]`,
 		execute(msg: Discord.Message, args: string[]) 
 		{
-			var c: _class;
+			var c: Class;
 
 			if (args.length == 0) 
 			{
@@ -217,11 +217,4 @@ export const cmds: _command[] =
 	},
 ]
 
-export function SetupCommands()
-{
-    for (let cmd of cmds)
-    {
-        commands.set(cmd.name, cmd);
-        console.log("command: '"+cmd.name+"' Registered.");
-    };
-}
+export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}

@@ -1,7 +1,7 @@
 import Discord from 'discord.js';
 import mongo from 'mongodb'
 import * as cf from "../config.json"
-import {_currency} from '../interfaces';
+import {_currency, _bossData, Ability} from '../interfaces';
 import { User, SerializedUser } from './user.js';
 import { _materialItem, _equipmentItem, _consumableItem, _item, _anyItem, _itemQuality, _itemType, _itemSlot } from './items.js';
 import { SetupEvents } from '../events/events.js';
@@ -10,7 +10,7 @@ import { randomIntFromInterval, constructCurrencyString } from '../utils.js';
 import { CronJob } from 'cron';
 import { Profession } from './profession.js';
 import { Lottery, SerializedLottery } from './Lottery.js';
-import { _class } from './class.js';
+import { Class } from './class.js';
 import { Zone } from './zone.js';
 import { _enemy, _enemyType } from './enemy.js';
 import { Session } from './session.js';
@@ -19,7 +19,7 @@ export abstract class DataManager
 {
     public static users :Discord.Collection<string,User> = new Discord.Collection();
     public static professions :Discord.Collection<number, Profession> = new Discord.Collection();
-    public static classes :Discord.Collection<number,_class> = new Discord.Collection();
+    public static classes :Discord.Collection<number,Class> = new Discord.Collection();
     public static currencies :Discord.Collection<number,_currency> = new Discord.Collection();
     public static zones :Discord.Collection<number,Zone> = new Discord.Collection();
     public static items :Discord.Collection<number, _anyItem> = new Discord.Collection();
@@ -28,7 +28,9 @@ export abstract class DataManager
     public static itemSlots :Discord.Collection<number,_itemSlot> = new Discord.Collection();
     public static serverPrefixes :Discord.Collection<string,string> = new Discord.Collection();
     public static blacklistedChannels :string[] = [];
+    public static abilities :Discord.Collection<number, Ability> = new Discord.Collection();
     public static enemies :Discord.Collection<number, _enemy> = new Discord.Collection();
+    public static bossdata :Discord.Collection<number, _bossData> = new Discord.Collection();
     public static enemyTypes :Discord.Collection<number, _enemyType> = new Discord.Collection();
     public static activeLottery: Lottery;
     public static sessions :Discord.Collection<string, Session> = new Discord.Collection();
@@ -41,7 +43,7 @@ export abstract class DataManager
             await mongoClient.connect();
             let db = await mongoClient.db(cf.mongo_dbname);
             let classesColection = await db.collection("classes");
-            for (let c of await classesColection.find({}).toArray()) this.classes.set(c._id,new _class(c));
+            for (let c of await classesColection.find({}).toArray()) this.classes.set(c._id,new Class(c));
 
             let currenciesCollection = await db.collection("currencies");
             for (let c of await currenciesCollection.find({}).toArray()) this.currencies.set(c._id,c)
@@ -52,6 +54,9 @@ export abstract class DataManager
             let itemTypesCollection = await db.collection("itemTypes");
             for (let it of await itemTypesCollection.find({}).toArray()) this.itemTypes.set(it._id,it)
 
+            let abilityCollection = await db.collection("abilities");
+            for (let ab of await abilityCollection.find({}).toArray()) this.abilities.set(ab._id,new Ability(ab));
+
             let itemSlotsCollection = await db.collection("itemSlots");
             for (let is of await itemSlotsCollection.find({}).toArray()) this.itemSlots.set(is._id,is)
 
@@ -60,6 +65,9 @@ export abstract class DataManager
             
             let enemiesCollection = await db.collection("enemies");
             for (let ed of await enemiesCollection.find({}).toArray()) this.enemies.set(ed._id, ed);
+
+            let bossCollection = await db.collection("bosses");
+            for (let bs of await bossCollection.find({}).toArray()) this.bossdata.set(bs._id, bs);
 
             let enemyTypesCollection = await db.collection("enemyTypes");
             for (let ed of await enemyTypesCollection.find({}).toArray()) this.enemyTypes.set(ed._id, ed);
@@ -93,12 +101,9 @@ export abstract class DataManager
                         break;
                 }
             }
-            
+            console.log(this.abilities.array());
             await this.loadCharacterData(db);
-
             await mongoClient.close();
-            setupAllCommands();
-            SetupEvents();
         }
         catch(err)
         {
@@ -106,7 +111,7 @@ export abstract class DataManager
         }
     }
 
-    static registerUser(user: Discord.User, selectedClass: _class)
+    static registerUser(user: Discord.User, selectedClass: Class)
     {
         let newUser = new User({user_id: user.id, selectedClass: selectedClass});
         this.users.set(newUser.user_id,newUser);
@@ -121,7 +126,7 @@ export abstract class DataManager
         if (!currency) console.error(`StaticData.getCurrency not found.`);
         return currency!;
     }
-    static getClass(id: number) :_class
+    static getClass(id: number) :Class
     {
         let selclass = this.classes.get(id)
         if (!selclass) console.error(`StaticData.getClass not found.`);
@@ -159,6 +164,12 @@ export abstract class DataManager
         if (!itemSlot) console.error(`StaticData.getItemQuality not found.`);
         return itemSlot!;
     }
+    static getAbility(id: number) :Ability
+    {
+        let ability = this.abilities.get(id);
+        if (!ability) console.error(`StaticData.getAbility not found.`);
+        return ability!;
+    }
     static getItemSlots(ids: number[]) :_itemSlot[]
     {
         let returnval = []
@@ -177,6 +188,7 @@ export abstract class DataManager
         return user;
     }
     static getEnemy(id: number) : _enemy | undefined { return this.enemies.get(id); }
+    static getBossData(id: number) : _bossData | undefined { return this.bossdata.get(id); }
     static getEnemyType(id: number) : _enemyType | undefined { return this.enemyTypes.get(id); }
 
     static async drawLottery()
@@ -282,7 +294,8 @@ export abstract class DataManager
             professions: pd.professions,
             unlocked_zones: pd.unlocked_zones,
             zone: pd.zone,
-            cooldowns: pd.cooldowns
+            cooldowns: pd.cooldowns,
+            abilities: pd.abilities
         }))
     }
    

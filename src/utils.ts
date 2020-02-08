@@ -3,7 +3,7 @@ import Discord from 'discord.js'
 import { DataManager } from './classes/dataManager.js';
 import { _anyItem, _equipmentItem, MaterialItem, ConsumableItem, anyItem, _materialItem, _consumableItem, EquipmentItem, _item } from './classes/items.js';
 import { User } from './classes/user.js';
-import { _currency } from './interfaces.js';
+import { _currency, Ability } from './interfaces.js';
 
 export function randomIntFromInterval(min:number, max:number, rounded?:boolean) :number 
 {
@@ -60,7 +60,8 @@ export const enum colors {
   green = "#00ff04",
   yellow = "#fcf403",
   red = "#ff0000",
-  purple = "#ce0aff",
+  purple = "#5e03fc",
+  black = "#000000"
 }
 
 export function formatTime(ms:number) :string
@@ -384,4 +385,13 @@ export function createCraftedEquipment(itemData: _equipmentItem)
 
 export function sleep(s:number) {
   return new Promise(resolve => setTimeout(resolve, s*1000));
+}
+export function constructAbilityDataString(a: Ability, level?:number)
+{
+  let rva: string[] = []
+  if (level) rva.push(`<:level:674945451866325002> ${level}`);
+  // rva.push(`<:baseHitChance:674941186858942464> ${a.}`);
+  rva.push(`<:cooldown:674944207663923219> ${a.cooldown}`);
+
+  return `[`+rva.join(` | `)+`]` 
 }

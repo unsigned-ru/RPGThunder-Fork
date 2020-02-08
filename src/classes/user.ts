@@ -1,12 +1,12 @@
 import { DataManager } from "./dataManager";
-import {_currency} from "../interfaces";
+import {_currency, Ability, UserAbility} from "../interfaces";
 import Discord from 'discord.js'
 import { _materialItem, _equipmentItem, EquipmentItem, _serializedEquipmentItem, _serializedConsumableItem, _serializedMaterialItem, _consumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
 import * as cf from "../config.json"
 import { formatTime, clamp, randomIntFromInterval } from "../utils";
 import { CronJob } from "cron";
 import { client } from "../main";
-import { _class } from "./class";
+import { Class } from "./class";
 
 export interface userConstructorParams
 {
@@ -14,7 +14,7 @@ export interface userConstructorParams
     zone?: number,
     level?: number,
     exp?: number,
-    selectedClass: _class,
+    selectedClass: Class,
     joined?: Date,
     hp?: number,
     foundBosses?: number[],
@@ -24,6 +24,8 @@ export interface userConstructorParams
     equipment?: {slot: number, item: _serializedEquipmentItem}[],
     professions?: {id: number, skill: number}[]
     cooldowns?: {name: "", date: Date}[]
+    abilities?: {slot: number, ability: number | undefined}[];
+
 }
 export class User
 {
@@ -31,7 +33,7 @@ export class User
     zone :number = 1;
     level :number = 1;
     exp :number = 0;
-    class: _class;
+    class: Class;
     joined: Date = new Date();
     found_bosses: number[] = [];
     unlocked_zones: number[] = [1];
@@ -42,6 +44,8 @@ export class User
     equipment: Discord.Collection<number, {item: EquipmentItem | undefined}> = new Discord.Collection();
     reaction = { isPending: false, timer_id: 0 }
     professions: Discord.Collection<number, {skill: number}> = new Discord.Collection();
+    abilities: Discord.Collection<number, {ability: UserAbility | undefined}> = new Discord.Collection();
+
     constructor(params: userConstructorParams)
     {
         //initialize required parameters
@@ -103,7 +107,12 @@ export class User
                 if (id instanceof _materialItem) this.inventory.push(new MaterialItem(i.id,(i as _serializedMaterialItem).amount));
             }
         }
-
+        //intialize abilities
+        this.abilities.set(1, {ability: new UserAbility(DataManager.getAbility(1))});
+        for (let i = 2; i <= 3; i++) this.abilities.set(i, {ability: undefined});
+        //populate abilities from database.
+        if (params.abilities) for (let ab of params.abilities) this.abilities.set(ab.slot, {ability: ab.ability ? new UserAbility(DataManager.getAbility(ab.ability)) : undefined});
+        this.abilities.set(2, {ability: new UserAbility(DataManager.getAbility(2))}); //TODO: REMOVE
     }
     getCurrency(id: number) { return this.currencies.get(id)!; }
 
@@ -231,6 +240,7 @@ export class User
         }
     }
     getUser() { return client.users.get(this.user_id)!; }
+    getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
     setCooldown(name: string, duration: number)
     {
         if (this.command_cooldowns.has(name)) return;
@@ -379,6 +389,12 @@ export class User
     {
         return this.professions.get(id);
     }
+
+    getUnlockedAbilities()
+    {
+        return this.class.getSpellbook().filter(x => x.level <= this.level);
+    }
+
     gainProfessionSkill(id: number, skill:number, greenZone:number, grayZone: number, isGathering: boolean = false)
     {
         let prof = this.getProfession(id);
@@ -436,6 +452,7 @@ export class SerializedUser
     currencies: {currency_id: number, amount: number}[] = []
     inventory: (_serializedEquipmentItem | _serializedConsumableItem | _serializedMaterialItem)[] = []
     equipment: {slot: number, item: _serializedEquipmentItem | undefined}[] = []
+    abilities: {slot: number, ability: number | undefined}[] = []
     cooldowns: {name:string, date: Date}[] = []
     hp: number;
     professions: {id: number, skill: number}[] = [];
@@ -460,5 +477,6 @@ export class SerializedUser
         this.hp = user.hp;
         for (let p of user.professions) this.professions.push({id: p[0], skill: p[1].skill})
         for (let cd of user.command_cooldowns) this.cooldowns.push({name: cd[0], date: cd[1].nextDate().toDate()});
+        for (let ab of user.abilities) this.abilities.push({slot: ab[0], ability: ab[1].ability ? ab[1].ability.data.id : undefined})
     }
 }
