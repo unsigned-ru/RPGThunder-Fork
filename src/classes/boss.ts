@@ -1,14 +1,15 @@
-import Discord from "discord.js";
-import cf from "../config.json"
-import { _bossData, Ability, BossAbility } from "../interfaces.js";
-import { DataManager } from "./dataManager.js";
-import { getTotalWeightForLevel, getAccFromLevelWeight, randomIntFromInterval } from "../utils.js";
 
-export class Boss
+import { _bossData} from "../interfaces.js";
+import { DataManager } from "./dataManager.js";
+import { getTotalWeightForLevel, getAccFromLevelWeight, randomIntFromInterval, clamp } from "../utils.js";
+import { Actor } from "./actor.js";
+import { BossAbility } from "./ability.js";
+
+export class Boss extends Actor
 {
     id: number;
     name: string;
-    level: number;
+    expReward: number;
     stats: 
     {
         max_hp: number,
@@ -16,7 +17,6 @@ export class Boss
         def: number,
         acc: number,
     }
-    hp: number;
     dialogue: string[];
     abilities: BossAbility[];
 
@@ -25,12 +25,14 @@ export class Boss
 
     constructor(bd: _bossData)
     {
+        super(bd.max_hp, bd.level)
         this.id = bd._id;
         this.name = bd.name;
-        this.level = bd.level;
         this.dialogue = bd.intro_dialogue;
         this.abilities = bd.abilities.map(x => new BossAbility(DataManager.getAbility(x.id), x.chance));
         let weight = getTotalWeightForLevel(this.level) * bd.weightMultiplier;
+        let unlockZone: number;
+        this.expReward = bd.expReward;
         this.stats = 
         {
             max_hp: bd.max_hp,
@@ -38,16 +40,49 @@ export class Boss
             def: (weight * bd.weightDistribution.def) * 2,
             acc: getAccFromLevelWeight(this.level, weight * bd.weightDistribution.acc)
         }
-        this.hp = this.stats.max_hp;
 
-       //calculate currency drops
-    //    for (let cd of bd.currencyDrops) if (randomIntFromInterval(0,100) <= cd.chance) this.currencyDrops.push({id: cd.id, amount: randomIntFromInterval(cd.minAmount, cd.maxAmount, true)});
+        // calculate currency drops
+        for (let cd of bd.currency_drops) if (randomIntFromInterval(0,100) <= cd.chance) this.currencyDrops.push({id: cd.id, amount: randomIntFromInterval(cd.minAmount, cd.maxAmount, true)});
 
-       //calculate item drops
-    //    for (let id of bd.itemDrops) if (randomIntFromInterval(0,100) <= id.chance) this.itemDrops.push({id: id.id, amount: id.minAmount && id.maxAmount ? randomIntFromInterval(id.minAmount, id.maxAmount, true) : 1});
+        // calculate item drops
+        for (let id of bd.item_drops) if (randomIntFromInterval(0,100) <= id.chance) this.itemDrops.push({id: id.id, amount: id.minAmount && id.maxAmount ? randomIntFromInterval(id.minAmount, id.maxAmount, true) : 1});
 
     }
 
     getHealthPercentage() { return this.hp / this.stats.max_hp * 100; }
+
+    dealDamage(baseHitChance:number)
+    {
+        let miss = false;
+        let crit = false;
+        let stats = this.getStats().total;
+        let dmg = stats.atk;
+
+        let hitChance = (stats.acc / (this.level * 10)) * 100;
+        let critChance = hitChance - 85;
+        if (randomIntFromInterval(0,100) > baseHitChance + hitChance) miss = true; 
+        if (randomIntFromInterval(0,100) < critChance) {dmg *= 1.5; crit = true; }
+        return {dmg: dmg, miss: miss, crit: crit}
+    }
+    getName() { return this.name;}
+    getStats() 
+    {
+        return { 
+            base: 
+            {
+                hp: this.stats.max_hp,
+                atk: this.stats.atk,
+                def: this.stats.def,
+                acc: this.stats.acc
+            },
+            total: 
+            {
+                hp: this.stats.max_hp,
+                atk: this.stats.atk,
+                def: this.stats.def,
+                acc: this.stats.acc
+            },
+        }
+    }
 }
 

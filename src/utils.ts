@@ -1,9 +1,13 @@
-import * as cf from './config.json';
+import cf from './config.json';
 import Discord from 'discord.js'
 import { DataManager } from './classes/dataManager.js';
 import { _anyItem, _equipmentItem, MaterialItem, ConsumableItem, anyItem, _materialItem, _consumableItem, EquipmentItem, _item } from './classes/items.js';
 import { User } from './classes/user.js';
-import { _currency, Ability } from './interfaces.js';
+import { _currency } from './interfaces.js';
+import { Ability } from './classes/ability.js';
+import { Actor } from './classes/actor.js';
+
+let numberIconArray = [':zero:', ':one:', ':two:', ':three:', ':four:', ':five:', ':six:', ':seven:', ':eight:', ':nine:']
 
 export function randomIntFromInterval(min:number, max:number, rounded?:boolean) :number 
 {
@@ -394,4 +398,19 @@ export function constructAbilityDataString(a: Ability, level?:number)
   rva.push(`<:cooldown:674944207663923219> ${a.cooldown}`);
 
   return `[`+rva.join(` | `)+`]` 
+}
+
+export function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): string
+{
+  cls = cls.replace(`{user}`, `\`${user.getName()}\``);
+  cls = cls.replace(`{targets}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
+  cls = cls.replace(`{target}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
+  return cls;
+}
+
+export function numberToIcon(number: number)
+{
+  let rv = ""; 
+  for (let n of number.toString()) rv += numberIconArray[+n];
+  return rv;
 }

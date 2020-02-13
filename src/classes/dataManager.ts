@@ -1,19 +1,19 @@
 import Discord from 'discord.js';
 import mongo from 'mongodb'
 import * as cf from "../config.json"
-import {_currency, _bossData, Ability} from '../interfaces';
+import {_currency, _bossData} from '../interfaces';
 import { User, SerializedUser } from './user.js';
 import { _materialItem, _equipmentItem, _consumableItem, _item, _anyItem, _itemQuality, _itemType, _itemSlot } from './items.js';
-import { SetupEvents } from '../events/events.js';
-import { setupAllCommands, client } from '../main.js';
+import { client } from '../main.js';
 import { randomIntFromInterval, constructCurrencyString } from '../utils.js';
 import { CronJob } from 'cron';
 import { Profession } from './profession.js';
-import { Lottery, SerializedLottery } from './Lottery.js';
+import { Lottery, SerializedLottery } from './lottery.js';
 import { Class } from './class.js';
 import { Zone } from './zone.js';
 import { _enemy, _enemyType } from './enemy.js';
 import { Session } from './session.js';
+import { Ability } from './ability.js';
 
 export abstract class DataManager 
 {
@@ -101,7 +101,6 @@ export abstract class DataManager
                         break;
                 }
             }
-            console.log(this.abilities.array());
             await this.loadCharacterData(db);
             await mongoClient.close();
         }
@@ -134,6 +133,8 @@ export abstract class DataManager
     }
     static getItem(id: number) :_anyItem | undefined { return this.items.get(id); }
     static getItemByName(name: string) :_anyItem | undefined { return this.items.find(x => x.name.toLowerCase().trim() == name.toLowerCase().trim()); }
+    static getSpell(id: number) : Ability | undefined { return this.abilities.get(id); }
+    static getSpellByName(name: string) :Ability | undefined { return this.abilities.find(x => x.name.toLowerCase().trim() == name.toLowerCase().trim()); }
     static getItemType(id: number) : _itemType
     {
         let itemType = this.itemTypes.get(id);

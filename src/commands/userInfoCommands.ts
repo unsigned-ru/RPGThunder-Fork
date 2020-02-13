@@ -1,7 +1,7 @@
 import Discord from "discord.js"
 import { commands, dbl } from "../main";
 import { DataManager } from "../classes/dataManager";
-import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString } from "../utils";
+import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon } from "../utils";
 import { _equipmentItem, _materialItem, _consumableItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
 import { User } from "../classes/user";
 import { _command } from "../interfaces";
@@ -347,7 +347,6 @@ export const cmds: _command[] =
 					case "all":
 						showAll = true;
 					break;
-
 				}
 			}
 			let spellbook = showAll ? user.class.spellbook.slice() : user.class.spellbook.filter(x => x.level <= user.level).slice();
@@ -370,6 +369,30 @@ export const cmds: _command[] =
 
 			embed.setTitle(`__User Spellbook: ${msg.author.username}__ | Page ${selectedPage}/${pages.length}`);
 			embed.setDescription(pages[selectedPage-1]);
+			msg.channel.send(embed);
+		},
+	},
+	{
+		name: 'spells',
+		category: CC.UserInfo,
+		executeWhileTravelling: true,
+		mustBeRegistered: true,
+		aliases: ['abilities'],
+		description: 'Shows your current equipped abilities.',
+		usage: `[prefix]spells`,
+		execute(msg, args, user: User) 
+		{	
+			const embed = new Discord.RichEmbed()
+			.setTitle(`Equipped Spells ${msg.author.username}`)
+			.setColor(colors.yellow) //Yelow
+			
+			let abStrings :string[] = []
+			for (let ab of user.abilities)
+			{
+				if (!ab[1].ability) abStrings.push(`${numberToIcon(ab[0])} - ❌ __None__ ❌`);
+				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`)
+			}
+			embed.setDescription(abStrings.join("\n"));
 			msg.channel.send(embed);
 		},
 	},
@@ -399,6 +422,9 @@ export const cmds: _command[] =
 				else cdString += `✅ - ${cmd[1].cooldown!.name}\n`;
 				alreadyDone.push(cmd[1].cooldown!.name);
 			}
+			let bosscd = user.getCooldown('boss');
+			if (bosscd) cdString += `❌ - boss 🕙${bosscd}\n`
+			else cdString += `✅ - boss\n`;
 			try { cdString += (await dbl.hasVoted(msg.author.id)) == false ? `✅ - vote\n`: `❌ - vote\n`; }
 			catch(err) { cdString += "❌ - Vote [**API DOWN**]\n" }
 
@@ -430,6 +456,7 @@ export const cmds: _command[] =
 				if (user.getCooldown(cmd[1].cooldown!.name) == undefined) rdString += `✅ - ${cmd[1].cooldown!.name}\n`;
 				alreadyDone.push(cmd[1].cooldown!.name);
 			} 
+			if (user.getCooldown('boss') == undefined) rdString += `✅ - boss\n`
 			try { rdString += (await dbl.hasVoted(msg.author.id)) == false ? `✅ - vote\n`: ``; } catch(err) {}
 			
 			embed.setDescription(rdString);

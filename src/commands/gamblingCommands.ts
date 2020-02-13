@@ -1,11 +1,10 @@
 import { commands } from "../main";
 import { _equipmentItem, _materialItem, _consumableItem } from "../classes/items";
 import { _command } from "../interfaces";
-import cf from "../config.json"
 import { CC, randomIntFromInterval, getCurrencyAndAmountFromArgs } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import { User } from "../classes/user";
-import { BlackjackSesssion } from "../classes/BlackjackSession";
+import { BlackjackSesssion } from "../classes/blackjackSession";
 import { TextChannel } from "discord.js";
 
 export const cmds: _command[] = 

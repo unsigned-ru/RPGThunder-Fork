@@ -1,12 +1,16 @@
 import { DataManager } from "./dataManager";
-import {_currency, Ability, UserAbility} from "../interfaces";
+import {_currency} from "../interfaces";
 import Discord from 'discord.js'
 import { _materialItem, _equipmentItem, EquipmentItem, _serializedEquipmentItem, _serializedConsumableItem, _serializedMaterialItem, _consumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
-import * as cf from "../config.json"
+import cf from "../config.json"
 import { formatTime, clamp, randomIntFromInterval } from "../utils";
 import { CronJob } from "cron";
 import { client } from "../main";
 import { Class } from "./class";
+import { Actor } from "./actor";
+import { UserAbility } from "./ability";
+
+
 
 export interface userConstructorParams
 {
@@ -27,18 +31,17 @@ export interface userConstructorParams
     abilities?: {slot: number, ability: number | undefined}[];
 
 }
-export class User
+
+export class User extends Actor
 {
     user_id :string;
     zone :number = 1;
-    level :number = 1;
     exp :number = 0;
     class: Class;
     joined: Date = new Date();
     found_bosses: number[] = [];
     unlocked_zones: number[] = [1];
     command_cooldowns: Discord.Collection<string, CronJob> = new Discord.Collection();
-    hp: number;
     currencies: Discord.Collection<number, {value:  number}> = new Discord.Collection();
     inventory: (ConsumableItem | EquipmentItem | MaterialItem)[] = [];
     equipment: Discord.Collection<number, {item: EquipmentItem | undefined}> = new Discord.Collection();
@@ -48,6 +51,7 @@ export class User
 
     constructor(params: userConstructorParams)
     {
+        super(params.hp, params.level)
         //initialize required parameters
         this.user_id = params.user_id;
         this.class = params.selectedClass;
@@ -56,8 +60,6 @@ export class User
         if(params.zone) this.zone = params.zone;
         if(params.exp) this.exp = params.exp;
         if(params.joined) this.joined = params.joined;
-        if(params.level) this.level = params.level;
-        if(params.hp) this.hp = params.hp;
         if(params.foundBosses) this.found_bosses = params.foundBosses;
         if(params.unlocked_zones) this.unlocked_zones = params.unlocked_zones;
         
@@ -86,10 +88,6 @@ export class User
         //populate slots if param was provided
         if (params.equipment) for (let e of params.equipment) if (e.item) this.equipment.get(e.slot)!.item = new EquipmentItem(e.item.id); else this.equipment.get(e.slot)!.item = undefined;
         else for (let e of this.class.items) this.equipment.get(e.slot)!.item = new EquipmentItem(e.item);
-
-        //set the users hp (full hp if param not provided)
-        if (params.hp) this.hp = params.hp;
-        else this.hp = cf.stats.base.hp + ((this.level - 1) * cf.stats.increase.hp);
         
         //initialize all professions with skill 0
         for (let p of DataManager.professions) this.professions.set(p[1]._id , {skill: 0});
@@ -109,21 +107,79 @@ export class User
         }
         //intialize abilities
         this.abilities.set(1, {ability: new UserAbility(DataManager.getAbility(1))});
-        for (let i = 2; i <= 3; i++) this.abilities.set(i, {ability: undefined});
+        for (let i = 2; i <= 4; i++) this.abilities.set(i, {ability: undefined});
         //populate abilities from database.
         if (params.abilities) for (let ab of params.abilities) this.abilities.set(ab.slot, {ability: ab.ability ? new UserAbility(DataManager.getAbility(ab.ability)) : undefined});
-        this.abilities.set(2, {ability: new UserAbility(DataManager.getAbility(2))}); //TODO: REMOVE
     }
+
+    //GENERAL GETTERS ------------------------------
     getCurrency(id: number) { return this.currencies.get(id)!; }
-
     getZone() {return DataManager.zones.get(this.zone)!}
-
     getUnlockedZones() {return DataManager.zones.filter(x => this.unlocked_zones.includes(x._id))}
-
-    isWearingTwoHand() {return this.equipment.get(1)?.item?.id == undefined ? false : (DataManager.getItem(this.equipment.get(1)!.item!.id) as _equipmentItem).two_hand;}
-
     getRequiredExp(level = this.level) {return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level  ** cf.exp_req_multiplier)-level)));}
+    getUser() { return client.users.get(this.user_id)!; }
+    getName() { return client.users.get(this.user_id)!.username; }
+    getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
+    getCooldown(name:string)
+    {
+        if (!this.command_cooldowns.has(name)) return undefined;
+        let cd = this.command_cooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
+        return formatTime(cd);
+    }
+    getProfession(id: number) { return this.professions.get(id); }
+    getUnlockedAbilities() { return this.class.getSpellbook().filter(x => x.level <= this.level); }
 
+    //GENERAL SETTERS
+    setCooldown(name: string, duration: number)
+    {
+        if (this.command_cooldowns.has(name)) return;
+        let d = new Date();
+        d.setSeconds(d.getSeconds() + duration);
+        this.command_cooldowns.set(name, new CronJob(d, 
+        function(this: {command_cooldowns: Discord.Collection<String,CronJob>, name: string}) 
+        {
+            this.command_cooldowns.delete(this.name);
+        }, undefined, true, undefined, {command_cooldowns: this.command_cooldowns, name: name}));
+    }
+    clearCooldown(name:string) { if(this.command_cooldowns.has(name)) this.command_cooldowns.get(name)?.stop(); this.command_cooldowns.delete(name) }
+    gainExp(amount: number, msg: Discord.Message)
+    {
+        while (amount > 0)
+        {
+            let reqExp = this.getRequiredExp();
+            if (this.exp + amount > reqExp)
+            {
+                amount -= reqExp - this.exp;
+                this.level++;
+                this.exp = 0;
+                this.onLevel(msg);
+            }
+            else { this.exp += amount; amount = 0; }
+        }
+    }
+    gainProfessionSkill(id: number, skill:number, greenZone:number, grayZone: number, isGathering: boolean = false)
+    {
+        let prof = this.getProfession(id);
+        let pd = DataManager.getProfessionData(id);
+        if (!prof || !pd) return {skillgain: 0, newRecipes: []}; 
+        if (prof.skill >= grayZone) return {skillgain: 0, newRecipes: []}; 
+        if (prof.skill >= pd.max_skill) return {skillgain: 0, newRecipes: []}; 
+        if (prof.skill >= greenZone)
+        {
+            if (isGathering && randomIntFromInterval(0,100) > 25) return {skillgain: 0, newRecipes: []}; 
+            if (!isGathering && randomIntFromInterval(0,100) > 50) return {skillgain: 0, newRecipes: []}; 
+        } 
+
+        //filter to recipes we don't have then filter to recipes we have when adding skill
+        let newRecipes = pd.recipes.filter(x => x.skill_req > prof!.skill).filter(x => x.skill_req <= prof!.skill + skill).map(x => DataManager.getItem(x.item_id)!);
+
+        //increase skill and return
+        if (isGathering && randomIntFromInterval(0,100) > 50) return {skillgain: 0, newRecipes: []}; 
+        prof.skill += skill;
+        return {skillgain: skill, newRecipes: newRecipes};
+    }
+
+    //EQUIPMENT & ITEMS ------------------------------
     async equipItem(item: _anyItem, msg: Discord.Message)
     {
         //check if user owns the item in inventory.
@@ -221,16 +277,13 @@ export class User
         if (invi instanceof ConsumableItem) 
         {
             if (invi.amount < amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item: ${item._id} - ${item.icon} __${item.name}__. You only own ${invi.amount}.`)
-            for (let ac = 0; ac < amount; ac++) 
-            {
-                for (let e of invi.effects) this.applyEffect(e)
-                if (invi.amount > amount) invi.amount-= amount;
-                else (this.inventory.splice(this.inventory.indexOf(invi),1));
-            }
+            for (let e of invi.effects) this.applyEffect(e)
+            if (invi.amount > amount) invi.amount-= amount;
+            else (this.inventory.splice(this.inventory.indexOf(invi),1));
             msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__ ${amount ? `x${amount}` :""}`);
         }
     }
-    applyEffect(e: {effect: string, [key:string]:any})
+    applyEffect(e: {effect: string, [key:string]:any}) //TODO: change system
     {
         switch(e.effect.toUpperCase())
         {
@@ -239,63 +292,7 @@ export class User
                 break;
         }
     }
-    getUser() { return client.users.get(this.user_id)!; }
-    getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
-    setCooldown(name: string, duration: number)
-    {
-        if (this.command_cooldowns.has(name)) return;
-        let d = new Date();
-        d.setSeconds(d.getSeconds() + duration);
-        this.command_cooldowns.set(name, new CronJob(d, 
-        function(this: {command_cooldowns: Discord.Collection<String,CronJob>, name: string}) 
-        {
-            this.command_cooldowns.delete(this.name);
-        }, undefined, true, undefined, {command_cooldowns: this.command_cooldowns, name: name}));
-    }
-    getCooldown(name:string)
-    {
-        if (!this.command_cooldowns.has(name)) return undefined;
-        let cd = this.command_cooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
-        return formatTime(cd);
-    }
-    clearCooldown(name:string) { if(this.command_cooldowns.has(name)) this.command_cooldowns.get(name)?.stop(); this.command_cooldowns.delete(name) }
-    getStats()
-    {
-        var result = { 
-            base: 
-            {
-                hp: cf.stats.base.hp + ((this.level-1) * cf.stats.increase.hp),
-                atk: cf.stats.base.atk + ((this.level-1) * cf.stats.increase.atk),
-                def: cf.stats.base.def + ((this.level-1) * cf.stats.increase.def),
-                acc: cf.stats.base.acc + ((this.level-1) * cf.stats.increase.acc)
-            },
-            gear:
-            {
-                atk: 0,
-                def: 0,
-                acc: 0
-            },
-            total:
-            {
-                atk: 0,
-                def: 0,
-                acc: 0
-            }
-        }
-        for (let e of this.equipment.values())
-        {
-            if (!e.item) continue;
-            var i = DataManager.getItem(e.item.id) as _equipmentItem;
-            result.gear.atk += i.stats.base.atk;
-            result.gear.def += i.stats.base.def;
-            result.gear.acc += i.stats.base.acc;
-        }
-        
-        result.total.atk = result.base.atk + result.gear.atk;
-        result.total.def = result.base.def + result.gear.def;
-        result.total.acc = result.base.acc + result.gear.acc;
-        return result;
-    }
+    isWearingTwoHand() {return this.equipment.get(1)?.item?.id == undefined ? false : (DataManager.getItem(this.equipment.get(1)!.item!.id) as _equipmentItem).two_hand;}
     addItemToInventoryFromId(id: number, amount = 1) :void
     {
         let itemData = DataManager.getItem(id);
@@ -333,89 +330,6 @@ export class User
         }
         else this.inventory.push(item);
     }
-    
-    //returns damage to deal.
-    dealDamage()
-    {
-        let rng = randomIntFromInterval(0,100);
-        let stats = this.getStats().total;
-        let dmg = stats.atk;
-        let critChance = ((stats.acc / (this.level * 10)) - 0.85) * 100;
-        if (rng < critChance) dmg *= 1.5;
-        return dmg;
-    }
-    //returns damage taken
-    takeDamage(damageToTake: number)
-    {
-        let stats = this.getStats().total;
-        let parsedDamage = damageToTake - clamp(stats.def/2, 0, damageToTake * 0.85);
-        this.hp = clamp(this.hp-parsedDamage,0,Number.POSITIVE_INFINITY);
-        
-        let died = false;
-        if (this.hp == 0) { died = true; this.onDeath();}
-        return {dmgTaken: parsedDamage, died: died}
-    }
-    gainExp(amount: number, msg: Discord.Message)
-    {
-        while (amount > 0)
-        {
-            let reqExp = this.getRequiredExp();
-            if (this.exp + amount > reqExp)
-            {
-                amount -= reqExp - this.exp;
-                this.level++;
-                this.exp = 0;
-                this.onLevel(msg);
-            }
-            else { this.exp += amount; amount = 0; }
-        }
-    }
-    onLevel(msg : Discord.Message)
-    {
-        msg.channel.send(`\`${this.getUser().username}\` has reached level ${this.level}!`);
-        this.hp = this.getStats().base.hp;
-    }
-    onDeath()
-    {
-        //set exp to same % but in previous level and lose a level
-        let percentage = this.exp / this.getRequiredExp();
-        this.level = clamp(this.level-1, 1, Number.POSITIVE_INFINITY);
-        this.exp = percentage * this.getRequiredExp();
-        
-        //reset hp
-        this.hp = this.getStats().base.hp;
-    }
-    getProfession(id: number)
-    {
-        return this.professions.get(id);
-    }
-
-    getUnlockedAbilities()
-    {
-        return this.class.getSpellbook().filter(x => x.level <= this.level);
-    }
-
-    gainProfessionSkill(id: number, skill:number, greenZone:number, grayZone: number, isGathering: boolean = false)
-    {
-        let prof = this.getProfession(id);
-        let pd = DataManager.getProfessionData(id);
-        if (!prof || !pd) return {skillgain: 0, newRecipes: []}; 
-        if (prof.skill >= grayZone) return {skillgain: 0, newRecipes: []}; 
-        if (prof.skill >= pd.max_skill) return {skillgain: 0, newRecipes: []}; 
-        if (prof.skill >= greenZone)
-        {
-            if (isGathering && randomIntFromInterval(0,100) > 25) return {skillgain: 0, newRecipes: []}; 
-            if (!isGathering && randomIntFromInterval(0,100) > 50) return {skillgain: 0, newRecipes: []}; 
-        } 
-
-        //filter to recipes we don't have then filter to recipes we have when adding skill
-        let newRecipes = pd.recipes.filter(x => x.skill_req > prof!.skill).filter(x => x.skill_req <= prof!.skill + skill).map(x => DataManager.getItem(x.item_id)!);
-
-        //increase skill and return
-        if (isGathering && randomIntFromInterval(0,100) > 50) return {skillgain: 0, newRecipes: []}; 
-        prof.skill += skill;
-        return {skillgain: skill, newRecipes: newRecipes};
-    }
     checkForItemsAndAmount(costs: {item: _anyItem | undefined, amount: number}[], multiplier: number = 1)
     {
         //check if user has enough of the costs.
@@ -436,6 +350,91 @@ export class User
             }
         }
         return costErrorStrings;
+    }
+
+    //COMBAT METHODS
+    getStats() 
+    {
+        var result = { 
+            base: 
+            {
+                hp: cf.stats.base.hp + ((this.level-1) * cf.stats.increase.hp),
+                atk: cf.stats.base.atk + ((this.level-1) * cf.stats.increase.atk),
+                def: cf.stats.base.def + ((this.level-1) * cf.stats.increase.def),
+                acc: cf.stats.base.acc + ((this.level-1) * cf.stats.increase.acc)
+            },
+            gear:
+            {
+                atk: 0,
+                def: 0,
+                acc: 0
+            },
+            total:
+            {
+                hp: cf.stats.base.hp + ((this.level-1) * cf.stats.increase.hp),
+                atk: 0,
+                def: 0,
+                acc: 0
+            }
+        }
+        for (let e of this.equipment.values())
+        {
+            if (!e.item) continue;
+            var i = DataManager.getItem(e.item.id) as _equipmentItem;
+            result.gear.atk += i.stats.base.atk;
+            result.gear.def += i.stats.base.def;
+            result.gear.acc += i.stats.base.acc;
+        }
+        
+        result.total.atk = result.base.atk + result.gear.atk;
+        result.total.def = result.base.def + result.gear.def;
+        result.total.acc = result.base.acc + result.gear.acc;
+        return result;
+    }
+    dealDamage(baseHitChance:number)
+    {
+        let miss = false;
+        let crit = false;
+        let stats = this.getStats().total;
+        let dmg = stats.atk;
+
+        let hitChance = (stats.acc / (this.level * 10)) * 100;
+        let critChance = hitChance - 85;
+        if (randomIntFromInterval(0,100) > baseHitChance + hitChance) miss = true; 
+        if (randomIntFromInterval(0,100) < critChance) {dmg *= 1.5; crit = true; }
+        return {dmg: dmg, miss: miss, crit: crit}
+    }
+    resetAbilities()
+    {
+        for (let ab of this.abilities)
+        {
+            if (!ab[1].ability) continue;
+            ab[1].ability.remainingCooldown = 0;
+        }
+    }
+    
+    //EVENTS ----------
+    onLevel(msg : Discord.Message)
+    {
+        //regenerate health
+        this.hp = this.getStats().base.hp;
+
+        //check for new abilities.
+        let msgText = `\`${this.getUser().username}\` has reached level ${this.level}!`;
+        let unlockedAbilities = this.class.getSpellbook().filter(x => x.level == this.level);
+        if (unlockedAbilities.length > 0) msgText += `\nYou have unlocked the following abilities:\n ${unlockedAbilities.map(x => `${x.ability.id} - ${x.ability.name}`).join("\n")}`;
+        
+        msg.channel.send(msgText);
+    }
+    onDeath()
+    {
+        //set exp to same % but in previous level and lose a level
+        let percentage = this.exp / this.getRequiredExp();
+        this.level = clamp(this.level-1, 1, Number.POSITIVE_INFINITY);
+        this.exp = percentage * this.getRequiredExp();
+        
+        //reset hp
+        this.hp = this.getStats().base.hp;
     }
 }
 

@@ -1,10 +1,12 @@
 import Discord from "discord.js"
 import { commands } from "../main";
-import { groupArrayBy, round, CC, getServerPrefix } from "../utils";
+import { groupArrayBy, round, CC, getServerPrefix, colors } from "../utils";
 import { _equipmentItem, _materialItem, _consumableItem, _anyItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";
-import {_command } from "../interfaces";
 import { Class } from "../classes/class";
+import { _command } from "../interfaces";
+import { Ability } from "../classes/ability";
+import { InstantDamageEffect, InstantHealingEffect, DamageOverTimeDebuffEffect, HealingOverTimeBuffEffect, AbsorbBuffEffect, DamageReductionBuffEffect } from "../classes/tb_effects";
 
 export const cmds: _command[] = 
 [
@@ -35,8 +37,11 @@ export const cmds: _command[] =
                     {
                         if (ce[0] == -1) continue;
                         embed.addField(`${ce[0]}`, ce[1].map(x => `\`${x.name}\``).join(","))
-                    }
-                    embed.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
+					}
+					
+					embed.addField(`🕵️ Administative 🕵️‍♀️`,`\`rpgthunder setprefix\`, \`rpgthunder prefix\`, \`rpgthunder resetprefix\`, \`blacklist\``)
+					
+                    embed.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Patreon](https://www.patreon.com/rpgthunder) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
 
 					return msg.channel.send(embed);
 				}
@@ -136,6 +141,79 @@ export const cmds: _command[] =
 
 				msg.channel.send(embed);
 			}
+		},
+	},
+	{
+		name: 'spelldata',
+		category: CC.GeneralInfo,
+		executeWhileTravelling: true,
+		aliases: ['sd'],
+		description: 'Shows all the information about a spell.',
+		usage: `[prefix]spelldata [spellID/spellName]`,
+		execute(msg: Discord.Message, args: string[]) 
+		{
+			if (args.length == 0 && parseInt(args[0])) return msg.channel.send(`Please enter the id/name of the spell.`)
+			let spell : Ability | undefined;
+			if(!isNaN(+args[0])) spell = DataManager.getSpell(+args[0]);
+			else spell = DataManager.getSpellByName(args.join(" "));
+			if (!spell) return msg.channel.send(`\`${msg.author.username}\`, could not find a spell with that id/name.`);
+
+			const embed = new Discord.RichEmbed()
+			.setColor(colors.yellow) //Yelow
+			.setTitle(`Spell #${spell.id}: ${spell.name}`)
+			.setDescription(`Cooldown: \`${spell.cooldown}\` <:cooldown:674944207663923219>\n*${spell.description}*`);
+
+			let effectCounter = 1;
+			for (let e of spell.effects)
+			{
+				let infostrings :string[] = [];
+				if (e instanceof InstantDamageEffect)
+				{
+					infostrings.push(`Type: \`Instant Damage\``);
+					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
+					infostrings.push(`Base Hit Chance: \`${e.baseHitChance}%\` <:baseHitChance:674941186858942464>`);
+				}
+				if (e instanceof InstantHealingEffect)
+				{
+					infostrings.push(`Type: \`Instant Healing\``);
+					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
+					infostrings.push(`Base Hit Chance: \`${e.baseHitChance}%\` <:baseHitChance:674941186858942464>`);
+				}
+				if (e instanceof DamageOverTimeDebuffEffect)
+				{
+					infostrings.push(`Type: \`Damage Over Time\``);
+					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
+					infostrings.push(`Duration: \`${e.duration}\` rounds`);
+					infostrings.push(`Tick Interval: \`${e.interval}\``);
+					infostrings.push(`Spread Damage Over Duration: \`${e.spread}\``);
+					infostrings.push(`Success Chance: \`${e.successChance}%\``);
+				}
+				if (e instanceof HealingOverTimeBuffEffect)
+				{
+					infostrings.push(`Type: \`Healing Over Time\``);
+					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
+					infostrings.push(`Duration: \`${e.duration}\` rounds`);
+					infostrings.push(`Tick Interval: \`${e.interval}\``);
+					infostrings.push(`Spread Healing Over Duration: \`${e.spread}\``);
+					infostrings.push(`Success Chance: \`${e.successChance}%\``);
+				}
+				if (e instanceof AbsorbBuffEffect)
+				{
+					infostrings.push(`Type: \`Absorb Buff\``);
+					infostrings.push(`Health Percentage: \`x${e.healthPercentage}\``);
+					infostrings.push(`Duration: \`${e.duration}\` rounds`);
+				}
+				if (e instanceof DamageReductionBuffEffect)
+				{
+					infostrings.push(`Type: \`Damage Reduction Buff\``);
+					infostrings.push(`Damage Reduction: \`x${e.multiplier*100}%\``);
+					infostrings.push(`Duration: \`${e.duration}\` rounds`);
+				}
+
+				embed.addField(`Effect #${effectCounter}`, `${infostrings.join("\n")}`)
+			}
+
+			msg.channel.send(embed);
 		},
 	},
 	{

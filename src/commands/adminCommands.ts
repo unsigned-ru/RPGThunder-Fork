@@ -77,6 +77,22 @@ export const cmds: _command[] =
 			DataManager.pushDatabaseUpdate();
 		}
 	},
+
+	{
+		name: "op_say",
+		aliases: ['op_s'],
+		category: CC.hidden,
+		description: "Operator command, send a bot message.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_say",
+		execute(msg, args)
+		{
+			msg.delete();
+			let textmsg = args.join(" ");
+			if (textmsg.length > 0) msg.channel.send(textmsg);
+		}
+	},
     {
 		name: "blacklist",
 		aliases: [],
@@ -111,6 +127,7 @@ export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cm
 
 export function executeGlobalCommand(msg: Discord.Message, cmd:string, args: string[])
 {
+	if (!cmd) return msg.channel.send(`\`${msg.author.username}\`, please enter what command you want to run.\n\`rpgthunder [prefix/setprefix/resetprefix]\``)
     switch(cmd.toLowerCase())
     {
         case "prefix":

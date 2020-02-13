@@ -2,7 +2,7 @@ import Discord, { Message } from "discord.js";
 import { User } from "./user";
 import cf from "../config.json"
 import { client } from "../main";
-import { CronJob, time, CronTime, timeout } from "cron";
+import { CronJob, CronTime } from "cron";
 import { DataManager } from "./dataManager";
 
 export class Session
@@ -88,6 +88,7 @@ export class Session
 
     async destroySession()
     {
+        this.timer.stop();
         DataManager.sessions.delete(this.discordUser.id);
         if (this.invite) await this.invite.delete();
         if (this.sessionChannel && this.sessionChannel.deletable) await this.sessionChannel.delete();

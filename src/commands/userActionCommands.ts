@@ -1,7 +1,7 @@
 import Discord from "discord.js"
 import { commands, dbl } from "../main";
 import { DataManager } from "../classes/dataManager";
-import { randomIntFromInterval, CC, round, awaitConfirmMessage, colors, getItemAndAmountFromArgs } from "../utils";
+import { randomIntFromInterval, CC, round, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp } from "../utils";
 import { _command} from "../interfaces";
 import { User } from "../classes/user";
 import { _anyItem, _equipmentItem, _materialItem, MaterialItem } from "../classes/items";
@@ -10,6 +10,7 @@ import { CronJob } from "cron";
 import { Enemy } from "../classes/enemy";
 import { Zone } from "../classes/zone";
 import { ZoneBossSession } from "../classes/zoneBossSession";
+import { Ability, UserAbility } from "../classes/ability";
 
 export const cmds: _command[] = 
 [
@@ -69,6 +70,54 @@ export const cmds: _command[] =
         }
     },
     {
+		name: 'equipspell',
+        aliases: ['es', 'equipability'],
+        category: CC.Equipment,
+		description: 'Equip a spell in a specific slot.',
+        usage: `[prefix]equipspell [spellName/spellID]`,
+        executeWhileTravelling: true,
+        mustBeRegistered: true,
+		async execute(msg: Discord.Message, args, user: User) 
+		{
+            //parse args to get ability
+            if (args.length == 0 && parseInt(args[0])) return msg.channel.send(`Please enter the id/name of the spell.\n${this.usage}`)
+			let spell : Ability | undefined;
+			if(!isNaN(+args[0])) spell = DataManager.getSpell(+args[0]);
+			else spell = DataManager.getSpellByName(args.join(" "));
+            if (!spell) return msg.channel.send(`\`${msg.author.username}\`, could not find a spell with that id/name.`);
+            //check if class owns spell.
+            if (!user.class.spellbook.some(x => x.ability == spell?.id)) return msg.channel.send(`\`${msg.author.username}\`, your class cannot use the spell \`${spell.name}\`.`);
+            //check if user is high enough level for the spell.
+            let slvl = user.class.spellbook.find(x => x.ability == spell?.id)?.level!;
+            if (user.level < slvl) return msg.channel.send(`\`${msg.author.username}\`, you are not high enough level to use that spell. (requirement: \`${slvl}\`)`);
+            //check if user has the spell equipped already
+            if (user.abilities.some((x,y) => x.ability?.data.id == spell?.id)) return msg.channel.send(`\`${msg.author.username}\`, you already have this spell equipped.`);
+
+            let abStrings :string[] = []
+			for (let ab of user.abilities)
+			{
+				if (!ab[1].ability) abStrings.push(`${numberToIcon(ab[0])} - ❌ __None__ ❌`);
+				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`)
+			}
+
+            let confirmEmbed = new Discord.RichEmbed()
+            .setTitle(`In what slot would you like to equip __${spell.name}__?`)
+            .setDescription(abStrings.join("\n"))
+            .setColor(colors.yellow)
+        
+            //send and await reaction
+            let confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
+            user.reaction.isPending = true;
+            var rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
+            user.reaction.isPending = false;
+            if (!rr || isNaN(+rr)) return msg.channel.send(`\`${msg.author.username}\`, wrong input. Exptected a number, please try again.`);
+
+            let selectedSlot = clamp(+rr,1,user.abilities.size);
+            user.abilities.set(selectedSlot, {ability: new UserAbility(spell)});
+            msg.channel.send(`\`${msg.author.username}\` has equipped __${spell.name}__ in slot ${selectedSlot}.`);
+        }
+    },
+    {
 		name: 'use',
         aliases: [],
         category: CC.Equipment,
@@ -110,13 +159,13 @@ export const cmds: _command[] =
             do
             {
                 //User attacks
-                if (counter % 2 == 0) enemy.takeDamage(user.dealDamage());
+                if (counter % 2 == 0) enemy.takeDamage(user.dealDamage(85).dmg,true, undefined);
                 //enemy attacks
                 else 
                 {
-                    let r = user.takeDamage(enemy.dealDamage());
+                    let r = user.takeDamage(enemy.dealDamage(85).dmg, true, undefined);
                     dmgTaken += r.dmgTaken;
-                    if (r.died) died = r.died;
+                    died = r.died;
                 };
                 counter++;
             }
@@ -305,12 +354,14 @@ export const cmds: _command[] =
         executeWhileTravelling: false,
         mustBeRegistered: true,
 		async execute(msg: Discord.Message, args: string[], user:User) 
-		{
+		{  
+            let cd = user.getCooldown('boss');
+            if (cd) return msg.channel.send(`That command is on cooldown for another ${cd}`)
             if (!user.found_bosses.includes(user.getZone().boss)) return msg.channel.send(`\`${msg.author.username}\`, you have not found the boss of \`${user.getZone().name}\` yet. To find it, explore some more!`);
-
+            
             let bd = DataManager.getBossData(user.getZone().boss);
             if (!bd) return msg.channel.send(`\`${msg.author.username}\`, a problem occured getting the boss data. Please inform an administrator.`);
-            // if (user.abilities.filter(x => x.ability != null).size == 0) return msg.channel.send(`\`${msg.author.username}\`, you cannot enter a turn based battle without abilities equipped.`);
+            if (user.abilities.filter(x => x.ability != undefined).size == 0) return msg.channel.send(`\`${msg.author.username}\`, you cannot enter a turn based battle without abilities equipped.`);
 
             if (!await awaitConfirmMessage(`Are you sure you would like to battle **${bd?.name}**?`, `⚠️ The suggested minimum level requirement is ${bd?.level}. ⚠️`, msg, user)) return;
         

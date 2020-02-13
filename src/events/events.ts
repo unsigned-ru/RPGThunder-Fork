@@ -5,8 +5,7 @@ import { DataManager } from '../classes/dataManager';
 import { getServerPrefix, randomIntFromInterval, constructCurrencyString } from '../utils';
 import { executeGlobalCommand } from '../commands/adminCommands';
 import { CronJob } from 'cron';
-import cf from "../config.json"
-import { cmds } from '../commands/userActionCommands';
+import cf from "../config.json";
 
 //is called once the data is finished loading in.
 export async function SetupEvents()
@@ -42,7 +41,7 @@ function onVote(vote:any)
     let ud = DataManager.getUser(u.id);
     if (!ud) return u.send(`✨ Thank you for voting! ✨\n\nUnfortunately you could not receive a reward due to not being registered. Consider registering by using \`$register\``);
     
-    var coins = randomIntFromInterval(2,10,true)
+    var coins = randomIntFromInterval(2,20,true)
     ud.getCurrency(1).value += coins;
     var valor = 1;
     ud.getCurrency(2).value += valor;
