@@ -76,8 +76,7 @@ export class ZoneBossSession extends Session
 
             //create the combat log and the fighting board.
             this.combatLog.push(`**[START ROLEPLAY]**`);
-            await this.updateCombatLogMessage();
-            await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))
+            await Promise.all([await this.updateCombatLogMessage(), await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))]);
             await sleep(1.5);
 
             for (let rpmsg of this.boss.dialogue)
@@ -88,7 +87,6 @@ export class ZoneBossSession extends Session
             }
             this.combatLog.push(`**[END ROLEPLAY]**`);
             await this.updateCombatLogMessage();
-            await sleep(1.5);
             await this.updateLiveMessage(this.constructBoardMessage(colors.green, "your turn"))
             return resolve(true);
         })
@@ -109,14 +107,11 @@ export class ZoneBossSession extends Session
                 let targets: Actor[] = [this.boss];
                 if (e.target == 'self') targets = [this.user];
                 if (!e.execute(ability.data,this.user, targets, this.combatLog, this.buffs)) break;
-                await this.updateCombatLogMessage();
             }
+            await this.updateCombatLogMessage();
+            if (this.boss.hp <= 0) return resolve(await this.onWin());
+            if (this.user.hp <= 0) return resolve(await this.onLose());
 
-            if (this.boss.hp <= 0) return await this.onWin();
-            if (this.user.hp <= 0) return await this.onLose();
-
-            await this.updateLiveMessage(this.constructBoardMessage(colors.green, "your turn"));
-            await sleep(1.5);
             return resolve(await this.bossUseAbility());
         })
     }
@@ -159,10 +154,12 @@ export class ZoneBossSession extends Session
             for (let ab of this.boss.abilities) ab.remainingCooldown = clamp(ab.remainingCooldown-1 , 0, Number.POSITIVE_INFINITY);
             for (let ab of this.user.abilities) if (ab[1].ability) ab[1].ability.remainingCooldown = clamp(ab[1].ability.remainingCooldown-1, 0, Number.POSITIVE_INFINITY);
             
-            this.updateCombatLogMessage();
-            await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`));
-            if (this.boss.hp <= 0) return await this.onWin();
-            if (this.user.hp <= 0) return await this.onLose();
+            await Promise.all([await this.updateCombatLogMessage(), await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`))]);
+
+            if (this.boss.hp <= 0) return resolve(await this.onWin());
+            if (this.user.hp <= 0) return resolve(await this.onLose());
+
+            return resolve(true);
         })
     }
 
@@ -193,12 +190,11 @@ export class ZoneBossSession extends Session
                 let targets: Actor[] = [this.user]
                 if (e.target == 'self') targets = [this.boss];
                 if (!e.execute(ability.data,this.boss, targets, this.combatLog, this.buffs)) break;
-                this.updateCombatLogMessage();
             }
+            await this.updateCombatLogMessage();
             await sleep(1.5);
-            if (this.boss.hp <= 0) return await this.onWin();
-            if (this.user.hp <= 0) return await this.onLose();
-            await this.updateLiveMessage(this.constructBoardMessage(colors.red, `boss turn`));
+            if (this.boss.hp <= 0) return resolve(await this.onWin());
+            if (this.user.hp <= 0) return resolve(await this.onLose());
             return resolve(await this.endRound());
         })
     }
@@ -228,14 +224,14 @@ export class ZoneBossSession extends Session
     async onInput(input: string)
     {
         //check if it's a number and a owned ability
-        if (this.status.started && !this.status.ended && !isNaN(+input) && this.user.abilities.get(+input)?.ability) this.awaitingInput = await this.useAbility(+input);
+        if (this.status.started && !this.status.ended && !isNaN(+input) && this.user.abilities.get(+input)?.ability) {this.awaitingInput = false; this.awaitingInput = await this.useAbility(+input);};
         switch(input)
         {
             case "start":
                 if (!this.status.started) {this.awaitingInput = false; this.awaitingInput = await this.startGame();}
             break;
             case "exit":
-                if (this.status.ended) {await super.destroySession();}
+                if (this.status.ended) {await this.destroySession();}
             break;
             default:
                 await super.onInput(input);
@@ -243,9 +239,10 @@ export class ZoneBossSession extends Session
         }
     }
 
-    async onWin()
+    async onWin() : Promise<boolean>
     {
         return new Promise(async (resolve, reject) => {
+            await Promise.all([await this.updateLiveMessage(this.constructBoardMessage(colors.green, "you won")), await this.updateCombatLogMessage()])
             this.status.ended = true;
             const embed = new Discord.RichEmbed()
             .setColor(colors.green) //Yelow 
@@ -289,9 +286,10 @@ export class ZoneBossSession extends Session
         });
     }
 
-    async onLose()
+    async onLose() : Promise<boolean>
     {
         return new Promise(async (resolve, reject) => {
+            await Promise.all([await this.updateLiveMessage(this.constructBoardMessage(colors.red, "you lost")), await this.updateCombatLogMessage()])
             this.status.ended = true;
             //send message
             this.user.onDeath();

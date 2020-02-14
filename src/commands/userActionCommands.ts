@@ -213,7 +213,7 @@ export const cmds: _command[] =
                 if (rewardString.length > 0) embed.addField("**Rewards**",rewardString);
                 msg.channel.send(embed);
                 
-                if (!user.found_bosses.includes(zone.boss) && randomIntFromInterval(0,100) <= 100) //1.2
+                if (!user.found_bosses.includes(zone.boss) && randomIntFromInterval(0,100) <= 3.2)
                 {
                     user.found_bosses.push(zone.boss);
                     msg.channel.send(`**\`${msg.author.username}\` has found the lair of \`${zone.name}'s\` boss!**`);
@@ -241,7 +241,7 @@ export const cmds: _command[] =
             var coins = randomIntFromInterval(10,50, true);
             user.currencies.get(1)!.value+= coins;
             rewardString += `${DataManager.getCurrency(1).icon} __${DataManager.getCurrency(1).name}__ x${coins}\n`
-            var material = DataManager.items.filter(x => x instanceof _materialItem && x.quality < 4).random();
+            var material = DataManager.items.filter(x => x instanceof _materialItem && x.quality < 2).random();
             let materialAmount = randomIntFromInterval(Math.abs(material.quality - 4), Math.abs(material.quality - 4)*2, true);
             rewardString += `${material._id} - ${material.icon} __${material.name}__ x${materialAmount}\n`
             user.addItemToInventory(new MaterialItem(material._id, materialAmount));
@@ -269,7 +269,7 @@ export const cmds: _command[] =
             var coins = randomIntFromInterval(2,10,true);
             user.currencies.get(1)!.value+= coins;
             rewardString += `${DataManager.getCurrency(1).icon} __${DataManager.getCurrency(1).name}__ x${coins}\n`
-            var material = DataManager.items.filter(x => x instanceof _materialItem && x.quality < 4).random();
+            var material = DataManager.items.filter(x => x instanceof _materialItem && x.quality <= 2).random();
             let materialAmount = randomIntFromInterval(Math.abs(material.quality - 4), Math.abs(material.quality - 4)*1.5,true);
             rewardString += `${material._id} - ${material.icon} __${material.name}__ x${materialAmount}\n`
             user.addItemToInventory(new MaterialItem(material._id, materialAmount));
