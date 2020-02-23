@@ -209,7 +209,7 @@ export class BlackjackSesssion extends Session
                 if (this.status.started && !this.status.ended && !this.status.staying) {this.awaitingInput = false; this.awaitingInput = await this.stay();}
             break;
             case "exit":
-                if (this.status.ended) {await super.destroySession();}
+                if (this.status.ended || !this.status.started) await super.destroySession();
             break;
             default:
                 await super.onInput(input);

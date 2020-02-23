@@ -8,6 +8,19 @@ import {_command } from "../interfaces";
 export const cmds: _command[] = 
 [
 	{
+		name: "op_syncranks",
+		aliases: ['op_sr'],
+		category: CC.hidden,
+		description: "Operator command, resyncronise ranks.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_syncranks",
+		execute(msg, args)
+		{
+			DataManager.syncroniseRanks();
+		}
+	},
+	{
 		name: "op_giveitem",
 		aliases: ['op_gi'],
 		category: CC.hidden,

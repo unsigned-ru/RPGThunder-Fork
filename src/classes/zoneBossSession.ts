@@ -76,17 +76,16 @@ export class ZoneBossSession extends Session
 
             //create the combat log and the fighting board.
             this.combatLog.push(`**[START ROLEPLAY]**`);
-            await Promise.all([await this.updateCombatLogMessage(), await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))]);
-            await sleep(1.5);
+            await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))
+            await sleep(1);
 
             for (let rpmsg of this.boss.dialogue)
             {
                 this.combatLog.push(rpmsg);
-                await this.updateCombatLogMessage();
-                await sleep(1.5);
+                await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))
+                await sleep(1);
             }
             this.combatLog.push(`**[END ROLEPLAY]**`);
-            await this.updateCombatLogMessage();
             await this.updateLiveMessage(this.constructBoardMessage(colors.green, "your turn"))
             return resolve(true);
         })
@@ -108,7 +107,6 @@ export class ZoneBossSession extends Session
                 if (e.target == 'self') targets = [this.user];
                 if (!e.execute(ability.data,this.user, targets, this.combatLog, this.buffs)) break;
             }
-            await this.updateCombatLogMessage();
             if (this.boss.hp <= 0) return resolve(await this.onWin());
             if (this.user.hp <= 0) return resolve(await this.onLose());
 
@@ -154,7 +152,7 @@ export class ZoneBossSession extends Session
             for (let ab of this.boss.abilities) ab.remainingCooldown = clamp(ab.remainingCooldown-1 , 0, Number.POSITIVE_INFINITY);
             for (let ab of this.user.abilities) if (ab[1].ability) ab[1].ability.remainingCooldown = clamp(ab[1].ability.remainingCooldown-1, 0, Number.POSITIVE_INFINITY);
             
-            await Promise.all([await this.updateCombatLogMessage(), await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`))]);
+            await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`))
 
             if (this.boss.hp <= 0) return resolve(await this.onWin());
             if (this.user.hp <= 0) return resolve(await this.onLose());
@@ -191,8 +189,7 @@ export class ZoneBossSession extends Session
                 if (e.target == 'self') targets = [this.boss];
                 if (!e.execute(ability.data,this.boss, targets, this.combatLog, this.buffs)) break;
             }
-            await this.updateCombatLogMessage();
-            await sleep(1.5);
+            await sleep(1);
             if (this.boss.hp <= 0) return resolve(await this.onWin());
             if (this.user.hp <= 0) return resolve(await this.onLose());
             return resolve(await this.endRound());
@@ -205,18 +202,12 @@ export class ZoneBossSession extends Session
         super.destroySession();
     }
 
-    async updateCombatLogMessage()
-    {
-        if (!this.combatLogMsg) this.combatLogMsg = await this.sessionChannel?.send(this.constructCombatLogMessage()) as Discord.Message;
-        else await this.combatLogMsg.edit(this.constructCombatLogMessage());
-    }
-
-    async onTimeout()
+    async onTimeout(message = true)
     {
         if (this.status.started && !this.status.ended)
         {
             this.user.onDeath();
-            this.broadcastChannel.send(`\`${this.discordUser.username}\`'s zone boss session expired while being active. They have lost a level as penalty.`)
+            if (message) this.broadcastChannel.send(`\`${this.discordUser.username}\`'s zone boss session expired while being active. They have lost a level as penalty.`)
         }
         await super.onTimeout()
     }
@@ -231,6 +222,7 @@ export class ZoneBossSession extends Session
                 if (!this.status.started) {this.awaitingInput = false; this.awaitingInput = await this.startGame();}
             break;
             case "exit":
+                if (!this.status.started) {await this.onTimeout(false)}
                 if (this.status.ended) {await this.destroySession();}
             break;
             default:
@@ -242,7 +234,7 @@ export class ZoneBossSession extends Session
     async onWin() : Promise<boolean>
     {
         return new Promise(async (resolve, reject) => {
-            await Promise.all([await this.updateLiveMessage(this.constructBoardMessage(colors.green, "you won")), await this.updateCombatLogMessage()])
+            await this.updateLiveMessage(this.constructBoardMessage(colors.green, "you won"));
             this.status.ended = true;
             const embed = new Discord.RichEmbed()
             .setColor(colors.green) //Yelow 
@@ -289,7 +281,7 @@ export class ZoneBossSession extends Session
     async onLose() : Promise<boolean>
     {
         return new Promise(async (resolve, reject) => {
-            await Promise.all([await this.updateLiveMessage(this.constructBoardMessage(colors.red, "you lost")), await this.updateCombatLogMessage()])
+            await this.updateLiveMessage(this.constructBoardMessage(colors.red, "you lost"));
             this.status.ended = true;
             //send message
             this.user.onDeath();
@@ -312,7 +304,7 @@ export class ZoneBossSession extends Session
         let embed = new Discord.RichEmbed()
         .setColor(color)
         .setTitle(`Boss Battle: ${this.boss.name}`)
-        .setDescription(`__Status:__ **${status}**\n${warnings.join("\n")}`)
+        .setDescription(`__**Combat Log**__\n${this.combatLog.slice(-10).join("\n")}\n\n__Status:__ **${status}**\n${warnings.join("\n")}`)
         .setTimestamp()
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
 
@@ -377,12 +369,5 @@ export class ZoneBossSession extends Session
         embed.addField(`**Abilities**`, abStrings.join("\n"));
         return embed;
         
-    }
-    private constructCombatLogMessage()
-    {
-        return new Discord.RichEmbed()
-        .setColor(colors.black)
-        .setTitle(`Battle Combat Log`)
-        .setDescription(this.combatLog.slice(-10).join("\n"))
     }
 }

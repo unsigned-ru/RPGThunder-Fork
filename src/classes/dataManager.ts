@@ -1,11 +1,11 @@
 import Discord from 'discord.js';
 import mongo from 'mongodb'
 import * as cf from "../config.json"
-import {_currency, _bossData} from '../interfaces';
+import {_currency, _bossData, _patreonRank} from '../interfaces';
 import { User, SerializedUser } from './user.js';
 import { _materialItem, _equipmentItem, _consumableItem, _item, _anyItem, _itemQuality, _itemType, _itemSlot } from './items.js';
 import { client } from '../main.js';
-import { randomIntFromInterval, constructCurrencyString } from '../utils.js';
+import { randomIntFromInterval, constructCurrencyString, PatreonGet, get, sleep } from '../utils.js';
 import { CronJob } from 'cron';
 import { Profession } from './profession.js';
 import { Lottery, SerializedLottery } from './lottery.js';
@@ -14,6 +14,7 @@ import { Zone } from './zone.js';
 import { _enemy, _enemyType } from './enemy.js';
 import { Session } from './session.js';
 import { Ability } from './ability.js';
+import fs from 'fs';
 
 export abstract class DataManager 
 {
@@ -34,6 +35,7 @@ export abstract class DataManager
     public static enemyTypes :Discord.Collection<number, _enemyType> = new Discord.Collection();
     public static activeLottery: Lottery;
     public static sessions :Discord.Collection<string, Session> = new Discord.Collection();
+    public static patreonRanks :Discord.Collection<string, _patreonRank> = new Discord.Collection();
     
     static async initializeData()
     {
@@ -81,6 +83,9 @@ export abstract class DataManager
             let professionsCollection = await db.collection("professions");
             for (let pd of await professionsCollection.find({}).toArray()) this.professions.set(pd._id, pd);
 
+            let patreonRankCollection = await db.collection("patreonTiers");
+            for (let pt of await patreonRankCollection.find({}).toArray()) this.patreonRanks.set(pt._id, pt);
+
             let itemCollection = await db.collection("items");
             for (let i of await itemCollection.find({}).toArray())
             {
@@ -102,6 +107,10 @@ export abstract class DataManager
                 }
             }
             await this.loadCharacterData(db);
+
+            let serverPrefixesCollection = await db.collection("serverPrefixes");
+            for (let prefix of (await serverPrefixesCollection.findOne({_id: 1})).prefixes) this.serverPrefixes.set(prefix.server_id, prefix.prefix);
+
             await mongoClient.close();
         }
         catch(err)
@@ -110,12 +119,31 @@ export abstract class DataManager
         }
     }
 
-    static registerUser(user: Discord.User, selectedClass: Class)
+    static async registerUser(user: Discord.User, selectedClass: Class)
     {
         let newUser = new User({user_id: user.id, selectedClass: selectedClass});
         this.users.set(newUser.user_id,newUser);
+        newUser.addItemToInventoryFromId(21,5); //pots
+        newUser.getCurrency(1).value += 50; //coins
+
+        //check if user has subscription active.
+        let res = await PatreonGet("campaigns/2881951/members?include=user,currently_entitled_tiers&fields%5Buser%5D=social_connections");
+        for (let d of res.data.filter((x:any) => get(x, "relationships.currently_entitled_tiers.data.length") > 0))
+        {
+            let userObj = res.included.find((x:any) => x.id == get(d, "relationships.user.data.id") && x.type == get(d, "relationships.user.data.type"))
+            if (!userObj) continue;
+            let tier_id = d.relationships.currently_entitled_tiers.data[0].id;
+            if (get(userObj, "attributes.social_connections.discord.user_id") == user.id) //if he has a subscription then assign it.
+            {
+                //get tier object
+                let rank = DataManager.getPatreonRank(tier_id);
+                if(!rank) continue;
+                newUser.patreon_rank = rank._id;
+                newUser.patreon_member_id = d.id;
+                client.guilds.get(cf.official_server)?.members.get(user.id)?.addRole(rank.discordrole_id);
+            }
+        }
         
-        newUser.addItemToInventoryFromId(21,5);
     }
 
     //getters
@@ -191,7 +219,7 @@ export abstract class DataManager
     static getEnemy(id: number) : _enemy | undefined { return this.enemies.get(id); }
     static getBossData(id: number) : _bossData | undefined { return this.bossdata.get(id); }
     static getEnemyType(id: number) : _enemyType | undefined { return this.enemyTypes.get(id); }
-
+    static getPatreonRank(id: string) { return this.patreonRanks.get(id);}
     static async drawLottery()
     {
         //one last update
@@ -261,6 +289,13 @@ export abstract class DataManager
         let blacklists = await db.collection("blacklists");
         await (blacklists.updateOne({_id:1},{$set: {channels: this.blacklistedChannels}}));
     }
+    static async writeServerPrefixes(db: mongo.Db)
+    {
+        let prefixes = await db.collection("serverPrefixes");
+        let serializedPrefixes : {}[] = [];
+        this.serverPrefixes.map((v,k) => serializedPrefixes.push({server_id: k, prefix: v}));
+        await (prefixes.updateOne({_id:1},{$set: {prefixes: serializedPrefixes}}));
+    }
 
     static async pushDatabaseUpdate()
     {
@@ -272,7 +307,7 @@ export abstract class DataManager
         await this.writeLotteryData(db);
         await this.writeUserData(db);
         await this.writeBlacklistedChannels(db)
-
+        await this.writeServerPrefixes(db);
         await mongoClient.close();
         console.log(`Database push completed - ${new Date().toTimeString()}`);
     }
@@ -296,8 +331,49 @@ export abstract class DataManager
             unlocked_zones: pd.unlocked_zones,
             zone: pd.zone,
             cooldowns: pd.cooldowns,
-            abilities: pd.abilities
+            abilities: pd.abilities,
+            patreon_rank: pd.patreon_rank
         }))
     }
-   
+
+    static async syncroniseRanks()
+    {
+        console.log(`RANK SYNCHRONIZATION STARTED -- ${new Date()}`)
+        //make a key value pair array of users and ranks to assign.
+        let rankValuePairs: {patreon_id: string, discord_id: string, tier_id: string}[] = [];
+        let res = await PatreonGet("campaigns/2881951/members?include=user,currently_entitled_tiers&fields%5Buser%5D=social_connections");
+        for (let d of res.data.filter((x:any) => get(x, "relationships.currently_entitled_tiers.data.length") > 0))
+        {
+            let tier_id = d.relationships.currently_entitled_tiers.data[0].id;
+            let p_userid = get(d, "relationships.user.data.id");
+
+            let userObj = res.included.find((x:any) => x.id == p_userid && x.type == "user");
+            let discord_id = get(userObj, "attributes.social_connections.discord.user_id");
+            if (!discord_id) continue;
+
+            rankValuePairs.push({patreon_id: d.id, discord_id: discord_id, tier_id: tier_id});
+        }
+        let rolesToRemove = DataManager.patreonRanks.map(x => x.discordrole_id);
+        let official_server = client.guilds.get(cf.official_server)!;
+        for (let u of client.users.values())
+        {
+            let shouldWait = false;
+            //removing
+            let m = official_server.members.get(u.id);
+            if (m && m.roles.some((x) => rolesToRemove.includes(x.id))) {await m.removeRoles(rolesToRemove); shouldWait = true;}
+            let userAccount = DataManager.getUser(u.id);
+            if (userAccount) {userAccount.patreon_rank = undefined; userAccount.patreon_member_id = undefined;}
+
+            //re-adding
+            let data = rankValuePairs.find(x => x.discord_id == u.id);
+            if (data)
+            {
+                if (userAccount) {userAccount.patreon_rank = data.tier_id; userAccount.patreon_member_id = data.patreon_id;}
+                if (m) {await m.addRole(DataManager.getPatreonRank(data.tier_id)!.discordrole_id); shouldWait = true;}
+            }
+            if (shouldWait) await sleep(1);
+        }
+
+        console.log(`RANK SYNCHRONIZATION ENDED -- ${new Date()}`)
+    }
 }

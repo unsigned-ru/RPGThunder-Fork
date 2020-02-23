@@ -1,26 +1,21 @@
 {
   "name": "rpg-thunder",
   "version": "1.0.0",
-  "description": "A Discord bot written in JS",
+  "description": "A Discord bot written in Typescript",
   "main": "main.js",
   "dependencies": {
     "@types/cron": "^1.7.1",
+    "@types/express": "^4.17.2",
     "@types/mongodb": "^3.3.14",
-    "@types/mysql": "^2.15.8",
-    "concurrently": "^5.0.0",
     "cron": "^1.8.1",
-    "dblapi.js": "^2.3.0",
     "discord.js": "^11.5.1",
+    "express": "^4.17.1",
     "mongodb": "^3.4.1",
-    "mysql": "^2.17.1",
-    "node-schedule": "^1.3.2",
-    "patreon": "^0.4.1",
     "ts-node": "^8.5.2",
     "typescript": "^3.7.2"
   },
   "devDependencies": {},
   "scripts": {
-    "start": "concurrently \"npm:compile\" \"npm:run\"",
     "compile": "tsc",
     "run": "node dist/main.js",
     "build": "tsc -p ."

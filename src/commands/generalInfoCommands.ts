@@ -26,7 +26,7 @@ export const cmds: _command[] =
 					var prefix = getServerPrefix(msg);
 					const embed = new Discord.RichEmbed()
 					.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
-					.setColor('#fcf403') //Yelow⛏️
+					.setColor(colors.yellow) //Yelow⛏️
 					.setTitle(`**Commands**`)
 					.setDescription(`**Are you a new user? Type \`${prefix}register\` to get started!**\n\n`+
 					`*Note: Thunder RPG is still in development. New features are being rolled out actively and user accounts will be wiped on official release.*\n\n**The game recently wiped on 1.31.20 as a completely reworked balance system was implemented. Thank you for your understanding, and enjoy!**`)					
@@ -293,6 +293,25 @@ export const cmds: _command[] =
 			msg.channel.send(embed);
 		},
 	},
+	{
+		name: 'donate',
+		category: CC.Economy,
+		aliases: ['patreon', 'pledge'],
+		executeWhileTravelling: true,
+		description: 'Shows more information about how to support RPG Thunder.',
+		usage: `[prefix]donate`,
+		execute(msg: Discord.Message, args: string[]) 
+		{
+			const embed = new Discord.RichEmbed()
+			.setColor(colors.yellow)
+			.setTitle(`✨ Support RPG Thunder ✨`)
+			.setDescription(`*Are you enjoying this game?*\n*Would you like to help us in improving the quality and the rate at which we push out content?*\n**Then consider helping us out with funding the project!**`)
+			.addField("<:patreonicon:680396659091570754> **Patreon** <:patreonicon:680396659091570754>", `[Patreon](https://www.patreon.com/rpgthunder) is a platform where you can buy a __recurring subscription for each month__. We have several tiers available __starting at as low as 2$/month__.\nThese tiers will get you __an assortiment of in-game benefits like cooldown reduction, improved daily and weekly rewards__ aswell as __a role in the official discord server__.\n[Check out our patreon!](https://www.patreon.com/rpgthunder)`)
+			.addField("💳 **One-Time Donation** 💳", "If a monthly subscription doesn't fit your style but you still want to support us you can use [the donate bot](https://donatebot.io/checkout/646062255170912293) we have set up that __allows for one-time payments__. The one-time payment system is going to be __linked to a premium currency you can use in-game for an mostly cosmetic things__. When the premium currency officially launches, __all previous one-time purchases will be converted to the premium currency and added to your account!__\n[Check out the one-time payment!](https://donatebot.io/checkout/646062255170912293)")
+			.setTimestamp()
+			msg.channel.send(embed);
+		}
+	}
 ]
 
 export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}

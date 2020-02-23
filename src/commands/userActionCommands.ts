@@ -1,5 +1,5 @@
 import Discord from "discord.js"
-import { commands, dbl } from "../main";
+import { commands } from "../main";
 import { DataManager } from "../classes/dataManager";
 import { randomIntFromInterval, CC, round, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp } from "../utils";
 import { _command} from "../interfaces";
@@ -238,11 +238,12 @@ export const cmds: _command[] =
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
             .setColor('#fcf403')
             let rewardString = "";
-            var coins = randomIntFromInterval(10,50, true);
+            let multiplier = user.getPatreonRank() ? user.getPatreonRank()!.weekly_reward_multiplier : 1;
+            var coins = Math.round(randomIntFromInterval(10,50) * multiplier);
             user.currencies.get(1)!.value+= coins;
             rewardString += `${DataManager.getCurrency(1).icon} __${DataManager.getCurrency(1).name}__ x${coins}\n`
             var material = DataManager.items.filter(x => x instanceof _materialItem && x.quality < 2).random();
-            let materialAmount = randomIntFromInterval(Math.abs(material.quality - 4), Math.abs(material.quality - 4)*2, true);
+            let materialAmount = Math.round(randomIntFromInterval(Math.abs(material.quality - 4), Math.abs(material.quality - 4)*2) * multiplier);
             rewardString += `${material._id} - ${material.icon} __${material.name}__ x${materialAmount}\n`
             user.addItemToInventory(new MaterialItem(material._id, materialAmount));
             embed.addField(`Rewards:`, rewardString);
@@ -266,11 +267,12 @@ export const cmds: _command[] =
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
             .setColor('#fcf403')
             let rewardString = "";
-            var coins = randomIntFromInterval(2,10,true);
+            let multiplier = user.getPatreonRank() ? user.getPatreonRank()!.daily_reward_multiplier : 1;
+            var coins = Math.round(randomIntFromInterval(2,10) * multiplier);
             user.currencies.get(1)!.value+= coins;
             rewardString += `${DataManager.getCurrency(1).icon} __${DataManager.getCurrency(1).name}__ x${coins}\n`
             var material = DataManager.items.filter(x => x instanceof _materialItem && x.quality <= 2).random();
-            let materialAmount = randomIntFromInterval(Math.abs(material.quality - 4), Math.abs(material.quality - 4)*1.5,true);
+            let materialAmount = Math.round(randomIntFromInterval(Math.abs(material.quality - 4), Math.abs(material.quality - 4)*1.5) * multiplier);
             rewardString += `${material._id} - ${material.icon} __${material.name}__ x${materialAmount}\n`
             user.addItemToInventory(new MaterialItem(material._id, materialAmount));
             embed.addField(`Rewards:`, rewardString);
@@ -286,8 +288,13 @@ export const cmds: _command[] =
 		usage: `[prefix]vote`,
 		async execute(msg: Discord.Message) 
 		{
-            if (await dbl.hasVoted(msg.author.id) == true) return msg.channel.send(`\`${msg.author.username}\`, you have already voted in the past 12hrs, it is still on cooldown.`);
-            else msg.channel.send(`You can vote for our discord bot here:\nhttps://top.gg/bot/646764666508541974/vote`);			
+            let user = DataManager.getUser(msg.author.id);
+            if (user)
+            {
+                let cd = user.getCooldown('vote');
+                if (cd) return msg.channel.send(`Your vote is on cooldown for another ${cd}`);			
+            }
+            msg.channel.send(`You can vote for our discord bot here:\nhttps://top.gg/bot/646764666508541974/vote`);			
 		},	
 	},
     {

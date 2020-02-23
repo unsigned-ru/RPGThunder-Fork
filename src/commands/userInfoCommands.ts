@@ -1,5 +1,5 @@
 import Discord from "discord.js"
-import { commands, dbl } from "../main";
+import { commands} from "../main";
 import { DataManager } from "../classes/dataManager";
 import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon } from "../utils";
 import { _equipmentItem, _materialItem, _consumableItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
@@ -36,7 +36,8 @@ export const cmds: _command[] =
 			`**Class:** ${user.class.icon} ${user.class.name}\n`+
 			`**Level:** ${user.level}\n`+
 			`**Exp:** ${round(user.exp)}/${user.getRequiredExp()}\n`+
-			`**Zone:** ${user.getZone().name}\n`
+			`**Zone:** ${user.getZone().name}\n`+
+			`**Rank:** ${user.getPatreonRank() ? user.getPatreonRank()?.name : "None"}\n`
 			,true)
 
 			var s = user.getStats();
@@ -425,8 +426,10 @@ export const cmds: _command[] =
 			let bosscd = user.getCooldown('boss');
 			if (bosscd) cdString += `❌ - boss 🕙${bosscd}\n`
 			else cdString += `✅ - boss\n`;
-			try { cdString += (await dbl.hasVoted(msg.author.id)) == false ? `✅ - vote\n`: `❌ - vote\n`; }
-			catch(err) { cdString += "❌ - Vote [**API DOWN**]\n" }
+			
+			let votecd = user.getCooldown('vote');
+			if (votecd) cdString += `❌ - vote 🕙${votecd}\n`
+			else cdString += `✅ - vote\n`;
 
 			embed.setDescription(cdString);
 			msg.channel.send(embed);
@@ -457,7 +460,7 @@ export const cmds: _command[] =
 				alreadyDone.push(cmd[1].cooldown!.name);
 			} 
 			if (user.getCooldown('boss') == undefined) rdString += `✅ - boss\n`
-			try { rdString += (await dbl.hasVoted(msg.author.id)) == false ? `✅ - vote\n`: ``; } catch(err) {}
+			if (user.getCooldown('vote') == undefined) rdString += `✅ - vote\n`
 			
 			embed.setDescription(rdString);
 			msg.channel.send(embed);

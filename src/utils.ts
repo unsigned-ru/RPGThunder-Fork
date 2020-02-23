@@ -6,6 +6,7 @@ import { User } from './classes/user.js';
 import { _currency } from './interfaces.js';
 import { Ability } from './classes/ability.js';
 import { Actor } from './classes/actor.js';
+import https from 'https';
 
 let numberIconArray = [':zero:', ':one:', ':two:', ':three:', ':four:', ':five:', ':six:', ':seven:', ':eight:', ':nine:']
 
@@ -394,7 +395,6 @@ export function constructAbilityDataString(a: Ability, level?:number)
 {
   let rva: string[] = []
   if (level) rva.push(`<:level:674945451866325002> ${level}`);
-  // rva.push(`<:baseHitChance:674941186858942464> ${a.}`);
   rva.push(`<:cooldown:674944207663923219> ${a.cooldown}`);
 
   return `[`+rva.join(` | `)+`]` 
@@ -413,4 +413,28 @@ export function numberToIcon(number: number)
   let rv = ""; 
   for (let n of number.toString()) rv += numberIconArray[+n];
   return rv;
+}
+
+/**
+ * Returns promise of a get request to the patreon API.
+ * @param path What part of the api should be called?
+ */
+export async function PatreonGet(path: string) :Promise<any>
+{
+    return new Promise(async (resolve, reject) => 
+    {
+        let req = https.get({host: "www.patreon.com" ,path: `/api/oauth2/v2/${path}` ,headers: {Authorization: `Bearer ${cf.patreon_creatorToken}`} }, (res) => 
+        {
+            let data = "";
+            res.on('data', (d) => data += d);
+            res.on('end', () => resolve(JSON.parse(data)));
+        }).on('error', (err) => reject(err));
+        req.end();
+    })
+}
+
+export function get(obj:any, key:string) {
+  return key.split(".").reduce(function(o, x) {
+      return (typeof o == "undefined" || o === null) ? o : o[x];
+  }, obj);
 }

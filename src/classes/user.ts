@@ -3,7 +3,7 @@ import {_currency} from "../interfaces";
 import Discord from 'discord.js'
 import { _materialItem, _equipmentItem, EquipmentItem, _serializedEquipmentItem, _serializedConsumableItem, _serializedMaterialItem, _consumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
 import cf from "../config.json"
-import { formatTime, clamp, randomIntFromInterval } from "../utils";
+import { formatTime, clamp, randomIntFromInterval, get } from "../utils";
 import { CronJob } from "cron";
 import { client } from "../main";
 import { Class } from "./class";
@@ -16,6 +16,8 @@ export interface userConstructorParams
 {
     user_id: string,
     zone?: number,
+    patreon_rank?: string,
+    patreon_member_id?: string,
     level?: number,
     exp?: number,
     selectedClass: Class,
@@ -38,6 +40,8 @@ export class User extends Actor
     zone :number = 1;
     exp :number = 0;
     class: Class;
+    patreon_rank: string|undefined = undefined;
+    patreon_member_id?: string|undefined = undefined;
     joined: Date = new Date();
     found_bosses: number[] = [];
     unlocked_zones: number[] = [1];
@@ -57,6 +61,8 @@ export class User extends Actor
         this.class = params.selectedClass;
 
         //initialize optional parameters.
+        if(params.patreon_rank) this.patreon_rank = params.patreon_rank;
+        if(params.patreon_member_id) this.patreon_member_id = params.patreon_member_id;
         if(params.zone) this.zone = params.zone;
         if(params.exp) this.exp = params.exp;
         if(params.joined) this.joined = params.joined;
@@ -128,13 +134,15 @@ export class User extends Actor
     }
     getProfession(id: number) { return this.professions.get(id); }
     getUnlockedAbilities() { return this.class.getSpellbook().filter(x => x.level <= this.level); }
-
+    getPatreonRank() { return this.patreon_rank ? DataManager.getPatreonRank(this.patreon_rank) : undefined;}
     //GENERAL SETTERS
     setCooldown(name: string, duration: number)
     {
         if (this.command_cooldowns.has(name)) return;
         let d = new Date();
-        d.setSeconds(d.getSeconds() + duration);
+        let reduction = this.getPatreonRank() ? this.getPatreonRank()!.cooldown_reduction : 0;
+        if (client.guilds.get(cf.official_server)?.members.get(this.user_id)?.roles.has("651567406967291904")) reduction += 0.03;
+        d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
         this.command_cooldowns.set(name, new CronJob(d, 
         function(this: {command_cooldowns: Discord.Collection<String,CronJob>, name: string}) 
         {
@@ -175,7 +183,7 @@ export class User extends Actor
 
         //increase skill and return
         if (isGathering && randomIntFromInterval(0,100) > 50) return {skillgain: 0, newRecipes: []}; 
-        prof.skill += skill;
+        prof.skill = clamp(prof.skill + skill, 0, pd.max_skill);
         return {skillgain: skill, newRecipes: newRecipes};
     }
 
@@ -277,7 +285,7 @@ export class User extends Actor
         if (invi instanceof ConsumableItem) 
         {
             if (invi.amount < amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item: ${item._id} - ${item.icon} __${item.name}__. You only own ${invi.amount}.`)
-            for (let e of invi.effects) this.applyEffect(e)
+            for (let i=0; i < amount; i++) for (let e of invi.effects) this.applyEffect(e)
             if (invi.amount > amount) invi.amount-= amount;
             else (this.inventory.splice(this.inventory.indexOf(invi),1));
             msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__ ${amount ? `x${amount}` :""}`);
@@ -443,6 +451,8 @@ export class SerializedUser
     user_id: string;
     zone: number;
     level :number;
+    patreon_rank: string|undefined;
+    patreon_member_id: string|undefined;
     exp :number;
     class_id: number;
     joined: Date;
@@ -460,6 +470,8 @@ export class SerializedUser
         this.user_id = user.user_id;
         this.zone = user.zone;
         this.level = user.level;
+        this.patreon_rank = user.patreon_rank;
+        this.patreon_member_id = user.patreon_member_id;
         this.exp = user.exp;
         this.class_id = user.class._id;
         this.joined = user.joined;

@@ -23,6 +23,16 @@ export interface _command
   execute(msg: Discord.Message, args: string[], user?: User): void
 }
 
+export interface _patreonRank
+{
+  _id: string,
+  name:string,
+  cooldown_reduction: number,
+  daily_reward_multiplier: number,
+  weekly_reward_multiplier: number,
+  discordrole_id: string
+}
+
 export interface _bossData
 {
   _id: number,
