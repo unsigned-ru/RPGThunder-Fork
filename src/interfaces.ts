@@ -19,6 +19,7 @@ export interface _command
   description: string,
   usage: string,
   cooldown?: {name: string, duration: number},
+  ignoreCooldownReduction?: boolean;
   needOperator?: boolean, 
   execute(msg: Discord.Message, args: string[], user?: User): void
 }
@@ -28,6 +29,7 @@ export interface _patreonRank
   _id: string,
   name:string,
   cooldown_reduction: number,
+  travel_cooldown_reduction: number,
   daily_reward_multiplier: number,
   weekly_reward_multiplier: number,
   discordrole_id: string

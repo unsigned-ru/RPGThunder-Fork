@@ -8,7 +8,7 @@ export function onVote(user_id: string)
     if (!u) return;
     let ud = DataManager.getUser(u.id);
     if (!ud) return u.send(`✨ Thank you for voting! ✨\n\nUnfortunately you could not receive a reward due to not being registered. Consider registering by using \`$register\``);
-    ud.setCooldown('vote', 43200);
+    ud.setCooldown('vote', 43200, true);
     var coins = randomIntFromInterval(2,20,true)
     ud.getCurrency(1).value += coins;
     var valor = 1;

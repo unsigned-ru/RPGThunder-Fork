@@ -136,13 +136,14 @@ export class User extends Actor
     getUnlockedAbilities() { return this.class.getSpellbook().filter(x => x.level <= this.level); }
     getPatreonRank() { return this.patreon_rank ? DataManager.getPatreonRank(this.patreon_rank) : undefined;}
     //GENERAL SETTERS
-    setCooldown(name: string, duration: number)
+    setCooldown(name: string, duration: number, ignoreReduction = false)
     {
         if (this.command_cooldowns.has(name)) return;
         let d = new Date();
         let reduction = this.getPatreonRank() ? this.getPatreonRank()!.cooldown_reduction : 0;
         if (client.guilds.get(cf.official_server)?.members.get(this.user_id)?.roles.has("651567406967291904")) reduction += 0.03;
-        d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
+        if (ignoreReduction) d.setSeconds(d.getSeconds() + duration);
+        else d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
         this.command_cooldowns.set(name, new CronJob(d, 
         function(this: {command_cooldowns: Discord.Collection<String,CronJob>, name: string}) 
         {
@@ -154,6 +155,7 @@ export class User extends Actor
     {
         while (amount > 0)
         {
+            if (this.level >= cf.level_cap) return;
             let reqExp = this.getRequiredExp();
             if (this.exp + amount > reqExp)
             {

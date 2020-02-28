@@ -65,7 +65,7 @@ export async function onMSGReceived(msg: Discord.Message)
             let c_cd = c_cmd.cooldown;
             let cd = user!.getCooldown(c_cd.name);
             if (cd) return msg.channel.send(`\`${msg.author.username}\`, that command is on cooldown for another ${cd}`);
-            user!.setCooldown(c_cd.name, c_cd.duration);
+            user!.setCooldown(c_cd.name, c_cd.duration, c_cmd.ignoreCooldownReduction);
         }
 
         c_cmd.execute(msg,args,user);

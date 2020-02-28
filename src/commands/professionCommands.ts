@@ -24,7 +24,7 @@ export const cmds: _command[] =
 
 			let pages = []
 			let recipeString = "";
-			let maxItems = 5;
+			let maxItems = 4;
 			let itemCounter = 0;
 			let selectedPage = 1;
 

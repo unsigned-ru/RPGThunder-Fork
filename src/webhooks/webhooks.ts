@@ -21,7 +21,7 @@ export function initializeWebhooks()
     app.post('/dblwebhook', dbl_onPost);
 
     app.post('/patreonwebhook', patreon_onPost);
-
+    
     httpsServer.listen(5000); //only listen to webhook events when we are not in devmode.
 
     console.log("Finished initializing webhooks.")

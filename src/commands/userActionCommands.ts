@@ -1,7 +1,7 @@
 import Discord from "discord.js"
-import { commands } from "../main";
+import { commands, client } from "../main";
 import { DataManager } from "../classes/dataManager";
-import { randomIntFromInterval, CC, round, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp } from "../utils";
+import { randomIntFromInterval, CC, round, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp, formatTime } from "../utils";
 import { _command} from "../interfaces";
 import { User } from "../classes/user";
 import { _anyItem, _equipmentItem, _materialItem, MaterialItem } from "../classes/items";
@@ -142,7 +142,7 @@ export const cmds: _command[] =
         category: CC.Fighting,
 		description: 'Explore in your current zone.',
         usage: `[prefix]explore`,
-        executeWhileTravelling: true,
+        executeWhileTravelling: false,
         mustBeRegistered: true,
         cooldown: { name: "explore", duration: 60 },
 		execute(msg: Discord.Message, args: string[], user: User) 
@@ -330,14 +330,17 @@ export const cmds: _command[] =
             var currentZone = user.getZone();
             var distance = Math.abs(currentZone.loc.x - zone.loc.x) + Math.abs(currentZone.loc.y - zone.loc.y);
 
-            //Todo: add perks for travel time reduction here
-            var travelTime = cf.chunk_travel_time * distance; //in seconds
+            //calculate travel time and apply duration reductions.
+            let reduction = user.getPatreonRank() ? user.getPatreonRank()!.cooldown_reduction : 0;
+            var travelTime = (cf.chunk_travel_time * distance) * clamp(1 - reduction, 0, 1); //in seconds
 
             //await user confirm
-            if (!await awaitConfirmMessage(`Travel to ${zone.name} - ${msg.author.username}`,`The travel time will be **${travelTime}s**.\n*During this period you will not be able to use some of the commands.*\n**Are you sure you would like to travel to ${zone.name}?**`,msg,user)) return;
+            if (!await awaitConfirmMessage(`Travel to ${zone.name} - ${msg.author.username}`,`The travel time will be **${formatTime(travelTime*1000)}**.\n*During this period you will not be able to use some of the commands.*\n**Are you sure you would like to travel to ${zone.name}?**`,msg,user)) return;
             
             //Add to traveling cds
             var d = new Date();
+            
+            if (client.guilds.get(cf.official_server)?.members.get(user.user_id)?.roles.has("651567406967291904")) reduction += 0.1;
             d.setSeconds(d.getSeconds() + travelTime);
         
             user.command_cooldowns.set("travel",new CronJob(d, 
