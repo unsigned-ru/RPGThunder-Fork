@@ -1,23 +1,23 @@
 import cf from './config.json';
-import Discord from 'discord.js'
+import Discord from 'discord.js';
 import { DataManager } from './classes/dataManager.js';
-import { _anyItem, _equipmentItem, MaterialItem, ConsumableItem, anyItem, _materialItem, _consumableItem, EquipmentItem, _item } from './classes/items.js';
+import { _anyItem, DbEquipmentItem, MaterialItem, ConsumableItem, anyItem, DbMaterialItem, DbConsumableItem, EquipmentItem, DbItem } from './classes/items.js';
 import { User } from './classes/user.js';
-import { _currency } from './interfaces.js';
+import { CurrencyInterface } from './interfaces.js';
 import { Ability } from './classes/ability.js';
 import { Actor } from './classes/actor.js';
 import https from 'https';
 
-let numberIconArray = [':zero:', ':one:', ':two:', ':three:', ':four:', ':five:', ':six:', ':seven:', ':eight:', ':nine:']
+const numberIconArray = [':zero:', ':one:', ':two:', ':three:', ':four:', ':five:', ':six:', ':seven:', ':eight:', ':nine:'];
 
-export function randomIntFromInterval(min:number, max:number, rounded?:boolean) :number 
+export function randomIntFromInterval(min: number, max: number, rounded?: boolean): number 
 {
   let result = Math.floor(Math.random() * ((max*100) - (min*100) + 1) + (min*100))/100;
   if (rounded) result = Math.round(result);
   return result;
 }
 
-export function clamp(number:number,min:number, max:number) 
+export function clamp(number: number,min: number, max: number) 
 {
   return Math.min(Math.max(number, min), max);
 }
@@ -27,20 +27,21 @@ export function getTotalWeightForLevel(lvl: number)
   return (cf.stats.base.atk + ((lvl-1)*cf.stats.increase.atk)) + ((cf.stats.base.def + ((lvl-1)*cf.stats.increase.def)) /2) + ((((cf.stats.base.acc + ((lvl-1)*cf.stats.increase.acc)) / (lvl *10)) - 0.85) * (0.5 * (cf.stats.base.atk + ((lvl-1)*cf.stats.increase.atk)))); 
 }
 
-export function getAccFromLevelWeight(lvl:number, weight: number, multiplier = 1)
+export function getAccFromLevelWeight(lvl: number, weight: number, multiplier = 1)
 {
   return weight / ((((((8.5 * lvl)+1) / (lvl *10)) - 0.85) * (0.5 * ((cf.stats.base.atk + ((lvl-1) * cf.stats.increase.atk) * multiplier)))) - ((((8.5 * lvl) / (lvl *10)) - 0.85) * (0.5 * (cf.stats.base.atk + ((lvl-1) * cf.stats.increase.atk) * multiplier))));
 }
-export function round(n:number)
+export function round(n: number)
 {
+  if (n >= 1000) return +(n/1000).toFixed(2)+"k";
   return +n.toFixed(2);
 }
 
-export function groupArrayBy(array:any[], key:string) 
+export function groupArrayBy(array: any[], key: string) 
 {
-  let coll: Discord.Collection<any,any[]> = new Discord.Collection();
+  const coll: Discord.Collection<any,any[]> = new Discord.Collection();
 
-  for (let e of array)
+  for (const e of array)
   {
     if (coll.has(e[key])) coll.get(e[key])!.push(e);
     else coll.set(e[key], [e]);
@@ -69,7 +70,7 @@ export const enum colors {
   black = "#000000"
 }
 
-export function formatTime(ms:number) :string
+export function formatTime(ms: number): string
 {
   if (ms / 2.628e+9 >= 1) return `${Math.round(ms / 2.628e+9)} month(s)`;
   else if (ms / 6.048e+8 >= 1) return `${Math.round(ms / 6.048e+8)} week(s)`;
@@ -81,9 +82,9 @@ export function formatTime(ms:number) :string
 
 export function getServerPrefix(msg: Discord.Message) { return DataManager.serverPrefixes.has(msg.guild.id) ? DataManager.serverPrefixes.get(msg.guild.id)! : '$'; }
 
-export function getItemAndAmountFromArgs(args:string[], user?: User)
+export function getItemAndAmountFromArgs(args: string[], user?: User)
 {
-  let item :_anyItem |undefined;
+  let item: _anyItem |undefined;
   let amount = 1;
   let errormessage;
   if (!isNaN(+args[0]))
@@ -94,7 +95,7 @@ export function getItemAndAmountFromArgs(args:string[], user?: User)
     {
       amount = (user.inventory.find(x => x.id == item?._id) as MaterialItem | ConsumableItem)?.amount; 
     }
-    if (!item) errormessage = `Could not find a item with id: \`${args[0]}\``
+    if (!item) errormessage = `Could not find a item with id: \`${args[0]}\``;
   } 
   else 
   { 
@@ -112,11 +113,11 @@ export function getItemAndAmountFromArgs(args:string[], user?: User)
     if (!item) errormessage = `Could not find a item with name: \`${args.join(" ")}\``;
   }
   if (!amount) amount = 1;
-  return {item: item, amount: amount, errormsg: errormessage}
+  return {item: item, amount: amount, errormsg: errormessage};
 }
-export function getCurrencyAndAmountFromArgs(args:string[], user: User)
+export function getCurrencyAndAmountFromArgs(args: string[], user: User)
 {
-  let currency : _currency | undefined;
+  let currency: CurrencyInterface | undefined;
   let amount = 1;
   let errormessage;
   if (!isNaN(+args[0]))
@@ -127,7 +128,7 @@ export function getCurrencyAndAmountFromArgs(args:string[], user: User)
     {
       amount = user.getCurrency(currency._id).value; 
     }
-    if (!currency) errormessage = `Could not find a currency with id: \`${args[0]}\``
+    if (!currency) errormessage = `Could not find a currency with id: \`${args[0]}\``;
   } 
   else 
   { 
@@ -140,42 +141,42 @@ export function getCurrencyAndAmountFromArgs(args:string[], user: User)
       args.splice(args.length -1,1);
       full = true;
     }
-    currency = DataManager.currencies.find(x => x.name.toLowerCase() == args.join(" ").toLowerCase())
+    currency = DataManager.currencies.find(x => x.name.toLowerCase() == args.join(" ").toLowerCase());
     if (full && currency) amount = user.getCurrency(currency._id).value; 
     if (!currency) errormessage = `Could not find a currency with name: \`${args.join(" ")}\``;
   }
   if (!amount) amount = 1;
-  return {currency: currency, amount: amount, errormsg: errormessage}
+  return {currency: currency, amount: amount, errormsg: errormessage};
 }
 
 export function constructWarningMessageForItem(item: _anyItem, user: User)
 {
   let warningMessage = "";
-  if (item instanceof _equipmentItem && item.level_requirement > user.level) warningMessage+= `You will not be able to equip the item because your level is below the level requirement. (level requirement: ${item.level_requirement})\n`;
-  if (item instanceof _equipmentItem && !user.class.types.includes(item.type)) warningMessage+= `You will not be able to equip the item because your class is not allowed to wear the type: \`${item.getType().name}\`.\n`;
+  if (item instanceof DbEquipmentItem && item.levelRequirement > user.level) warningMessage+= `You will not be able to equip the item because your level is below the level requirement. (level requirement: ${item.levelRequirement})\n`;
+  if (item instanceof DbEquipmentItem && !user.class.types.includes(item.type)) warningMessage+= `You will not be able to equip the item because your class is not allowed to wear the type: \`${item.getType().name}\`.\n`;
   return warningMessage;
 }
 export function constructCurrencyString(currency: number, amount: number)
 {
-  let cd = DataManager.getCurrency(currency);
-  return `${cd.icon} ${amount} ${cd.name}`;
+  const cd = DataManager.getCurrency(currency);
+  return `${cd?.icon} ${round(amount)} ${cd?.name}`;
 }
-export async function awaitConfirmMessage(title: string, description: string, msg: Discord.Message, user: User) :Promise<boolean>
+export async function awaitConfirmMessage(title: string, description: string, msg: Discord.Message, user: User): Promise<boolean>
 {
-  return new Promise(async (resolve, reject) => {
+  return new Promise(async (resolve) => {
     //construct confirm message
-    let confirmEmbed = new Discord.RichEmbed()
+    const confirmEmbed = new Discord.RichEmbed()
     .setTitle(title)
     .setDescription(description)
     .setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
-    .setColor('#fcf403')
+    .setColor('#fcf403');
 
     //send and await reaction
-    let confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
+    const confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
     user.reaction.isPending = true;
     await confirmMessage.react("✅");
     await confirmMessage.react("❌");
-    var rr = await confirmMessage.awaitReactions((m:Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
+    const rr = await confirmMessage.awaitReactions((m: Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
     user.reaction.isPending = false;
     if (rr.first().emoji && rr.first().emoji.name == '✅') resolve(true);
     else resolve(false);
@@ -191,11 +192,11 @@ export function filterItemArray(filter: string[], array: (_anyItem | anyItem)[])
 							switch(filter[1].toLowerCase())
 							{
 								case "material":
-								  return array.filter(x => (x instanceof MaterialItem || x instanceof _materialItem))
+                  return array.filter(x => (x instanceof MaterialItem || x instanceof DbMaterialItem));
 								case "equipment":
-									return array.filter(x => (x instanceof EquipmentItem || x instanceof _equipmentItem))
+									return array.filter(x => (x instanceof EquipmentItem || x instanceof DbEquipmentItem));
 								case "consumable":
-									return array.filter(x => (x instanceof ConsumableItem || x instanceof _consumableItem))
+									return array.filter(x => (x instanceof ConsumableItem || x instanceof DbConsumableItem));
 							}
 							break;
 						case "quality":
@@ -204,85 +205,88 @@ export function filterItemArray(filter: string[], array: (_anyItem | anyItem)[])
 								case "common": case "1":
                   return array.filter((x: _anyItem | anyItem) => 
                   {
-                    if (x instanceof _equipmentItem || x instanceof _materialItem || x instanceof _consumableItem) return x.quality == 1;
+                    if (x instanceof DbEquipmentItem || x instanceof DbMaterialItem || x instanceof DbConsumableItem) return x.quality == 1;
                     if (x instanceof EquipmentItem || x instanceof MaterialItem || x instanceof ConsumableItem) return x.getData()?.quality == 1;
                     return false;
                   });
 								case "uncommon": case "2":
                   return array.filter((x: _anyItem | anyItem) => 
                   {
-                    if (x instanceof _equipmentItem || x instanceof _materialItem || x instanceof _consumableItem) return x.quality == 2;
+                    if (x instanceof DbEquipmentItem || x instanceof DbMaterialItem || x instanceof DbConsumableItem) return x.quality == 2;
                     if (x instanceof EquipmentItem || x instanceof MaterialItem || x instanceof ConsumableItem) return x.getData()?.quality == 2;
                     return false;
                   });
 								case "rare": case "3":
 									return array.filter((x: _anyItem | anyItem) => 
                   {
-                    if (x instanceof _equipmentItem || x instanceof _materialItem || x instanceof _consumableItem) return x.quality == 3;
+                    if (x instanceof DbEquipmentItem || x instanceof DbMaterialItem || x instanceof DbConsumableItem) return x.quality == 3;
                     if (x instanceof EquipmentItem || x instanceof MaterialItem || x instanceof ConsumableItem) return x.getData()?.quality == 3;
                     return false;
                   });
 								case "epic": case "4":
 									return array.filter((x: _anyItem | anyItem) => 
                   {
-                    if (x instanceof _equipmentItem || x instanceof _materialItem || x instanceof _consumableItem) return x.quality == 4;
+                    if (x instanceof DbEquipmentItem || x instanceof DbMaterialItem || x instanceof DbConsumableItem) return x.quality == 4;
                     if (x instanceof EquipmentItem || x instanceof MaterialItem || x instanceof ConsumableItem) return x.getData()?.quality == 4;
                     return false;
                   });
-								case "epic": case "5":
+								case "legendary": case "5":
 									return array.filter((x: _anyItem | anyItem) => 
                   {
-                    if (x instanceof _equipmentItem || x instanceof _materialItem || x instanceof _consumableItem) return x.quality == 5;
+                    if (x instanceof DbEquipmentItem || x instanceof DbMaterialItem || x instanceof DbConsumableItem) return x.quality == 5;
                     if (x instanceof EquipmentItem || x instanceof MaterialItem || x instanceof ConsumableItem) return x.getData()?.quality == 5;
                     return false;
                   });
-							}
+              }
+            break;
+              
 						case "slot":
 							switch(filter[1].toLowerCase())
 							{
 								case DataManager.itemSlots.get(1)?.name.toLowerCase(): case "1":
 									return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(1);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(1);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(1);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(1);
                     return false;
-                  })
+                  });
 								case DataManager.itemSlots.get(2)?.name.toLowerCase(): case "2":
                   return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(2);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(2);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(2);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(2);
                     return false;
-                  })
+                  });
 								case DataManager.itemSlots.get(3)?.name.toLowerCase(): case "3":
                   return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(3);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(3);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(3);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(3);
                     return false;
-                  })
+                  });
 								case DataManager.itemSlots.get(4)?.name.toLowerCase(): case "4":
                   return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(4);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(4);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(4);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(4);
                     return false;
-                  })
+                  });
 								case DataManager.itemSlots.get(5)?.name.toLowerCase(): case "5":
                   return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(5);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(5);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(5);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(5);
                     return false;
-                  })
+                  });
 								case DataManager.itemSlots.get(6)?.name.toLowerCase(): case "6":
                   return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(6);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(6);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(6);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(6);
                     return false;
-                  })
+                  });
 								case DataManager.itemSlots.get(7)?.name.toLowerCase(): case "7":
 									return array.filter((x) => {
-                    if (x instanceof _equipmentItem) return x.slots.includes(7);
-                    if (x instanceof EquipmentItem) return (x.getData() as _equipmentItem).slots.includes(7);
+                    if (x instanceof DbEquipmentItem) return x.slots.includes(7);
+                    if (x instanceof EquipmentItem) return (x.getData() as DbEquipmentItem).slots.includes(7);
                     return false;
-                  })
-							}
+                  });
+              }
+            break;
           }
           return array;
 }
@@ -294,7 +298,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
       case "id": 
         array.sort(function(a,b)
         {
-          if ((a instanceof _item || a instanceof _consumableItem || a instanceof  _equipmentItem || a instanceof _materialItem) && (b instanceof _item || b instanceof _consumableItem || b instanceof  _equipmentItem || b instanceof _materialItem))
+          if ((a instanceof DbItem || a instanceof DbConsumableItem || a instanceof  DbEquipmentItem || a instanceof DbMaterialItem) && (b instanceof DbItem || b instanceof DbConsumableItem || b instanceof  DbEquipmentItem || b instanceof DbMaterialItem))
           {
             return a._id - b._id;
           }
@@ -308,7 +312,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
       case "atk": 
         array.sort(function(a,b)
           {
-            if (a instanceof  _equipmentItem &&  b instanceof  _equipmentItem)
+            if (a instanceof  DbEquipmentItem &&  b instanceof  DbEquipmentItem)
             {
               return b.stats.base.atk - a.stats.base.atk;
             }
@@ -322,7 +326,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
       case "def": 
         array.sort(function(a,b)
         {
-          if (a instanceof  _equipmentItem &&  b instanceof  _equipmentItem)
+          if (a instanceof  DbEquipmentItem &&  b instanceof  DbEquipmentItem)
           {
             return b.stats.base.def - a.stats.base.def;
           }
@@ -336,7 +340,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
       case "acc": 
         array.sort(function(a,b)
         {
-          if (a instanceof  _equipmentItem &&  b instanceof  _equipmentItem)
+          if (a instanceof  DbEquipmentItem &&  b instanceof  DbEquipmentItem)
           {
             return b.stats.base.acc - a.stats.base.acc;
           }
@@ -350,7 +354,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
       case "quality": 
         array.sort(function(a,b)
         {
-          if ((a instanceof _item || a instanceof _consumableItem || a instanceof  _equipmentItem || a instanceof _materialItem) && (b instanceof _item || b instanceof _consumableItem || b instanceof  _equipmentItem || b instanceof _materialItem))
+          if ((a instanceof DbItem || a instanceof DbConsumableItem || a instanceof  DbEquipmentItem || a instanceof DbMaterialItem) && (b instanceof DbItem || b instanceof DbConsumableItem || b instanceof  DbEquipmentItem || b instanceof DbMaterialItem))
           {
             return b.quality - a.quality;
           }
@@ -375,29 +379,29 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
   return array;
 }
 
-export function createCraftedEquipment(itemData: _equipmentItem)
+export function createCraftedEquipment(itemData: DbEquipmentItem)
 {
-  let craftingBonus = 
+  const craftingBonus = 
   {
     atk: randomIntFromInterval(0,itemData.stats.crafting.atk),
     def: randomIntFromInterval(0,itemData.stats.crafting.def),
     acc: randomIntFromInterval(0,itemData.stats.crafting.acc)
-  }
+  };
   
   return new EquipmentItem(itemData._id, craftingBonus);
 
 }
 
-export function sleep(s:number) {
+export function sleep(s: number) {
   return new Promise(resolve => setTimeout(resolve, s*1000));
 }
-export function constructAbilityDataString(a: Ability, level?:number)
+export function constructAbilityDataString(a: Ability, level?: number)
 {
-  let rva: string[] = []
+  const rva: string[] = [];
   if (level) rva.push(`<:level:674945451866325002> ${level}`);
   rva.push(`<:cooldown:674944207663923219> ${a.cooldown}`);
 
-  return `[`+rva.join(` | `)+`]` 
+  return `[`+rva.join(` | `)+`]`; 
 }
 
 export function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): string
@@ -411,7 +415,7 @@ export function parseComblatLogString(cls: string, user: Actor, targets: Actor[]
 export function numberToIcon(number: number)
 {
   let rv = ""; 
-  for (let n of number.toString()) rv += numberIconArray[+n];
+  for (const n of number.toString()) rv += numberIconArray[+n];
   return rv;
 }
 
@@ -419,21 +423,21 @@ export function numberToIcon(number: number)
  * Returns promise of a get request to the patreon API.
  * @param path What part of the api should be called?
  */
-export async function PatreonGet(path: string) :Promise<any>
+export async function PatreonGet(path: string): Promise<any>
 {
     return new Promise(async (resolve, reject) => 
     {
-        let req = https.get({host: "www.patreon.com" ,path: `/api/oauth2/v2/${path}` ,headers: {Authorization: `Bearer ${cf.patreon_creatorToken}`} }, (res) => 
+        const req = https.get({host: "www.patreon.com" ,path: `/api/oauth2/v2/${path}` ,headers: {Authorization: `Bearer ${cf.patreon_creatorToken}`} }, (res) => 
         {
             let data = "";
             res.on('data', (d) => data += d);
             res.on('end', () => resolve(JSON.parse(data)));
         }).on('error', (err) => reject(err));
         req.end();
-    })
+    });
 }
 
-export function get(obj:any, key:string) {
+export function get(obj: any, key: string) {
   return key.split(".").reduce(function(o, x) {
       return (typeof o == "undefined" || o === null) ? o : o[x];
   }, obj);

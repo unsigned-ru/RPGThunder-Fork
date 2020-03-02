@@ -1,14 +1,14 @@
-import Discord from "discord.js"
+import Discord from "discord.js";
 import { commands } from "../main";
 import { groupArrayBy, round, CC, getServerPrefix, colors } from "../utils";
-import { _equipmentItem, _materialItem, _consumableItem, _anyItem } from "../classes/items";
+import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, _anyItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";
 import { Class } from "../classes/class";
-import { _command } from "../interfaces";
+import { CommandInterface } from "../interfaces";
 import { Ability } from "../classes/ability";
 import { InstantDamageEffect, InstantHealingEffect, DamageOverTimeDebuffEffect, HealingOverTimeBuffEffect, AbsorbBuffEffect, DamageReductionBuffEffect } from "../classes/tb_effects";
 
-export const cmds: _command[] = 
+export const cmds: CommandInterface[] = 
 [
     {
 		name: 'help',
@@ -23,7 +23,7 @@ export const cmds: _command[] =
 			{	
 				if (args.length == 0)
 				{
-					var prefix = getServerPrefix(msg);
+					const prefix = getServerPrefix(msg);
 					const embed = new Discord.RichEmbed()
 					.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
 					.setColor(colors.yellow) //Yelow⛏️
@@ -33,35 +33,35 @@ export const cmds: _command[] =
 					.setTimestamp()
 					.setFooter(`use ${prefix}help [command] to get extra info about the command.`, 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
-                    for (let ce of groupArrayBy(commands.array(),"category")) 
+                    for (const ce of groupArrayBy(commands.array(),"category")) 
                     {
                         if (ce[0] == -1) continue;
-                        embed.addField(`${ce[0]}`, ce[1].map(x => `\`${x.name}\``).join(","))
+                        embed.addField(`${ce[0]}`, ce[1].map(x => `\`${x.name}\``).join(","));
 					}
 					
-					embed.addField(`🕵️ Administative 🕵️‍♀️`,`\`rpgthunder setprefix\`, \`rpgthunder prefix\`, \`rpgthunder resetprefix\`, \`blacklist\``)
+					embed.addField(`🕵️ Administative 🕵️‍♀️`,`\`rpgthunder setprefix\`, \`rpgthunder prefix\`, \`rpgthunder resetprefix\`, \`blacklist\``);
 					
-                    embed.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Patreon](https://www.patreon.com/rpgthunder) | [Donate](https://donatebot.io/checkout/646062255170912293)`)
+                    embed.addField('\u200B',`[Invite](https://discordapp.com/oauth2/authorize?client_id=646764666508541974&permissions=8&scope=bot) | [Support Server](https://discord.gg/V4EaHNt) | [Patreon](https://www.patreon.com/rpgthunder) | [Donate](https://donatebot.io/checkout/646062255170912293)`);
 
 					return msg.channel.send(embed);
 				}
 
 				//get command by alias or name
-				var cmd;
+				let cmd;
 				if (commands.has(args[0].toLowerCase())) cmd = commands.get(args[0].toLowerCase());
-				else if (commands.find((x:_command) => x.aliases.includes(args[0].toLowerCase()))) cmd = commands.find((x: _command) => x.aliases.includes(args[0].toLowerCase()));
+				else if (commands.find((x: CommandInterface) => x.aliases.includes(args[0].toLowerCase()))) cmd = commands.find((x: CommandInterface) => x.aliases.includes(args[0].toLowerCase()));
 				
 				if (!cmd) throw "Could not find a command with that name!";
 
 				//Create an embed with its info
-				var prefix = getServerPrefix(msg);
+				const prefix = getServerPrefix(msg);
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow⛏️
 				.setTitle(`**Command info -- ${cmd.name}**`)
 				.setDescription(cmd.description)
 				.addField("**Info**",
 				`**Usage: \`${cmd.usage.replace("[prefix]",prefix)}\`**\n`+
-				`**Aliases:** ${cmd.aliases.map((x:string) => "`"+x+"`").join(",")}\n`+
+				`**Aliases:** ${cmd.aliases.map((x: string) => "`"+x+"`").join(",")}\n`+
 				`**Can execute while travelling:** \`${cmd.executeWhileTravelling == true ? "`yes`":"`no`"}\``)
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
@@ -85,12 +85,12 @@ export const cmds: _command[] =
 		usage: `[prefix]itemdata [itemID/ItemName]`,
 		execute(msg: Discord.Message, args: string[]) 
 		{
-			if (args.length == 0 && parseInt(args[0])) return msg.channel.send(`Please enter the id of the item.`)
-			let item : _anyItem | undefined;
+			if (args.length == 0 && parseInt(args[0])) return msg.channel.send(`Please enter the id of the item.`);
+			let item: _anyItem | undefined;
 			if(!isNaN(+args[0])) item = DataManager.getItem(+args[0]);
 			else item = DataManager.getItemByName(args.join(" "));
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, could not find an item with that id/name.`);
-			if (item instanceof _equipmentItem)
+			if (item instanceof DbEquipmentItem)
 			{
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -101,9 +101,9 @@ export const cmds: _command[] =
 				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
 				`**Slot(s):** ${item.getSlots().map(x => x.name).join(" OR ")}\n`+
 				`**Type:** ${item.getType().name}\n`+
-				`${item.slots.includes(1) || item.slots.includes(2) ? `**TwoHand:** ${item.two_hand}\n` : ``}`+
-				`**Level Requirement:** ${item.level_requirement}\n`+
-				`**Sell Price:** ${item.sell_price}`,true)
+				`${item.slots.includes(1) || item.slots.includes(2) ? `**TwoHand:** ${item.twoHand}\n` : ``}`+
+				`**Level Requirement:** ${item.levelRequirement}\n`+
+				`**Sell Price:** ${item.sellPrice}`,true)
 			
 				.addField("Stats:",
 				`🗡️**ATK:** ${round(item.stats.base.atk)}\n`+
@@ -114,7 +114,7 @@ export const cmds: _command[] =
 			
 				msg.channel.send(embed);
 			}
-			else if (item instanceof _consumableItem)
+			else if (item instanceof DbConsumableItem)
 			{
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -124,11 +124,11 @@ export const cmds: _command[] =
 				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
 				`**Type:** Material\n`+
 				`**Effects:** ${item.getEffectsString().length==0 ? "None" : `\n${item.getEffectsString()}`}`+
-				`**Sell Price:** ${item.sell_price}`)
+				`**Sell Price:** ${item.sellPrice}`);
 
 				msg.channel.send(embed);
 			}
-			else if (item instanceof _materialItem)
+			else if (item instanceof DbMaterialItem)
 			{
 				const embed = new Discord.RichEmbed()
 				.setColor('#fcf403') //Yelow
@@ -137,7 +137,7 @@ export const cmds: _command[] =
 				.addField("Info:",
 				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
 				`**Type:** Material\n`+
-				`**Sell Price:** ${item.sell_price}`)
+				`**Sell Price:** ${item.sellPrice}`);
 
 				msg.channel.send(embed);
 			}
@@ -152,8 +152,8 @@ export const cmds: _command[] =
 		usage: `[prefix]spelldata [spellID/spellName]`,
 		execute(msg: Discord.Message, args: string[]) 
 		{
-			if (args.length == 0 && parseInt(args[0])) return msg.channel.send(`Please enter the id/name of the spell.`)
-			let spell : Ability | undefined;
+			if (args.length == 0 && parseInt(args[0])) return msg.channel.send(`Please enter the id/name of the spell.`);
+			let spell: Ability | undefined;
 			if(!isNaN(+args[0])) spell = DataManager.getSpell(+args[0]);
 			else spell = DataManager.getSpellByName(args.join(" "));
 			if (!spell) return msg.channel.send(`\`${msg.author.username}\`, could not find a spell with that id/name.`);
@@ -163,10 +163,10 @@ export const cmds: _command[] =
 			.setTitle(`Spell #${spell.id}: ${spell.name}`)
 			.setDescription(`Cooldown: \`${spell.cooldown}\` <:cooldown:674944207663923219>\n*${spell.description}*`);
 
-			let effectCounter = 1;
-			for (let e of spell.effects)
+			const effectCounter = 1;
+			for (const e of spell.effects)
 			{
-				let infostrings :string[] = [];
+				const infostrings: string[] = [];
 				if (e instanceof InstantDamageEffect)
 				{
 					infostrings.push(`Type: \`Instant Damage\``);
@@ -210,7 +210,7 @@ export const cmds: _command[] =
 					infostrings.push(`Duration: \`${e.duration}\` rounds`);
 				}
 
-				embed.addField(`Effect #${effectCounter}`, `${infostrings.join("\n")}`)
+				embed.addField(`Effect #${effectCounter}`, `${infostrings.join("\n")}`);
 			}
 
 			msg.channel.send(embed);
@@ -223,10 +223,10 @@ export const cmds: _command[] =
 		aliases: ['areas'],
 		description: 'List all the available zones.',
 		usage: `[prefix]zones`,
-	 	execute(msg: Discord.Message, args: string[]) 
+		execute(msg: Discord.Message) 
 		{
-			var zoneString = "";
-			for (var zone of DataManager.zones.values()) zoneString += `**${zone.name}** | lvl: ${zone.level_suggestion}\n`;
+			let zoneString = "";
+			for (const zone of DataManager.zones.values()) zoneString += `**${zone.name}** | lvl: ${zone.levelSuggestion}\n`;
 			const embed = new Discord.RichEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`**Available Zones**`)
@@ -244,7 +244,7 @@ export const cmds: _command[] =
 		aliases: [],
 		description: 'List all the available classes.',
 		usage: `[prefix]classes`,
-	 	execute(msg: Discord.Message, args: string[]) 
+		execute(msg: Discord.Message) 
 		{
 			const embed = new Discord.RichEmbed()
 			.setColor('#fcf403') //Yelow⛏️
@@ -252,7 +252,7 @@ export const cmds: _command[] =
 			.setTimestamp()
 			.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
-			for (var c of DataManager.classes) embed.addField(`**${c[1].icon} ${c[1].name}**`, c[1].description);
+			for (const c of DataManager.classes) embed.addField(`**${c[1].icon} ${c[1].name}**`, c[1].description);
 
 			msg.channel.send(embed);
 		},
@@ -266,18 +266,18 @@ export const cmds: _command[] =
 		usage: `[prefix]classinfo [Optional: Classname]`,
 		execute(msg: Discord.Message, args: string[]) 
 		{
-			var c: Class;
+			let c: Class;
 
 			if (args.length == 0) 
 			{
-				let user = DataManager.getUser(msg.author.id)
-				if (!user) return msg.channel.send(`\`${msg.author.username}\` is not registered.`)
+				const user = DataManager.getUser(msg.author.id);
+				if (!user) return msg.channel.send(`\`${msg.author.username}\` is not registered.`);
 				else c = user.class;
 			}
 			else
 			{
-				let inputName = args.join(" ").toLowerCase();
-				let tempc = DataManager.classes.find(x => x.name.toLowerCase() == inputName);
+				const inputName = args.join(" ").toLowerCase();
+				const tempc = DataManager.classes.find(x => x.name.toLowerCase() == inputName);
 				if (!tempc) return msg.channel.send(`\`${msg.author.username}\`, could not find a class with name \`${inputName}\``);
 				else c = tempc;
 			}
@@ -300,7 +300,7 @@ export const cmds: _command[] =
 		executeWhileTravelling: true,
 		description: 'Shows more information about how to support RPG Thunder.',
 		usage: `[prefix]donate`,
-		execute(msg: Discord.Message, args: string[]) 
+		execute(msg: Discord.Message) 
 		{
 			const embed = new Discord.RichEmbed()
 			.setColor(colors.yellow)
@@ -308,10 +308,10 @@ export const cmds: _command[] =
 			.setDescription(`*Are you enjoying this game?*\n*Would you like to help us in improving the quality and the rate at which we push out content?*\n**Then consider helping us out with funding the project!**`)
 			.addField("<:patreonicon:680396659091570754> **Patreon** <:patreonicon:680396659091570754>", `[Patreon](https://www.patreon.com/rpgthunder) is a platform where you can buy a __recurring subscription for each month__. We have several tiers available __starting at as low as 2$/month__.\nThese tiers will get you __an assortiment of in-game benefits like cooldown reduction, improved daily and weekly rewards__ aswell as __a role in the official discord server__.\n[Check out our patreon!](https://www.patreon.com/rpgthunder)`)
 			.addField("💳 **One-Time Donation** 💳", "If a monthly subscription doesn't fit your style but you still want to support us you can use [the donate bot](https://donatebot.io/checkout/646062255170912293) we have set up that __allows for one-time payments__. The one-time payment system is going to be __linked to a premium currency you can use in-game for an mostly cosmetic things__. When the premium currency officially launches, __all previous one-time purchases will be converted to the premium currency and added to your account!__\n[Check out the one-time payment!](https://donatebot.io/checkout/646062255170912293)")
-			.setTimestamp()
+			.setTimestamp();
 			msg.channel.send(embed);
 		}
 	}
-]
+];
 
-export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}
+export function SetupCommands() {for (const cmd of cmds) commands.set(cmd.name, cmd);}

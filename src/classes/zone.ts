@@ -4,34 +4,34 @@ export class Zone
 {
   _id: number;
   name: string;
-  loc: {x:number; y:number}
+  loc: {x: number; y: number}
   boss: number;
-  level_suggestion: string;
+  levelSuggestion: string;
   gathering:
   {
     mining: 
     {
-      drops: {item: number, chance: number, min: number, max:number}[],
-      skill: {req: number, greenZone: number, grayZone: number}
-    }
+      drops: {item: number; chance: number; min: number; max: number}[];
+      skill: {req: number; greenZone: number; grayZone: number};
+    };
     fishing: 
     {
-      drops: {item: number, chance: number, min: number, max:number}[],
-      skill: {req: number, greenZone: number, grayZone: number}
-    }
+      drops: {item: number; chance: number; min: number; max: number}[];
+      skill: {req: number; greenZone: number; grayZone: number};
+    };
     harvesting: 
     {
-      drops: {item: number, chance: number, min: number, max:number}[],
-      skill: {req: number, greenZone: number, grayZone: number}
-    }
+      drops: {item: number; chance: number; min: number; max: number}[];
+      skill: {req: number; greenZone: number; grayZone: number};
+    };
     woodworking: 
     {
-      drops: {item: number, chance: number, min: number, max:number}[],
-      skill: {req: number, greenZone: number, grayZone: number}
-    }
+      drops: {item: number; chance: number; min: number; max: number}[];
+      skill: {req: number; greenZone: number; grayZone: number};
+    };
   };
-  shop: _zoneShop
-  enemies: _zoneEnemy[]
+  shop: ZoneShopInterface
+  enemies: ZoneEnemyInterface[]
 
   constructor(zoneObject: any) 
   {
@@ -39,7 +39,7 @@ export class Zone
     this.name = zoneObject.name;
     this.loc = zoneObject.loc;
     this.boss = zoneObject.boss;
-    this.level_suggestion = zoneObject.level_suggestion;
+    this.levelSuggestion = zoneObject.level_suggestion;
     this.gathering = zoneObject.gathering;
     this.shop = zoneObject.shop;
     this.enemies = zoneObject.enemies;
@@ -51,29 +51,29 @@ export class Zone
   getHarvestingDrops() {return this.gathering.harvesting.drops;}
   getShopListings()
   {
-    let listings = []
-    for (let si of this.shop.listings) listings.push({ itemdata: DataManager.getItem(si.item), currencyCosts: si.currencyCosts, itemCosts: si.itemCosts });
+    const listings = [];
+    for (const si of this.shop.listings) listings.push({ itemdata: DataManager.getItem(si.item), currencyCosts: si.currencyCosts, itemCosts: si.itemCosts });
     return listings;
   }
 }
 
-export interface _zoneEnemy
+export interface ZoneEnemyInterface
 {
-  id :number,
-  weight: number,
-  min_encounter_level: number,
-  max_level: number,
-  level_offset: {below: number, above: number}
-  currencyDrops: { id:number, chance: number, minAmount: number, maxAmount:number }[],
-  itemDrops: { id:number, chance: number, minAmount?: number, maxAmount?: number }[]
+  id: number;
+  weight: number;
+  min_encounter_level: number;
+  max_level: number;
+  level_offset: {below: number; above: number};
+  currencyDrops: { id: number; chance: number; minAmount: number; maxAmount: number }[];
+  itemDrops: { id: number; chance: number; minAmount?: number; maxAmount?: number }[];
 }
 
-export interface _zoneShop
+export interface ZoneShopInterface
 {
   listings:
   {
-    item: number,
-    currencyCosts: { id: number, amount: number }[]
-    itemCosts: { id: number, amount: number }[]
-  }[]
+    item: number;
+    currencyCosts: { id: number; amount: number }[];
+    itemCosts: { id: number; amount: number }[];
+  }[];
 }

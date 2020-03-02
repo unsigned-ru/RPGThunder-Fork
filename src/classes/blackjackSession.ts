@@ -1,7 +1,8 @@
+/* eslint-disable no-async-promise-executor */
 import { Session } from "./session";
 import { User } from "./user";
 import Discord from "discord.js";
-import cf from "../config.json"
+import cf from "../config.json";
 import { constructCurrencyString, colors, sleep } from "../utils";
 
 export class BlackjackSesssion extends Session
@@ -9,9 +10,9 @@ export class BlackjackSesssion extends Session
     bet: number;
     cards: 
     {
-        player: {value: string, suit: string}[],
-        dealer: {value: string, suit: string}[],
-        deck: {value: string, suit: string}[],
+        player: {value: string; suit: string}[];
+        dealer: {value: string; suit: string}[];
+        deck: {value: string; suit: string}[];
     } = {dealer: [] , player: [], deck: []}
 
     status = { staying: false, started: false, ended: false }
@@ -57,44 +58,44 @@ export class BlackjackSesssion extends Session
 
         .setTimestamp()
         .setThumbnail('http://159.89.133.235/DiscordBotImgs/logo.png')
-        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
     
         await this.promptStart(embed);
     }
 
-    async startGame() :Promise<boolean>
+    async startGame(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             this.setTimer(120);
             this.status.started = true;
 
             this.createDeck();
             this.shuffleDeck();
-            await this.updateLiveMessage(this.createBoardEmbed("creating deck...", colors.purple))
+            this.updateLiveMessage(this.createBoardEmbed("creating deck...", colors.purple));
             await sleep(1.5);
-            await this.updateLiveMessage(this.createBoardEmbed("shuffling deck...", colors.purple))
+            await this.updateLiveMessage(this.createBoardEmbed("shuffling deck...", colors.purple));
             await sleep(1.5);
-            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow))
+            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow));
             this.cards.player.push(this.cards.deck.shift()!);
             await sleep(1);
-            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow))
+            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow));
             this.cards.dealer.push(this.cards.deck.shift()!);
             await sleep(1);
-            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow))
+            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow));
             this.cards.player.push(this.cards.deck.shift()!);
             await sleep(1);
-            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow))
+            await this.updateLiveMessage(this.createBoardEmbed("drawing cards...", colors.yellow));
             this.cards.dealer.push(this.cards.deck.shift()!);
             await sleep(1);
-            await this.updateLiveMessage(this.createBoardEmbed("your turn.", colors.green))
+            await this.updateLiveMessage(this.createBoardEmbed("your turn.", colors.green));
             return resolve(true);
-        })
+        });
     }
 
-    async hit() :Promise<boolean>
+    async hit(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             this.cards.player.push(this.cards.deck.shift()!);
             this.setTimer(120);
@@ -103,25 +104,26 @@ export class BlackjackSesssion extends Session
             await this.updateLiveMessage(this.createBoardEmbed("your turn.", colors.green));
 
             return resolve(true);
-        })
+        });
     }
   
-    async stay() :Promise<boolean>
+    async stay(): Promise<boolean>
     {
 
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             this.setTimer(120);
             this.status.staying = true;
-            let playerCardData = this.getUserValueAndString(this.cards.player);
+            const playerCardData = this.getUserValueAndString(this.cards.player);
             let dealerCardData = this.getUserValueAndString(this.cards.dealer,true);
+            // eslint-disable-next-line no-constant-condition
             while(true)
             {
                 if (dealerCardData.value < playerCardData.value) 
                 {
                     //Draw card for dealer from deck.
-                    this.cards.dealer.push(this.cards.deck.shift()!)
-                    this.updateLiveMessage(this.createBoardEmbed("dealer drawing cards...", colors.yellow))
+                    this.cards.dealer.push(this.cards.deck.shift()!);
+                    this.updateLiveMessage(this.createBoardEmbed("dealer drawing cards...", colors.yellow));
                     await sleep(1);
                     dealerCardData = this.getUserValueAndString(this.cards.dealer,true);
                     continue;
@@ -132,56 +134,56 @@ export class BlackjackSesssion extends Session
             //check result of game.
             this.status.ended = true;
             this.setTimer(60);
-            if (playerCardData.value == dealerCardData.value) return resolve(await this.tie())
-            else if (dealerCardData.value > 21) return resolve(await this.win())
-            else if (dealerCardData.value > playerCardData.value) return resolve(await this.lose())
+            if (playerCardData.value == dealerCardData.value) return resolve(await this.tie());
+            else if (dealerCardData.value > 21) return resolve(await this.win());
+            else if (dealerCardData.value > playerCardData.value) return resolve(await this.lose());
             else if (dealerCardData.value < playerCardData.value)  return resolve(await this.win());
-            })
+            });
     }
 
-    async win() :Promise<boolean>
+    async win(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
-            let playerCardData = this.getUserValueAndString(this.cards.player);
+            const playerCardData = this.getUserValueAndString(this.cards.player);
             await this.updateLiveMessage(this.createBoardEmbed("you won.", colors.green));
 
             if (playerCardData.value == 21)
             {
                 this.user.getCurrency(1).value += this.bet*1.5;
-                await this.sessionChannel?.send(`You have won with a blackjack hand! You earned ${constructCurrencyString(1,this.bet*1.5)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}\n**Please type \`exit\` when you are finished looking at the results.**`)
-                await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session with a blackjack hand and earned ${constructCurrencyString(1,this.bet*1.5)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`)
+                await this.sessionChannel?.send(`You have won with a blackjack hand! You earned ${constructCurrencyString(1,this.bet*1.5)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}\n**Please type \`exit\` when you are finished looking at the results.**`);
+                await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session with a blackjack hand and earned ${constructCurrencyString(1,this.bet*1.5)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
                 return resolve(true);
             }
 
             this.user.getCurrency(1).value += this.bet;
-            await this.sessionChannel?.send(`You have won and earned ${constructCurrencyString(1,this.bet)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.\n**Please type \`exit\` when you are finished looking at the results.**`)
-            await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session and earned ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`)
+            await this.sessionChannel?.send(`You have won and earned ${constructCurrencyString(1,this.bet)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.\n**Please type \`exit\` when you are finished looking at the results.**`);
+            await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session and earned ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
             
             return resolve(true);
-        })
+        });
     }
-    async tie() :Promise<boolean>
+    async tie(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             await this.updateLiveMessage(this.createBoardEmbed("push.", colors.yellow));
 
-            await this.sessionChannel?.send(`The game ended in a push (tie/draw).\n**Please type \`exit\` when you are finished looking at the results.**`)
-            await this.broadcastChannel.send(`\`${this.discordUser.username}\` their blackjack session ended in a push (tie/draw).\nThey did not win/lose any coins.`)
-            return resolve(true)
-        })
+            await this.sessionChannel?.send(`The game ended in a push (tie/draw).\n**Please type \`exit\` when you are finished looking at the results.**`);
+            await this.broadcastChannel.send(`\`${this.discordUser.username}\` their blackjack session ended in a push (tie/draw).\nThey did not win/lose any coins.`);
+            return resolve(true);
+        });
     }
-    async lose() :Promise<boolean>
+    async lose(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             await this.updateLiveMessage(this.createBoardEmbed("you lost.", colors.red));
             this.user.getCurrency(1).value -= this.bet;
-            await this.sessionChannel?.send(`You have lost your game of ${constructCurrencyString(1,this.bet)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.\n**Please type \`exit\` when you are finished looking at the results.**`)
-            await this.broadcastChannel.send(`\`${this.discordUser.username}\` has lost their blackjack session of ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`)
-            return resolve(true)
-        })
+            await this.sessionChannel?.send(`You have lost your game of ${constructCurrencyString(1,this.bet)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.\n**Please type \`exit\` when you are finished looking at the results.**`);
+            await this.broadcastChannel.send(`\`${this.discordUser.username}\` has lost their blackjack session of ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
+            return resolve(true);
+        });
     }
 
     async onTimeout()
@@ -192,7 +194,7 @@ export class BlackjackSesssion extends Session
             this.user.getCurrency(1).value -= this.bet;
             this.broadcastChannel.send(`\`${this.discordUser.username}\` their Blackjack session has expired while being started.\nThey have lost: ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}`);
         }
-        await super.onTimeout()
+        await super.onTimeout();
     }
 
     async onInput(input: string)
@@ -220,34 +222,34 @@ export class BlackjackSesssion extends Session
     //utility
     createDeck()
     {
-      let suits = ["♤", "♢", "♧", "♡"];
-      let values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+      const suits = ["♤", "♢", "♧", "♡"];
+      const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
   
-        for(let suit of suits)
+        for(const suit of suits)
         {
-            for(let value of values)
+            for(const value of values)
             {
                 this.cards.deck.push({value: value, suit: suit});
             }
         }
     }
   
-    shuffleDeck()
+    shuffleDeck(): void
     {
       // for 1000 turns
       // switch the values of two random cards
-      for (var i = 0; i < 500; i++)
+      for (let i = 0; i < 500; i++)
       {
-        var location1 = Math.floor((Math.random() * this.cards.deck.length));
-        var location2 = Math.floor((Math.random() * this.cards.deck.length));
-        var tmp = this.cards.deck[location1];
+        const location1 = Math.floor((Math.random() * this.cards.deck.length));
+        const location2 = Math.floor((Math.random() * this.cards.deck.length));
+        const tmp = this.cards.deck[location1];
   
         this.cards.deck[location1] = this.cards.deck[location2];
         this.cards.deck[location2] = tmp;
       }
     }
 
-    createBoardEmbed(status:string,color: string)
+    createBoardEmbed(status: string,color: string)
     {
         const dealerCardData = this.getUserValueAndString(this.cards.dealer,true);
         const playerCardData = this.getUserValueAndString(this.cards.player,false);
@@ -263,17 +265,17 @@ export class BlackjackSesssion extends Session
         `${playerCardData.string}`)
 
         .setTimestamp()
-        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
     }
 
-    getUserValueAndString(cards: {value: string, suit: string}[], isDealer:boolean = false)
+    getUserValueAndString(cards: {value: string; suit: string}[], isDealer = false): {value: number; string: string}
     {
-      var userValues = [];
-      var userHandStrings = [];
+      const userValues = [];
+      const userHandStrings = [];
   
       if (cards.length == 0) userHandStrings.push("None");
   
-      for (var card of cards)
+      for (const card of cards)
       {
         if (card.value == "A") userValues.reduce((pv,v) => pv + v,0) + 11 > 21 ? userValues.push(1) : userValues.push(11);
         else if (card.value == "J" || card.value == "Q" || card.value == "K") userValues.push(10);

@@ -1,13 +1,13 @@
-import Discord from "discord.js"
+import Discord from "discord.js";
 import { commands} from "../main";
 import { DataManager } from "../classes/dataManager";
 import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon } from "../utils";
-import { _equipmentItem, _materialItem, _consumableItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
+import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
 import { User } from "../classes/user";
-import { _command } from "../interfaces";
-import cf from "../config.json"
+import { CommandInterface } from "../interfaces";
+import cf from "../config.json";
 
-export const cmds: _command[] = 
+export const cmds: CommandInterface[] = 
 [
     {
 		name: 'profile',
@@ -18,13 +18,13 @@ export const cmds: _command[] =
 		usage: `[prefix]profile [optional: @User]`,
 		execute(msg: Discord.Message) 
 		{	
-			var targetUser: Discord.GuildMember;
+			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
 			if (msg.mentions.members.size > 0) targetUser = msg.mentions.members.first();
 			else targetUser = msg.member;
 
-			var user = DataManager.getUser(targetUser.id);
+			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
 
 			//Create an embedd with the profile data.
@@ -38,9 +38,9 @@ export const cmds: _command[] =
 			`**Exp:** ${round(user.exp)}/${user.getRequiredExp()}\n`+
 			`**Zone:** ${user.getZone().name}\n`+
 			`**Rank:** ${user.getPatreonRank() ? user.getPatreonRank()?.name : "None"}\n`
-			,true)
+			,true);
 
-			var s = user.getStats();
+			const s = user.getStats();
 			embed.addField("Stats:",
 			`❤️ ${round(user.hp)} / ${round(s.base.hp)} \n`+
 			`🗡️ ${round(s.total.atk)} (${round(s.base.atk)} + ${round(s.gear.atk)})\n`+
@@ -49,27 +49,27 @@ export const cmds: _command[] =
 			,true);
 			embed.addBlankField(false);
 
-			var equipmentString = "";
-			for (let e of user.equipment)
+			let equipmentString = "";
+			for (const e of user.equipment)
 			{
 				if (e[1].item) 
 				{
-					let item = DataManager.getItem(e[1].item.id) as _equipmentItem;
-					equipmentString += `${item.icon} ${item.name}`
-					if (e[0]== 1 && item.two_hand) equipmentString += ` [2H]`
+					const item = DataManager.getItem(e[1].item.id) as DbEquipmentItem;
+					equipmentString += `${item.icon} ${item.name}`;
+					if (e[0]== 1 && item.twoHand) equipmentString += ` [2H]`;
 					equipmentString += `\n`;
 				}
 				///If we're wearing twohand then skip the offhand cycle
 				else if (e[0] == 2 && user.isWearingTwoHand()) continue;
-				else equipmentString += `❌\n`
+				else equipmentString += `❌\n`;
 			}
 			embed.addField("Equipment:",equipmentString,true);
 
-			var currencyString = "";
-			for (var c of user.currencies)
+			let currencyString = "";
+			for (const c of user.currencies)
 			{
-				var currencyData = DataManager.getCurrency(c[0]);
-				currencyString += `${currencyData.icon} **${currencyData.name}**: ${c[1].value}\n`
+				const currencyData = DataManager.getCurrency(c[0]);
+				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${round(c[1].value)}\n`;
 			}
 			embed.addField("Currencies:",currencyString,true)
 			.setThumbnail(targetUser.user.avatarURL)
@@ -88,33 +88,33 @@ export const cmds: _command[] =
 		usage: `[prefix]equipment [optional: @User]`,
 		execute(msg: Discord.Message) 
 		{	
-			var targetUser: Discord.GuildMember;
+			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
 			if (msg.mentions.members.size > 0) targetUser = msg.mentions.members.first();
 			else targetUser = msg.member;
 
-			var user = DataManager.getUser(targetUser.id);
+			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
 
 			//Create an embedd with the profile data.
 			const embed = new Discord.RichEmbed()
 			.setColor('#fcf403') //Yelow
-			.setTitle(`User equipment: ${user.class.icon} ${targetUser.user.username}`)
+			.setTitle(`User equipment: ${user.class.icon} ${targetUser.user.username}`);
 
-			var equipmentString = "";
-			for (let e of user.equipment)
+			let equipmentString = "";
+			for (const e of user.equipment)
 			{
 				if (e[1].item) 
 				{
-					let item = DataManager.getItem(e[1].item.id) as _equipmentItem;
+					const item = DataManager.getItem(e[1].item.id) as DbEquipmentItem;
 					equipmentString += `${item._id} - ${item.icon} __${item.name}__`;
-					if (item.two_hand) equipmentString += ` [2H]`;
+					if (item.twoHand) equipmentString += ` [2H]`;
 					equipmentString += e[1].item.getDataString();
 				}
 				//If we're wearing twohand then skip the offhand cycle
 				else if (e[0] == 2 && user.isWearingTwoHand()) continue;
-				else equipmentString += `❌\n`
+				else equipmentString += `❌\n`;
 			}
 			embed.setDescription(equipmentString)
 			.setTimestamp()
@@ -132,25 +132,25 @@ export const cmds: _command[] =
 		usage: `[prefix]profession [optional: @User]`,
 		execute(msg: Discord.Message) 
 		{	
-			var targetUser: Discord.GuildMember;
+			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
 			if (msg.mentions.members.size > 0) targetUser = msg.mentions.members.first();
 			else targetUser = msg.member;
 
-			var user = DataManager.getUser(targetUser.id);
+			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
 
 			//Create an embedd with the profile data.
 			const embed = new Discord.RichEmbed()
 			.setColor('#fcf403') //Yelow
-			.setTitle(`User Professions: ${targetUser.user.username}`)
+			.setTitle(`User Professions: ${targetUser.user.username}`);
 
-			var professionStrings = []
-			for (let p of user.professions)
+			const professionStrings = [];
+			for (const p of user.professions)
 			{
-				let pd = DataManager.getProfessionData(p[0]);
-				professionStrings.push(`${pd?.icon} **${pd?.name}** [${p[1].skill}/${pd?.max_skill}]`);
+				const pd = DataManager.getProfessionData(p[0]);
+				professionStrings.push(`${pd?.icon} **${pd?.name}** [${p[1].skill}/${pd?.maxSkill}]`);
 			}
 			embed.setDescription(professionStrings.join("\n"))
 			.setTimestamp()
@@ -174,11 +174,11 @@ export const cmds: _command[] =
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User currencies: ${msg.author.username}`);
 
-			var currencyString = "";
-			for (var c of user.currencies)
+			let currencyString = "";
+			for (const c of user.currencies)
 			{
-				var currencyData = DataManager.getCurrency(c[0]);
-				currencyString += `${currencyData.icon} **${currencyData.name}**: ${c[1].value}\n`
+				const currencyData = DataManager.getCurrency(c[0]);
+				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${round(c[1].value)}\n`;
 			}
 			embed.addField("Currencies:",currencyString);
 			msg.channel.send(embed);
@@ -199,13 +199,13 @@ export const cmds: _command[] =
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User experience: ${user.class.icon} ${msg.author.username}`);
 
-			var levelPercentage = (user.exp / user.getRequiredExp()) * 100;
-			let progressBar = "<:expBar:674948948103790610>".repeat(Math.ceil(levelPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(levelPercentage/(20/3))); 
+			const levelPercentage = (user.exp / user.getRequiredExp()) * 100;
+			const progressBar = "<:expBar:674948948103790610>".repeat(Math.ceil(levelPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(levelPercentage/(20/3))); 
 
 
 			embed.setDescription(
 				`<:level:674945451866325002> ${user.level}\n`+
-				`**exp:** ${round(user.exp)}/${user.getRequiredExp()}\n\n`+
+				`**exp:** ${round(user.exp)}/${round(user.getRequiredExp())}\n\n`+
 				`${round(levelPercentage)}%\n`+
 				`${progressBar}`
 				);
@@ -228,12 +228,12 @@ export const cmds: _command[] =
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User health: ${user.class.icon} ${msg.author.username}`);
 
-			var hpPercentage = (user.hp / user.getStats().base.hp) * 100;
-			let progressBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(hpPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(hpPercentage/(20/3))); 
+			const hpPercentage = (user.hp / user.getStats().base.hp) * 100;
+			const progressBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(hpPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(hpPercentage/(20/3))); 
 
 			embed.setDescription(
 				`<:level:674945451866325002> ${user.level}\n`+
-				`**HP:** ${round(user.hp)}/${user.getStats().base.hp}\n\n`+
+				`**HP:** ${round(user.hp)}/${round(user.getStats().base.hp)}\n\n`+
 				`${round(hpPercentage)}%\n`+
 				`❤️ ${progressBar}`
 				);
@@ -252,19 +252,19 @@ export const cmds: _command[] =
 		execute(msg, args, user: User) 
 		{	
 			const embed = new Discord.RichEmbed()
-			.setColor('#fcf403') //Yelow
+			.setColor('#fcf403'); //Yelow
 
-			let pages = []
+			const pages = [];
 			let itemString = "";
 			let maxItems = 8;
 			let itemCounter = 0;
 			let selectedPage = 1;
 
 			//check for input of page to display
-			if (!isNaN(+args[0])) {selectedPage = +args[0]; args.splice(0,1)}
+			if (!isNaN(+args[0])) {selectedPage = +args[0]; args.splice(0,1);}
 
 			//check for input of -params
-			for(let p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
+			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
 			{
 				
 				switch(p[0].toLowerCase())
@@ -278,33 +278,33 @@ export const cmds: _command[] =
 				}
 			}
 			let cinventory = user.inventory.slice(); 
-			for(let p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
+			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
 			{
 				if(p[0].toLowerCase() == "filter")
 				{
-					let filter = p[1].toLowerCase().trim().split("=");
+					const filter = p[1].toLowerCase().trim().split("=");
 					if (filter.length < 2) return;
 					cinventory = filterItemArray(filter, cinventory) as anyItem[];
 				}
 			}
 			
-			for (let i of cinventory)
+			for (const i of cinventory)
 			{
 				if (itemCounter >= maxItems) {pages.push(itemString); itemString = ""; itemCounter = 0;}
-				let itemdata = i.getData()!;
+				const itemdata = i.getData()!;
 				itemString += `${itemdata._id.toString().padEnd(3)} - ${itemdata.icon} __${itemdata.name}__`;
 				if (i instanceof ConsumableItem || i instanceof MaterialItem) itemString += ` x${i.amount}`;
 				itemString += `\n[${itemdata.getQuality().icon}`;
-				if (i instanceof EquipmentItem) {let totalStats = i.getTotalStats(); itemString += `| 🗡️ ${round(totalStats.atk)} | 🛡️ ${round(totalStats.def)} | ⚡ ${round(totalStats.acc)}`}
-				else if (i instanceof ConsumableItem) itemString += `` 
-				else if (i instanceof MaterialItem) itemString += ``				
+				if (i instanceof EquipmentItem) {const totalStats = i.getTotalStats(); itemString += `| 🗡️ ${round(totalStats.atk)} | 🛡️ ${round(totalStats.def)} | ⚡ ${round(totalStats.acc)}`;}
+				else if (i instanceof ConsumableItem) itemString += ``; 
+				else if (i instanceof MaterialItem) itemString += ``;				
 				itemString+= `]\n\n`;
 
-				itemCounter++
+				itemCounter++;
 			}
 			if (itemString.length > 0) pages.push(itemString);
 
-			if (pages.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you have no items that fit your query.`)
+			if (pages.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you have no items that fit your query.`);
 			//clamp the selectedpage to the min and max values
 			selectedPage = clamp(selectedPage, 1, pages.length);
 
@@ -324,20 +324,20 @@ export const cmds: _command[] =
 		execute(msg, args, user: User) 
 		{	
 			const embed = new Discord.RichEmbed()
-			.setColor('#fcf403') //Yelow
+			.setColor('#fcf403'); //Yelow
 
 			let showAll = false;
-			let pages = []
+			const pages = [];
 			let abilityString = "";
 			let maxAbilities = 8;
 			let abilityCounter = 0;
 			let selectedPage = 1;
 
 			//check for input of page to display
-			if (!isNaN(+args[0])) {selectedPage = +args[0]; args.splice(0,1)}
+			if (!isNaN(+args[0])) {selectedPage = +args[0]; args.splice(0,1);}
 
 			//check for input of -params
-			for(let p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
+			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
 			{
 				
 				switch(p[0].toLowerCase())
@@ -350,12 +350,12 @@ export const cmds: _command[] =
 					break;
 				}
 			}
-			let spellbook = showAll ? user.class.spellbook.slice() : user.class.spellbook.filter(x => x.level <= user.level).slice();
+			const spellbook = showAll ? user.class.spellbook.slice() : user.class.spellbook.filter(x => x.level <= user.level).slice();
 
-			for (let a of spellbook)
+			for (const a of spellbook)
 			{
 				if (abilityCounter >= maxAbilities) {pages.push(abilityString); abilityString = ""; abilityCounter = 0;}
-				let ad = DataManager.getAbility(a.ability);
+				const ad = DataManager.getAbility(a.ability);
 
 				abilityString += `${ad.id} - ${ad.icon} __${ad.name}__\n`;
 				abilityString += `${constructAbilityDataString(ad,a.level)}\n\n`;
@@ -363,7 +363,7 @@ export const cmds: _command[] =
 			}
 			if (abilityString.length > 0) pages.push(abilityString);
 
-			if (pages.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you have no abilities that fit your query.`)
+			if (pages.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you have no abilities that fit your query.`);
 
 			//clamp the selectedpage to the min and max values
 			selectedPage = clamp(selectedPage, 1, pages.length);
@@ -385,13 +385,13 @@ export const cmds: _command[] =
 		{	
 			const embed = new Discord.RichEmbed()
 			.setTitle(`Equipped Spells ${msg.author.username}`)
-			.setColor(colors.yellow) //Yelow
+			.setColor(colors.yellow); //Yelow
 			
-			let abStrings :string[] = []
-			for (let ab of user.abilities)
+			const abStrings: string[] = [];
+			for (const ab of user.abilities)
 			{
 				if (!ab[1].ability) abStrings.push(`${numberToIcon(ab[0])} - ❌ __None__ ❌`);
-				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`)
+				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`);
 			}
 			embed.setDescription(abStrings.join("\n"));
 			msg.channel.send(embed);
@@ -407,28 +407,28 @@ export const cmds: _command[] =
         mustBeRegistered: true,
 		async execute(msg: Discord.Message, args, user: User) 
 		{
-			let cd_cmds = commands.filter(x => x.cooldown != undefined);
+			const cdCmds = commands.filter(x => x.cooldown != undefined);
 			
-			var embed = new Discord.RichEmbed()
+			const embed = new Discord.RichEmbed()
             .setTitle(`User cooldowns -- ${msg.author.username}`)
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
-            .setColor('#fcf403')
+            .setColor('#fcf403');
 			let cdString = "";
-			let alreadyDone :string[] = [];
-			for (let cmd of cd_cmds)
+			const alreadyDone: string[] = [];
+			for (const cmd of cdCmds)
 			{
 				if (alreadyDone.includes(cmd[1].cooldown!.name)) continue;
-				let remainingcd = user.getCooldown(cmd[1].cooldown!.name);
-				if (remainingcd) cdString += `❌ - ${cmd[1].cooldown!.name} 🕙${remainingcd}\n`
+				const remainingcd = user.getCooldown(cmd[1].cooldown!.name);
+				if (remainingcd) cdString += `❌ - ${cmd[1].cooldown!.name} 🕙${remainingcd}\n`;
 				else cdString += `✅ - ${cmd[1].cooldown!.name}\n`;
 				alreadyDone.push(cmd[1].cooldown!.name);
 			}
-			let bosscd = user.getCooldown('boss');
-			if (bosscd) cdString += `❌ - boss 🕙${bosscd}\n`
+			const bosscd = user.getCooldown('boss');
+			if (bosscd) cdString += `❌ - boss 🕙${bosscd}\n`;
 			else cdString += `✅ - boss\n`;
 			
-			let votecd = user.getCooldown('vote');
-			if (votecd) cdString += `❌ - vote 🕙${votecd}\n`
+			const votecd = user.getCooldown('vote');
+			if (votecd) cdString += `❌ - vote 🕙${votecd}\n`;
 			else cdString += `✅ - vote\n`;
 
 			embed.setDescription(cdString);
@@ -445,27 +445,27 @@ export const cmds: _command[] =
         mustBeRegistered: true,
 		async execute(msg: Discord.Message, args, user: User) 
 		{
-			let cd_cmds = commands.filter(x => x.cooldown != undefined);
+			const cdCmds = commands.filter(x => x.cooldown != undefined);
 			
-			var embed = new Discord.RichEmbed()
+			const embed = new Discord.RichEmbed()
             .setTitle(`Ready commands -- ${msg.author.username}`)
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
-            .setColor('#fcf403')
+            .setColor('#fcf403');
 			let rdString = "";
-			let alreadyDone :string[] = [];
-			for (let cmd of cd_cmds)
+			const alreadyDone: string[] = [];
+			for (const cmd of cdCmds)
 			{
 				if (alreadyDone.includes(cmd[1].cooldown!.name)) continue;
 				if (user.getCooldown(cmd[1].cooldown!.name) == undefined) rdString += `✅ - ${cmd[1].cooldown!.name}\n`;
 				alreadyDone.push(cmd[1].cooldown!.name);
 			} 
-			if (user.getCooldown('boss') == undefined) rdString += `✅ - boss\n`
-			if (user.getCooldown('vote') == undefined) rdString += `✅ - vote\n`
+			if (user.getCooldown('boss') == undefined) rdString += `✅ - boss\n`;
+			if (user.getCooldown('vote') == undefined) rdString += `✅ - vote\n`;
 			
 			embed.setDescription(rdString);
 			msg.channel.send(embed);
         }
     },
-]
+];
 
-export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}
+export function SetupCommands() {for (const cmd of cmds) commands.set(cmd.name, cmd);}

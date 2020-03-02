@@ -1,6 +1,6 @@
-import { BaseEffect, BaseBuffEffect, InstantDamageEffect, InstantHealingEffect, AbsorbBuffEffect, DamageOverTimeDebuffEffect, DamageReductionBuffEffect, HealingOverTimeBuffEffect } from "./tb_effects";
+import { InstantDamageEffect, InstantHealingEffect, AbsorbBuffEffect, DamageOverTimeDebuffEffect, DamageReductionBuffEffect, HealingOverTimeBuffEffect } from "./tb_effects";
 
-type AnyEffect = BaseEffect | BaseBuffEffect | InstantDamageEffect | InstantHealingEffect | AbsorbBuffEffect | DamageOverTimeDebuffEffect | DamageReductionBuffEffect;
+type AnyEffect = InstantDamageEffect | InstantHealingEffect | AbsorbBuffEffect | DamageOverTimeDebuffEffect | DamageReductionBuffEffect;
 
 
 export class Ability
@@ -8,7 +8,7 @@ export class Ability
   id: number;
   name: string;
   icon: string;
-  description: string = "";
+  description: "";
   cooldown: number;
   effects: AnyEffect[] = [];
 
@@ -22,7 +22,7 @@ export class Ability
 
 
     //parse the effects.
-    for (let ed of dbObject.effects)
+    for (const ed of dbObject.effects)
     {
       if (ed.type == "INSTANT")
       {
@@ -62,6 +62,6 @@ export class BossAbility
   constructor(ability: Ability, chance: number)
   {
     this.data = ability;
-    this.chance = chance
+    this.chance = chance;
   }
 }

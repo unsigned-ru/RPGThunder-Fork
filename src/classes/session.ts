@@ -1,6 +1,6 @@
 import Discord, { Message } from "discord.js";
 import { User } from "./user";
-import cf from "../config.json"
+import cf from "../config.json";
 import { client } from "../main";
 import { CronJob, CronTime } from "cron";
 import { DataManager } from "./dataManager";
@@ -16,7 +16,7 @@ export class Session
     invite: Discord.Invite | undefined;
     liveMsg: Discord.Message | undefined;
     lastUpdateMsg: Discord.RichEmbed | undefined; 
-    awaitingInput: boolean = true;
+    awaitingInput = true;
 
     constructor(discordUser: Discord.User, user: User, broadcastChannel: Discord.TextChannel)
     {
@@ -26,16 +26,16 @@ export class Session
         this.timer = new CronJob(new Date(), this.onTimeout, undefined, false, undefined, this, false);
     }
 
-    async createChannel(channelTitle:string)
+    async createChannel(channelTitle: string)
     {
         //Get the official server
-        let officialGuild = client.guilds.get(cf.official_server)!;
+        const officialGuild = client.guilds.get(cf.official_server)!;
 
         //create session channel with category as parent.
-        let parentCategory = officialGuild.channels.get(cf.session_category)!;
+        const parentCategory = officialGuild.channels.get(cf.session_category)!;
         
         //if the channel exists delete it first.
-        let ctd = await officialGuild.channels.find(x => x.name.includes(this.discordUser.id.slice(0,4)));
+        const ctd = await officialGuild.channels.find(x => x.name.includes(this.discordUser.id.slice(0,4)));
         if (ctd && ctd.deletable) await ctd.delete();
 
         //Create a channel for play and add permissions for user.
@@ -55,15 +55,15 @@ export class Session
         this.invite = await this.sessionChannel.createInvite({unique: true, maxAge: 0});
     }
 
-    async promptStart(embed :Discord.RichEmbed)
+    async promptStart(embed: Discord.RichEmbed)
     {
         if (!this.sessionChannel) return;
         await this.sessionChannel.send(embed);
     }
 
-    async updateLiveMessage(embed :Discord.RichEmbed) :Promise<boolean>
+    async updateLiveMessage(embed: Discord.RichEmbed): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve) => {
             if (!this.liveMsg) this.liveMsg = await this.sessionChannel?.send(embed) as Discord.Message;
             else await this.liveMsg.edit(embed);
             return resolve(true);
@@ -74,7 +74,7 @@ export class Session
     {
         //stop old timer
         this.timer.stop();
-        let d = new Date();
+        const d = new Date();
         d.setSeconds(d.getSeconds() + seconds);
         this.timer.setTime(new CronTime(d));
         //start it again

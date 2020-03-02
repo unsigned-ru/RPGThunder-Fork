@@ -5,11 +5,11 @@ export class Class {
     name: string;
     icon: string;
     description: string;
-    items: {slot: number, item: number}[];
+    items: {slot: number; item: number}[];
     types: number[];
-    spellbook: {ability: number, level: number}[]
+    spellbook: {ability: number; level: number}[]
   
-    constructor(databaseObj:any)
+    constructor(databaseObj: any)
     {
       this._id = databaseObj._id;
       this.name = databaseObj.name;
@@ -22,6 +22,6 @@ export class Class {
   
     public getTypes() {return DataManager.getItemTypes(this.types);}
 
-    public getSpellbook() {return this.spellbook.map(x => { return { ability: DataManager.getAbility(x.ability), level: x.level } });}
+    public getSpellbook() {return this.spellbook.map(x => { return { ability: DataManager.getAbility(x.ability), level: x.level }; });}
   }
   

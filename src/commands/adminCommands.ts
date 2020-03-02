@@ -1,11 +1,10 @@
-import Discord from "discord.js"
+import Discord from "discord.js";
 import { commands } from "../main";
 import { CC, getServerPrefix, getItemAndAmountFromArgs } from "../utils";
-import { _equipmentItem, _materialItem, _consumableItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";
-import {_command } from "../interfaces";
+import {CommandInterface } from "../interfaces";
 
-export const cmds: _command[] = 
+export const cmds: CommandInterface[] = 
 [
 	{
 		name: "op_syncranks",
@@ -15,7 +14,7 @@ export const cmds: _command[] =
 		executeWhileTravelling: true,
 		needOperator: true,
 		usage: "[prefix]op_syncranks",
-		execute(msg, args)
+		execute()
 		{
 			DataManager.syncroniseRanks();
 		}
@@ -33,7 +32,7 @@ export const cmds: _command[] =
 			let targetUser = msg.mentions.users.first();
 			if (!targetUser) targetUser = msg.author;
 
-			let {item,amount,errormsg} = getItemAndAmountFromArgs(args);
+			const {item,amount,errormsg} = getItemAndAmountFromArgs(args);
 			if (errormsg) msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
 
 			DataManager.getUser(targetUser.id)?.addItemToInventoryFromId(item!._id, amount);
@@ -65,15 +64,15 @@ export const cmds: _command[] =
 		description: "Operator command, give item.",
 		executeWhileTravelling: true,
 		usage: "[prefix]op_deleteaccount [@User]",
-		execute(msg, args)
+		execute(msg)
 		{
-			let targetUser = msg.mentions.users.first();
-			if (!targetUser) return msg.channel.send(`\`${msg.author.username}\`, please @ a user to delete the account from.`)
+			const targetUser = msg.mentions.users.first();
+			if (!targetUser) return msg.channel.send(`\`${msg.author.username}\`, please @ a user to delete the account from.`);
 
-			let user = DataManager.getUser(targetUser.id);
+			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${msg.author.username}\`, that user has no account.`);
 
-			DataManager.users.delete(user.user_id);
+			DataManager.users.delete(user.userID);
 		}
 	},
 
@@ -85,7 +84,7 @@ export const cmds: _command[] =
 		executeWhileTravelling: true,
 		needOperator: true,
 		usage: "[prefix]op_save",
-		execute(msg, args)
+		execute()
 		{
 			DataManager.pushDatabaseUpdate();
 		}
@@ -102,7 +101,7 @@ export const cmds: _command[] =
 		execute(msg, args)
 		{
 			msg.delete();
-			let textmsg = args.join(" ");
+			const textmsg = args.join(" ");
 			if (textmsg.length > 0) msg.channel.send(textmsg);
 		}
 	},
@@ -113,38 +112,38 @@ export const cmds: _command[] =
 		description: "blacklist",
 		executeWhileTravelling: true,
 		usage: "[prefix]blacklist [#Channel]",
-		execute(msg, args)
+		execute(msg)
 		{
 			if (!msg.member.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
 			if (msg.mentions.channels.size == 0) return msg.channel.send(`\`${msg.author.username}\`, please mention the text channels you wish to blacklist.`);
 			let successMessage = `\`${msg.author.username}\`,\n`;
-			for (let c of msg.mentions.channels.values())
+			for (const c of msg.mentions.channels.values())
 			{
 				if (!DataManager.blacklistedChannels.includes(c.id)) 
 				{
-					DataManager.blacklistedChannels.push(c.id)
-					successMessage += `blacklisted channel: ${c.toString()}\n`
+					DataManager.blacklistedChannels.push(c.id);
+					successMessage += `blacklisted channel: ${c.toString()}\n`;
 				}
 				else
 				{
 					DataManager.blacklistedChannels.splice(DataManager.blacklistedChannels.indexOf(c.id),1);
-					successMessage += `de-blacklisted channel: ${c.toString()}\n`
+					successMessage += `de-blacklisted channel: ${c.toString()}\n`;
 				}
 			}
 			if (successMessage.length > 0) msg.channel.send(successMessage);
 		}
 	}
-]
+];
 
-export function SetupCommands() {for (let cmd of cmds) commands.set(cmd.name, cmd);}
+export function SetupCommands() {for (const cmd of cmds) commands.set(cmd.name, cmd);}
 
-export function executeGlobalCommand(msg: Discord.Message, cmd:string, args: string[])
+export function executeGlobalCommand(msg: Discord.Message, cmd: string, args: string[])
 {
-	if (!cmd) return msg.channel.send(`\`${msg.author.username}\`, please enter what command you want to run.\n\`rpgthunder [prefix/setprefix/resetprefix]\``)
+	if (!cmd) return msg.channel.send(`\`${msg.author.username}\`, please enter what command you want to run.\n\`rpgthunder [prefix/setprefix/resetprefix]\``);
     switch(cmd.toLowerCase())
     {
         case "prefix":
-            msg.channel.send(`\`${msg.author.username}\`, this server's prefix is \`${getServerPrefix(msg)}\`.`)
+            msg.channel.send(`\`${msg.author.username}\`, this server's prefix is \`${getServerPrefix(msg)}\`.`);
             break;
         case "setprefix":
             if (!msg.member.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);

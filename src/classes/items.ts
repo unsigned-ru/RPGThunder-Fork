@@ -1,10 +1,10 @@
 import { getTotalWeightForLevel, getAccFromLevelWeight, round } from "../utils";
 import { DataManager } from "./dataManager";
 
-export type _anyItem = _item | _consumableItem | _equipmentItem | _materialItem;
+export type _anyItem = DbItem | DbConsumableItem | DbEquipmentItem | DbMaterialItem;
 export type anyItem = ConsumableItem | EquipmentItem | MaterialItem; 
 
-export class _item
+export class DbItem
 {
   _id: number;
   name: string;
@@ -12,9 +12,9 @@ export class _item
   icon: string;
   quality: number;
   soulbound?: boolean;
-  sell_price: number;
+  sellPrice: number;
 
-  constructor(dbObject :any)
+  constructor(dbObject: any)
   {
     this._id = dbObject._id;
     this.name = dbObject.name;
@@ -22,7 +22,7 @@ export class _item
     this.icon = dbObject.icon;
     this.quality = dbObject.quality;
     this.soulbound = dbObject.soulbound;
-    this.sell_price = dbObject.sell_price;
+    this.sellPrice = dbObject.sell_price;
   }
 
   public getDisplayString(){return `${this._id} - ${this.icon} __${this.name}__`;}
@@ -30,24 +30,24 @@ export class _item
   {
     let returnVal = "";
     returnVal += `\n[${this.getQuality().icon}`;
-    if (this instanceof _equipmentItem) 
+    if (this instanceof DbEquipmentItem) 
     {
-       returnVal += ` | 🗡️ ${round(this.stats.base.atk)} | 🛡️ ${round(this.stats.base.def)} | ⚡ ${round(this.stats.base.acc)}`
+       returnVal += ` | 🗡️ ${round(this.stats.base.atk)} | 🛡️ ${round(this.stats.base.def)} | ⚡ ${round(this.stats.base.acc)}`;
     }
-    else if (this instanceof _consumableItem) returnVal += `` 
-    else if (this instanceof _materialItem) returnVal += ``				
+    else if (this instanceof DbConsumableItem) returnVal += ``; 
+    else if (this instanceof DbMaterialItem) returnVal += ``;				
     returnVal+= `]`;
     return returnVal;
   }
   public getQuality() {  return DataManager.getItemQuality(this.quality); }
 }
 
-export class _equipmentItem extends _item
+export class DbEquipmentItem extends DbItem
 {
   slots: number[];
-  two_hand?: boolean;
+  twoHand?: boolean;
   type: number;
-  level_requirement: number;
+  levelRequirement: number;
 
   stats = 
   {
@@ -55,14 +55,14 @@ export class _equipmentItem extends _item
     crafting: { atk: 0, def: 0, acc: 0 }
   };
 
-  constructor(dbObject:any)
+  constructor(dbObject: any)
   {
     super(dbObject);
 
     this.slots = dbObject.slots;
-    this.two_hand = dbObject.two_hand;
+    this.twoHand = dbObject.two_hand;
     this.type = dbObject.type;
-    this.level_requirement = dbObject.level_requirement;
+    this.levelRequirement = dbObject.level_requirement;
     
     this.calculateStats();
   }
@@ -71,34 +71,34 @@ export class _equipmentItem extends _item
   {
     //total user stat weight for itemreq level * the quality multiplier to get the amount of weight to distribute.
     //Also multiplied by the slot weight.
-    var weight = (getTotalWeightForLevel(this.level_requirement) * this.getQuality().weight) * this.getSlots()[0].weight;
-    if (this.two_hand) weight *= 2;
+    let weight = (getTotalWeightForLevel(this.levelRequirement) * this.getQuality().weight) * this.getSlots()[0].weight;
+    if (this.twoHand) weight *= 2;
     //get the item type.
-    var type = this.getType()
+    const type = this.getType();
 
     this.stats.base.atk = weight * type.atk;
     this.stats.base.def = (weight * type.def) * 2;
-    this.stats.base.acc = getAccFromLevelWeight(this.level_requirement, (weight * type.acc));
+    this.stats.base.acc = getAccFromLevelWeight(this.levelRequirement, (weight * type.acc));
 
     this.stats.crafting.atk = weight * 0.1 * type.atk;
     this.stats.crafting.def = weight * 0.1 * type.def * 2;
-    this.stats.crafting.acc = getAccFromLevelWeight(this.level_requirement, (weight * 0.1 * type.acc));
+    this.stats.crafting.acc = getAccFromLevelWeight(this.levelRequirement, (weight * 0.1 * type.acc));
   }
   public getType() { return DataManager.getItemType(this.type); }
   public getSlots() { return DataManager.getItemSlots(this.slots); }
 } 
 
-export class _materialItem extends _item
+export class DbMaterialItem extends DbItem
 {
-  constructor(dbObject:any)
+  constructor(dbObject: any)
   {
     super(dbObject);
   }
 } 
-export class _consumableItem extends _item
+export class DbConsumableItem extends DbItem
 {
-  effects: {effect: string, [key:string]:any}[]
-  constructor(dbObject:any)
+  effects: {effect: string; [key: string]: any}[]
+  constructor(dbObject: any)
   {
     super(dbObject);
     this.effects = dbObject.effects;
@@ -106,10 +106,10 @@ export class _consumableItem extends _item
 
   getEffectsString()
   {
-    let rv = ""
-    for (let e of this.effects)
+    let rv = "";
+    for (const e of this.effects)
     {
-      let pvstring = Object.keys(e).filter(x => x != "effect").map(x => `\`${x}:${e[x]}\``).join(" ,");
+      const pvstring = Object.keys(e).filter(x => x != "effect").map(x => `\`${x}:${e[x]}\``).join(" ,");
       rv += `\`${e.effect}\`: {${pvstring}}\n`;
     }
     return rv;
@@ -119,7 +119,7 @@ export class _consumableItem extends _item
 export class Item
 {
   id: number;
-  constructor(id: number) {this.id = id}
+  constructor(id: number) {this.id = id;}
 
   public getData() {return DataManager.getItem(this.id);}
   public getDataString()
@@ -127,9 +127,9 @@ export class Item
     let returnVal = "";
     if (this instanceof ConsumableItem || this instanceof MaterialItem) returnVal += ` x${this.amount}`;
     returnVal += `\n[${this.getData()!.getQuality().icon}`;
-    if (this instanceof EquipmentItem) {let totalStats = this.getTotalStats(); returnVal += `| 🗡️ ${round(totalStats.atk)} | 🛡️ ${round(totalStats.def)} | ⚡ ${round(totalStats.acc)}`}
-    else if (this instanceof ConsumableItem) returnVal += `` 
-    else if (this instanceof MaterialItem) returnVal += ``				
+    if (this instanceof EquipmentItem) {const totalStats = this.getTotalStats(); returnVal += `| 🗡️ ${round(totalStats.atk)} | 🛡️ ${round(totalStats.def)} | ⚡ ${round(totalStats.acc)}`;}
+    else if (this instanceof ConsumableItem) returnVal += ``; 
+    else if (this instanceof MaterialItem) returnVal += ``;				
     returnVal+= `]\n\n`;
     return returnVal;
   }
@@ -137,7 +137,7 @@ export class Item
 export class EquipmentItem extends Item
 {
   craftingBonus = {atk: 0, def: 0, acc: 0};
-  constructor(id: number, craftingBonus?:{atk: number, def:number, acc:number})
+  constructor(id: number, craftingBonus?: {atk: number; def: number; acc: number})
   {
     super(id);
     if (craftingBonus) this.craftingBonus = craftingBonus;
@@ -145,16 +145,16 @@ export class EquipmentItem extends Item
 
   getTotalStats()
   {
-    let id = DataManager.getItem(this.id) as _equipmentItem;
+    const id = DataManager.getItem(this.id) as DbEquipmentItem;
     
-    let totalStats =
+    const totalStats =
     {
       atk: this.craftingBonus.atk + id.stats.base.atk,
       def: this.craftingBonus.def + id.stats.base.def,
       acc: this.craftingBonus.acc + id.stats.base.acc
-    }
+    };
     
-    return totalStats
+    return totalStats;
   }
 }
 
@@ -162,7 +162,7 @@ export class MaterialItem extends Item
 {
   amount: number;
 
-  constructor(id:number, amount: number)
+  constructor(id: number, amount: number)
   {
     super(id);
     this.amount = amount;
@@ -172,8 +172,8 @@ export class MaterialItem extends Item
 export class ConsumableItem extends Item
 {
   amount: number;
-  effects: {effect: string, [key:string]:any}[]
-  constructor(id:number, amount: number, effects: {effect: string, [key:string]:any}[])
+  effects: {effect: string; [key: string]: any}[]
+  constructor(id: number, amount: number, effects: {effect: string; [key: string]: any}[])
   {
     super(id);
     this.amount = amount;
@@ -182,67 +182,67 @@ export class ConsumableItem extends Item
 } 
 
 
-export class _serializedItem
+export class SerializedItem
 {
   id: number;
-  constructor(id:number)
+  constructor(id: number)
   {
     this.id = id;
   }
 }
-export class _serializedEquipmentItem extends _serializedItem
+export class SerializedEquipmentItem extends SerializedItem
 {
-  bonus_stats?:
+  bonusStats?:
   {
-    atk: number,
-    def: number,
-    acc: number,
+    atk: number;
+    def: number;
+    acc: number;
   }
 
-  constructor(id:number, bonus_stats?:{ atk: number, def: number, acc: number,})
+  constructor(id: number, bonusStats?: { atk: number; def: number; acc: number})
   {
     super(id);
-    this.bonus_stats = bonus_stats;
+    this.bonusStats = bonusStats;
   }
 
 }
-export class _serializedMaterialItem extends _serializedItem
+export class SerializedMaterialItem extends SerializedItem
 {
   amount = 0;
-  constructor(id:number, amount?: number)
+  constructor(id: number, amount?: number)
   {
     super(id);
     if (amount) this.amount = amount;
   }
 }
-export class _serializedConsumableItem extends _serializedItem
+export class SerializedConsumableItem extends SerializedItem
 {
   amount = 0;
-  constructor(id:number, amount?: number)
+  constructor(id: number, amount?: number)
   {
     super(id);
     if (amount) this.amount = amount;
   }
 }
 
-export interface _itemQuality
+export interface ItemQualityInterface
 {
-  _id: number,
-  name: string,
-  weight: number,
-  icon: string,
+  _id: number;
+  name: string;
+  weight: number;
+  icon: string;
 }
-export interface _itemType
+export interface ItemTypeInterface
 {
-  _id: number,
-  name: string,
-  atk: number,
-  def: number,
-  acc: number,
+  _id: number;
+  name: string;
+  atk: number;
+  def: number;
+  acc: number;
 }
-export interface _itemSlot
+export interface ItemSlotInterface
 {
-  _id: number,
-  name: string,
-  weight: number,
+  _id: number;
+  name: string;
+  weight: number;
 }

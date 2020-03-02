@@ -1,162 +1,166 @@
 import { DataManager } from "./dataManager";
-import {_currency} from "../interfaces";
-import Discord from 'discord.js'
-import { _materialItem, _equipmentItem, EquipmentItem, _serializedEquipmentItem, _serializedConsumableItem, _serializedMaterialItem, _consumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
-import cf from "../config.json"
-import { formatTime, clamp, randomIntFromInterval, get } from "../utils";
+import Discord from 'discord.js';
+import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem, SerializedConsumableItem, SerializedMaterialItem, DbConsumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
+import cf from "../config.json";
+import { formatTime, clamp, randomIntFromInterval } from "../utils";
 import { CronJob } from "cron";
 import { client } from "../main";
 import { Class } from "./class";
 import { Actor } from "./actor";
 import { UserAbility } from "./ability";
 
-
-
-export interface userConstructorParams
+export interface UserConstructorParams
 {
-    user_id: string,
-    zone?: number,
-    patreon_rank?: string,
-    patreon_member_id?: string,
-    level?: number,
-    exp?: number,
-    selectedClass: Class,
-    joined?: Date,
-    hp?: number,
-    foundBosses?: number[],
-    unlocked_zones?: number[],
-    currencies?: {currency_id: number, amount: number}[],
-    inventory?: (_serializedEquipmentItem | _serializedConsumableItem | _serializedMaterialItem)[],
-    equipment?: {slot: number, item: _serializedEquipmentItem}[],
-    professions?: {id: number, skill: number}[]
-    cooldowns?: {name: "", date: Date}[]
-    abilities?: {slot: number, ability: number | undefined}[];
+    userID: string;
+    zone?: number;
+    patreonRank?: string;
+    patreon_member_id?: string;
+    level?: number;
+    exp?: number;
+    selectedClass: Class;
+    joined?: Date;
+    hp?: number;
+    foundBosses?: number[];
+    unlockedZones?: number[];
+    currencies?: {currency_id: number; amount: number}[];
+    inventory?: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem)[];
+    equipment?: {slot: number; item: SerializedEquipmentItem}[];
+    professions?: {id: number; skill: number}[];
+    cooldowns?: {name: ""; date: Date}[];
+    abilities?: {slot: number; ability: number | undefined}[];
 
 }
 
 export class User extends Actor
 {
-    user_id :string;
-    zone :number = 1;
-    exp :number = 0;
+    userID: string;
+    exp = 0;
     class: Class;
-    patreon_rank: string|undefined = undefined;
-    patreon_member_id?: string|undefined = undefined;
+    zone = 1;
     joined: Date = new Date();
-    found_bosses: number[] = [];
-    unlocked_zones: number[] = [1];
-    command_cooldowns: Discord.Collection<string, CronJob> = new Discord.Collection();
+    patreonRank: string|undefined = undefined;
+    patreonMemberID?: string|undefined = undefined;
+    foundBosses: number[] = [];
+    unlockedZones: number[] = [1];
+
     currencies: Discord.Collection<number, {value:  number}> = new Discord.Collection();
     inventory: (ConsumableItem | EquipmentItem | MaterialItem)[] = [];
     equipment: Discord.Collection<number, {item: EquipmentItem | undefined}> = new Discord.Collection();
-    reaction = { isPending: false, timer_id: 0 }
+    command_cooldowns: Discord.Collection<string, CronJob> = new Discord.Collection();
     professions: Discord.Collection<number, {skill: number}> = new Discord.Collection();
     abilities: Discord.Collection<number, {ability: UserAbility | undefined}> = new Discord.Collection();
 
-    constructor(params: userConstructorParams)
+    reaction = { isPending: false, timerID: 0 }
+
+    constructor(params: UserConstructorParams)
     {
-        super(params.hp, params.level)
+        super(params.hp, params.level);
         //initialize required parameters
-        this.user_id = params.user_id;
+        this.userID = params.userID;
         this.class = params.selectedClass;
 
         //initialize optional parameters.
-        if(params.patreon_rank) this.patreon_rank = params.patreon_rank;
-        if(params.patreon_member_id) this.patreon_member_id = params.patreon_member_id;
+        if(params.patreonRank) this.patreonRank = params.patreonRank;
+        if(params.patreon_member_id) this.patreonMemberID = params.patreon_member_id;
         if(params.zone) this.zone = params.zone;
         if(params.exp) this.exp = params.exp;
         if(params.joined) this.joined = params.joined;
-        if(params.foundBosses) this.found_bosses = params.foundBosses;
-        if(params.unlocked_zones) this.unlocked_zones = params.unlocked_zones;
+        if(params.foundBosses) this.foundBosses = params.foundBosses;
+        if(params.unlockedZones) this.unlockedZones = params.unlockedZones;
         
         //populate cooldowns if param was provided.
         if(params.cooldowns)
         {
-            for (let cd of params.cooldowns)
+            for (const cd of params.cooldowns)
             {
                 if (cd.date < new Date()) continue;
                 this.command_cooldowns.set(cd.name, new CronJob(cd.date, 
-                function(this: {command_cooldowns: Discord.Collection<String,CronJob>, name: string}) 
+                function(this: {command_cooldowns: Discord.Collection<string,CronJob>; name: string}) 
                 {
                     this.command_cooldowns.delete(this.name);
-                }, undefined, true, undefined, {command_cooldowns: this.command_cooldowns, name: cd.name}));
+                }, undefined, true, undefined, {commandCooldowns: this.command_cooldowns, name: cd.name}));
             }
-            
         }
         
         //initialize all currencies to a value of 0
-        for (let currency of DataManager.currencies) this.currencies.set(currency[1]._id,{value: 0});
+        for (const currency of DataManager.currencies) this.currencies.set(currency[1]._id,{value: 0});
         //populate currencies if param was provided.
-        if (params.currencies) for (let currency of params.currencies) this.currencies.set(currency.currency_id,{value: currency.amount});
+        if (params.currencies) for (const currency of params.currencies) this.currencies.set(currency.currency_id,{value: currency.amount});
+
+        //initialize all professions with skill 0
+        for (const p of DataManager.professions) this.professions.set(p[1]._id , {skill: 0});
+    
+        //populate professions if param was provided
+        if (params.professions) for (const p of params.professions) this.professions.set(p.id, {skill: p.skill});
 
         //initialize slots
-        for (let slot of DataManager.itemSlots) this.equipment.set(slot[0], {item: undefined});
+        for (const slot of DataManager.itemSlots) this.equipment.set(slot[0], {item: undefined});
         //populate slots if param was provided
-        if (params.equipment) for (let e of params.equipment) if (e.item) this.equipment.get(e.slot)!.item = new EquipmentItem(e.item.id); else this.equipment.get(e.slot)!.item = undefined;
-        else for (let e of this.class.items) this.equipment.get(e.slot)!.item = new EquipmentItem(e.item);
-        
-        //initialize all professions with skill 0
-        for (let p of DataManager.professions) this.professions.set(p[1]._id , {skill: 0});
-        //populate professions if param was provided
-        if (params.professions) for (let p of params.professions) this.professions.set(p.id, {skill: p.skill});
+        if (params.equipment) 
+            for (const e of params.equipment) 
+                if (e.item) 
+                    this.equipment.get(e.slot)!.item = new EquipmentItem(e.item.id, e.item.bonusStats); 
+                else this.equipment.get(e.slot)!.item = undefined;
 
+        else for (const e of this.class.items) this.equipment.get(e.slot)!.item = new EquipmentItem(e.item);
+        
         //populate inventory if param was provided.
         if (params.inventory) 
         {
-            for (let i of params.inventory)
+            for (const i of params.inventory)
             {
-                let id = DataManager.getItem(i.id);
-                if (id instanceof _equipmentItem) this.inventory.push(new EquipmentItem(i.id,(i as _serializedEquipmentItem).bonus_stats));
-                if (id instanceof _consumableItem) this.inventory.push(new ConsumableItem(i.id,(i as _serializedConsumableItem).amount, id.effects));
-                if (id instanceof _materialItem) this.inventory.push(new MaterialItem(i.id,(i as _serializedMaterialItem).amount));
+                const id = DataManager.getItem(i.id);
+                if (id instanceof DbEquipmentItem) this.inventory.push(new EquipmentItem(i.id,(i as SerializedEquipmentItem).bonusStats));
+                if (id instanceof DbConsumableItem) this.inventory.push(new ConsumableItem(i.id,(i as SerializedConsumableItem).amount, id.effects));
+                if (id instanceof DbMaterialItem) this.inventory.push(new MaterialItem(i.id,(i as SerializedMaterialItem).amount));
             }
         }
         //intialize abilities
         this.abilities.set(1, {ability: new UserAbility(DataManager.getAbility(1))});
         for (let i = 2; i <= 4; i++) this.abilities.set(i, {ability: undefined});
         //populate abilities from database.
-        if (params.abilities) for (let ab of params.abilities) this.abilities.set(ab.slot, {ability: ab.ability ? new UserAbility(DataManager.getAbility(ab.ability)) : undefined});
+        if (params.abilities) for (const ab of params.abilities) this.abilities.set(ab.slot, {ability: ab.ability ? new UserAbility(DataManager.getAbility(ab.ability)) : undefined});
     }
 
     //GENERAL GETTERS ------------------------------
     getCurrency(id: number) { return this.currencies.get(id)!; }
-    getZone() {return DataManager.zones.get(this.zone)!}
-    getUnlockedZones() {return DataManager.zones.filter(x => this.unlocked_zones.includes(x._id))}
+    getZone() {return DataManager.zones.get(this.zone)!;}
+    getUnlockedZones() {return DataManager.zones.filter(x => this.unlockedZones.includes(x._id));}
     getRequiredExp(level = this.level) {return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level  ** cf.exp_req_multiplier)-level)));}
-    getUser() { return client.users.get(this.user_id)!; }
-    getName() { return client.users.get(this.user_id)!.username; }
+    getUser() { return client.users.get(this.userID)!; }
+    getName() { return client.users.get(this.userID)!.username; }
     getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
-    getCooldown(name:string)
+    getCooldown(name: string)
     {
         if (!this.command_cooldowns.has(name)) return undefined;
-        let cd = this.command_cooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
+        const cd = this.command_cooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
         return formatTime(cd);
     }
     getProfession(id: number) { return this.professions.get(id); }
     getUnlockedAbilities() { return this.class.getSpellbook().filter(x => x.level <= this.level); }
-    getPatreonRank() { return this.patreon_rank ? DataManager.getPatreonRank(this.patreon_rank) : undefined;}
+    getPatreonRank() { return this.patreonRank ? DataManager.getPatreonRank(this.patreonRank) : undefined;}
     //GENERAL SETTERS
     setCooldown(name: string, duration: number, ignoreReduction = false)
     {
         if (this.command_cooldowns.has(name)) return;
-        let d = new Date();
+        const d = new Date();
         let reduction = this.getPatreonRank() ? this.getPatreonRank()!.cooldown_reduction : 0;
-        if (client.guilds.get(cf.official_server)?.members.get(this.user_id)?.roles.has("651567406967291904")) reduction += 0.03;
+        if (client.guilds.get(cf.official_server)?.members.get(this.userID)?.roles.has("651567406967291904")) reduction += 0.03;
         if (ignoreReduction) d.setSeconds(d.getSeconds() + duration);
         else d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
         this.command_cooldowns.set(name, new CronJob(d, 
-        function(this: {command_cooldowns: Discord.Collection<String,CronJob>, name: string}) 
+        function(this: {command_cooldowns: Discord.Collection<string,CronJob>; name: string}) 
         {
             this.command_cooldowns.delete(this.name);
-        }, undefined, true, undefined, {command_cooldowns: this.command_cooldowns, name: name}));
+        }, undefined, true, undefined, {commandCooldowns: this.command_cooldowns, name: name}));
     }
-    clearCooldown(name:string) { if(this.command_cooldowns.has(name)) this.command_cooldowns.get(name)?.stop(); this.command_cooldowns.delete(name) }
+    clearCooldown(name: string) { if(this.command_cooldowns.has(name)) this.command_cooldowns.get(name)?.stop(); this.command_cooldowns.delete(name); }
     gainExp(amount: number, msg: Discord.Message)
     {
         while (amount > 0)
         {
             if (this.level >= cf.level_cap) return;
-            let reqExp = this.getRequiredExp();
+            const reqExp = this.getRequiredExp();
             if (this.exp + amount > reqExp)
             {
                 amount -= reqExp - this.exp;
@@ -167,13 +171,13 @@ export class User extends Actor
             else { this.exp += amount; amount = 0; }
         }
     }
-    gainProfessionSkill(id: number, skill:number, greenZone:number, grayZone: number, isGathering: boolean = false)
+    gainProfessionSkill(id: number, skill: number, greenZone: number, grayZone: number, isGathering = false)
     {
-        let prof = this.getProfession(id);
-        let pd = DataManager.getProfessionData(id);
+        const prof = this.getProfession(id);
+        const pd = DataManager.getProfessionData(id);
         if (!prof || !pd) return {skillgain: 0, newRecipes: []}; 
         if (prof.skill >= grayZone) return {skillgain: 0, newRecipes: []}; 
-        if (prof.skill >= pd.max_skill) return {skillgain: 0, newRecipes: []}; 
+        if (prof.skill >= pd.maxSkill) return {skillgain: 0, newRecipes: []}; 
         if (prof.skill >= greenZone)
         {
             if (isGathering && randomIntFromInterval(0,100) > 25) return {skillgain: 0, newRecipes: []}; 
@@ -181,11 +185,11 @@ export class User extends Actor
         } 
 
         //filter to recipes we don't have then filter to recipes we have when adding skill
-        let newRecipes = pd.recipes.filter(x => x.skill_req > prof!.skill).filter(x => x.skill_req <= prof!.skill + skill).map(x => DataManager.getItem(x.item_id)!);
+        const newRecipes = pd.recipes.filter(x => x.skill_req > prof!.skill).filter(x => x.skill_req <= prof!.skill + skill).map(x => DataManager.getItem(x.item_id)!);
 
         //increase skill and return
         if (isGathering && randomIntFromInterval(0,100) > 50) return {skillgain: 0, newRecipes: []}; 
-        prof.skill = clamp(prof.skill + skill, 0, pd.max_skill);
+        prof.skill = clamp(prof.skill + skill, 0, pd.maxSkill);
         return {skillgain: skill, newRecipes: newRecipes};
     }
 
@@ -193,54 +197,56 @@ export class User extends Actor
     async equipItem(item: _anyItem, msg: Discord.Message)
     {
         //check if user owns the item in inventory.
-        let finv = this.inventory.filter(x=> x.id == item._id)
+        const finv = this.inventory.filter(x=> x.id == item._id);
         if (finv.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item: ${item._id} - ${item.icon} __${item.name}__.`);
 
         //check if the this can equip it
-        if (item instanceof _equipmentItem)
+        if (item instanceof DbEquipmentItem)
         {
-            if (item.level_requirement > this.level) return msg.channel.send(`\`${msg.author.username}\`, you are too low level to equip that item. (The level requirement is lvl ${item.level_requirement})`);
+            if (item.levelRequirement > this.level) return msg.channel.send(`\`${msg.author.username}\`, you are too low level to equip that item. (The level requirement is lvl ${item.levelRequirement})`);
             if (!this.class.types.includes(item.type)) return msg.channel.send(`\`${msg.author.username}\`, your class in not allowed to wear the item type: \`${item.getType().name}\``);
         }
 
-        let selItem: anyItem | undefined = finv.length > 1
+        const selItem: anyItem | undefined = finv.length > 1
+        // eslint-disable-next-line no-async-promise-executor
         ? await new Promise(async function (resolve)
             {
-                let itemSelectEmbed = new Discord.RichEmbed()
+                const itemSelectEmbed = new Discord.RichEmbed()
                 .setColor('#fcf403')
                 .setTitle(`Duplicate items found`)
                 .setDescription(`**You have multiple items with that id. Which one do you want to equip, \`${msg.author.username}\`?**`)
                 .setTimestamp()
                 .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
                 let optionString = "";
-                for (let fi of finv) optionString += `${finv.indexOf(fi) + 1} - ${item.icon} ${item.name} ${fi.getDataString()}`;
+                for (const fi of finv) optionString += `${finv.indexOf(fi) + 1} - ${item.icon} ${item.name} ${fi.getDataString()}`;
                 itemSelectEmbed.addField("**Options**", optionString);
                 msg.channel.send(itemSelectEmbed);
                 //await response and check it
-                var rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
                 if (isNaN(+rr) || +rr - 1 < 0 || +rr > finv.length) return resolve(undefined);
                 return resolve(finv[+rr - 1]);
             })
         : finv[0];
         if (!selItem) return msg.channel.send(`\`${msg.author.username}\`, incorrect input.`);
 
-        if (selItem instanceof EquipmentItem && item instanceof _equipmentItem)
+        if (selItem instanceof EquipmentItem && item instanceof DbEquipmentItem)
         {
-            let selSlot: number = item.slots.length > 1 && !item.two_hand
+            const selSlot: number = item.slots.length > 1 && !item.twoHand
+            // eslint-disable-next-line no-async-promise-executor
             ? await new Promise(async function (resolve)
             {
-                let slotSelectEmbed = new Discord.RichEmbed()
+                const slotSelectEmbed = new Discord.RichEmbed()
                 .setColor('#fcf403')
                 .setTitle(`Multiple slots possible.`)
                 .setDescription(`**This item can be equipped in multiple slots. What slot would you like it to be equipped in, \`${msg.author.username}\`?**`)
                 .setTimestamp()
                 .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
                 let slotString = "";
-                for (let s of item.getSlots()) slotString += `${s._id} - ${s.name}\n\n`;
+                for (const s of item.getSlots()) slotString += `${s._id} - ${s.name}\n\n`;
                 slotSelectEmbed.addField("**Possible slots**", slotString);
                 msg.channel.send(slotSelectEmbed);
                 //await response and check it
-                var rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
                 if (isNaN(+rr) || !item.slots.includes(+rr)) return resolve(-1);
                 return resolve(+rr);
             })
@@ -248,10 +254,10 @@ export class User extends Actor
 
             if (selSlot == -1) return msg.channel.send(`\`${msg.author.username}\`, you entered an invallid slot.`);
             
-            if (item.two_hand)
+            if (item.twoHand)
             {
-                let mainhand = this.equipment.get(1)?.item;
-                let offhand = this.equipment.get(2)?.item;
+                const mainhand = this.equipment.get(1)?.item;
+                const offhand = this.equipment.get(2)?.item;
                 if (mainhand) this.addItemToInventory(mainhand);
                 if (offhand) this.addItemToInventory(offhand);
 
@@ -260,14 +266,14 @@ export class User extends Actor
             }
             else if ((item.slots.includes(1) || item.slots.includes(2)) && this.isWearingTwoHand())
             {
-                let old = this.equipment.get(1)?.item;
+                const old = this.equipment.get(1)?.item;
                 if (old) this.addItemToInventory(old);
                 this.equipment.set(1, {item: undefined});
                 this.equipment.set(selSlot, {item: selItem});
             }
             else 
             {
-                let old = this.equipment.get(selSlot)?.item;
+                const old = this.equipment.get(selSlot)?.item;
                 if (old) this.addItemToInventory(old);
                 this.equipment.set(selSlot, {item: selItem});
             }
@@ -276,24 +282,24 @@ export class User extends Actor
         }
         else return msg.channel.send(`\`${msg.author.username}\`, that item is not equippable.`);
     }
-    async useItem(item: _anyItem, msg: Discord.Message, amount: number = 1)
+    async useItem(item: _anyItem, msg: Discord.Message, amount = 1)
     {
         //check if user owns the item in inventory.
-        let finv = this.inventory.filter(x=> x.id == item._id)
+        const finv = this.inventory.filter(x=> x.id == item._id);
         if (finv.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item: ${item._id} - ${item.icon} __${item.name}__.`);
-        let invi = finv[0];
-        if (invi instanceof EquipmentItem) await this.equipItem(item,msg)
+        const invi = finv[0];
+        if (invi instanceof EquipmentItem) await this.equipItem(item,msg);
         if (invi instanceof MaterialItem) return msg.channel.send(`\`${msg.author.username}\`, that item cannot be used.`);
         if (invi instanceof ConsumableItem) 
         {
-            if (invi.amount < amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item: ${item._id} - ${item.icon} __${item.name}__. You only own ${invi.amount}.`)
-            for (let i=0; i < amount; i++) for (let e of invi.effects) this.applyEffect(e)
+            if (invi.amount < amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item: ${item._id} - ${item.icon} __${item.name}__. You only own ${invi.amount}.`);
+            for (let i=0; i < amount; i++) for (const e of invi.effects) this.applyEffect(e);
             if (invi.amount > amount) invi.amount-= amount;
             else (this.inventory.splice(this.inventory.indexOf(invi),1));
             msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__ ${amount ? `x${amount}` :""}`);
         }
     }
-    applyEffect(e: {effect: string, [key:string]:any}) //TODO: change system
+    applyEffect(e: {effect: string; [key: string]: any}) //TODO: change system
     {
         switch(e.effect.toUpperCase())
         {
@@ -302,52 +308,52 @@ export class User extends Actor
                 break;
         }
     }
-    isWearingTwoHand() {return this.equipment.get(1)?.item?.id == undefined ? false : (DataManager.getItem(this.equipment.get(1)!.item!.id) as _equipmentItem).two_hand;}
-    addItemToInventoryFromId(id: number, amount = 1) :void
+    isWearingTwoHand() {return this.equipment.get(1)?.item?.id == undefined ? false : (DataManager.getItem(this.equipment.get(1)!.item!.id) as DbEquipmentItem).twoHand;}
+    addItemToInventoryFromId(id: number, amount = 1): void
     {
-        let itemData = DataManager.getItem(id);
-        if (itemData instanceof _equipmentItem) { for (let i = 0; i < amount; i++) this.addItemToInventory(new EquipmentItem(itemData._id));}
-        else if (itemData instanceof _materialItem) this.addItemToInventory(new MaterialItem(itemData._id,amount));
-        else if (itemData instanceof _consumableItem) this.addItemToInventory(new ConsumableItem(itemData._id,amount,itemData.effects));
+        const itemData = DataManager.getItem(id);
+        if (itemData instanceof DbEquipmentItem) { for (let i = 0; i < amount; i++) this.addItemToInventory(new EquipmentItem(itemData._id));}
+        else if (itemData instanceof DbMaterialItem) this.addItemToInventory(new MaterialItem(itemData._id,amount));
+        else if (itemData instanceof DbConsumableItem) this.addItemToInventory(new ConsumableItem(itemData._id,amount,itemData.effects));
     }
-    removeItemFromInventoryFromId(id: number, amount = 1) :void
+    removeItemFromInventoryFromId(id: number, amount = 1): void
     {
-        let itemData = DataManager.getItem(id);
-        let invEntry = this.inventory.find(x => x.id == id);
-        if (itemData instanceof _equipmentItem && invEntry) for (let i = 0; i < amount; i++) this.inventory.splice(this.inventory.indexOf(invEntry),1);
-        else if (itemData instanceof _materialItem && invEntry && invEntry instanceof MaterialItem) 
+        const itemData = DataManager.getItem(id);
+        const invEntry = this.inventory.find(x => x.id == id);
+        if (itemData instanceof DbEquipmentItem && invEntry) for (let i = 0; i < amount; i++) this.inventory.splice(this.inventory.indexOf(invEntry),1);
+        else if (itemData instanceof DbMaterialItem && invEntry && invEntry instanceof MaterialItem) 
         {
             if (invEntry.amount > amount) invEntry.amount -= amount;
-            else this.inventory.splice(this.inventory.indexOf(invEntry),1)
+            else this.inventory.splice(this.inventory.indexOf(invEntry),1);
         }
-        else if (itemData instanceof _consumableItem && invEntry && invEntry instanceof ConsumableItem) 
+        else if (itemData instanceof DbConsumableItem && invEntry && invEntry instanceof ConsumableItem) 
         {
             if (invEntry.amount > amount) invEntry.amount -= amount;
-            else this.inventory.splice(this.inventory.indexOf(invEntry),1)
+            else this.inventory.splice(this.inventory.indexOf(invEntry),1);
         }
     }
-    removeEntryFromInventory(item: EquipmentItem | ConsumableItem | MaterialItem) :void
+    removeEntryFromInventory(item: EquipmentItem | ConsumableItem | MaterialItem): void
     {
         this.inventory.splice(this.inventory.indexOf(item),1);
     }
-    addItemToInventory(item: EquipmentItem | ConsumableItem | MaterialItem) :void
+    addItemToInventory(item: EquipmentItem | ConsumableItem | MaterialItem): void
     {
         if (item instanceof ConsumableItem || item instanceof MaterialItem)
         {
-            let i = this.inventory.find(x => Object.getPrototypeOf(item) == Object.getPrototypeOf(x) && x.id == item.id) as ConsumableItem | MaterialItem;
+            const i = this.inventory.find(x => Object.getPrototypeOf(item) == Object.getPrototypeOf(x) && x.id == item.id) as ConsumableItem | MaterialItem;
             if (i) i.amount += item.amount;
             else this.inventory.push(item);
         }
         else this.inventory.push(item);
     }
-    checkForItemsAndAmount(costs: {item: _anyItem | undefined, amount: number}[], multiplier: number = 1)
+    checkForItemsAndAmount(costs: {item: _anyItem | undefined; amount: number}[], multiplier = 1)
     {
         //check if user has enough of the costs.
-        let costErrorStrings = [];
-        for (let cost of costs)
+        const costErrorStrings = [];
+        for (const cost of costs)
         {
             if (!cost.item) continue;
-            let invEntry = this.inventory.find(x => x.id == cost.item?._id);
+            const invEntry = this.inventory.find(x => x.id == cost.item?._id);
             if (!invEntry) { costErrorStrings.push(`${cost.item.getDisplayString()} x${multiplier * cost.amount}`); continue; }
             if (invEntry instanceof ConsumableItem || invEntry instanceof MaterialItem)
             {
@@ -355,7 +361,7 @@ export class User extends Actor
             }
             if (invEntry instanceof EquipmentItem)
             {
-                let um = this.inventory.filter(x => x.id == cost.item?._id).length;
+                const um = this.inventory.filter(x => x.id == cost.item?._id).length;
                 if (um < cost.amount * multiplier) costErrorStrings.push(`${cost.item.getDisplayString()} x${(cost.amount * multiplier) - um}`);
             }
         }
@@ -365,7 +371,7 @@ export class User extends Actor
     //COMBAT METHODS
     getStats() 
     {
-        var result = { 
+        const result = { 
             base: 
             {
                 hp: cf.stats.base.hp + ((this.level-1) * cf.stats.increase.hp),
@@ -386,11 +392,11 @@ export class User extends Actor
                 def: 0,
                 acc: 0
             }
-        }
-        for (let e of this.equipment.values())
+        };
+        for (const e of this.equipment.values())
         {
             if (!e.item) continue;
-            var i = DataManager.getItem(e.item.id) as _equipmentItem;
+            const i = DataManager.getItem(e.item.id) as DbEquipmentItem;
             result.gear.atk += i.stats.base.atk;
             result.gear.def += i.stats.base.def;
             result.gear.acc += i.stats.base.acc;
@@ -401,22 +407,22 @@ export class User extends Actor
         result.total.acc = result.base.acc + result.gear.acc;
         return result;
     }
-    dealDamage(baseHitChance:number)
+    dealDamage(baseHitChance: number)
     {
         let miss = false;
         let crit = false;
-        let stats = this.getStats().total;
+        const stats = this.getStats().total;
         let dmg = stats.atk;
 
-        let hitChance = (stats.acc / (this.level * 10)) * 100;
-        let critChance = hitChance - 85;
+        const hitChance = (stats.acc / (this.level * 10)) * 100;
+        const critChance = hitChance - 85;
         if (randomIntFromInterval(0,100) > baseHitChance + hitChance) miss = true; 
         if (randomIntFromInterval(0,100) < critChance) {dmg *= 1.5; crit = true; }
-        return {dmg: dmg, miss: miss, crit: crit}
+        return {dmg: dmg, miss: miss, crit: crit};
     }
     resetAbilities()
     {
-        for (let ab of this.abilities)
+        for (const ab of this.abilities)
         {
             if (!ab[1].ability) continue;
             ab[1].ability.remainingCooldown = 0;
@@ -424,14 +430,14 @@ export class User extends Actor
     }
     
     //EVENTS ----------
-    onLevel(msg : Discord.Message)
+    onLevel(msg: Discord.Message)
     {
         //regenerate health
         this.hp = this.getStats().base.hp;
 
         //check for new abilities.
         let msgText = `\`${this.getUser().username}\` has reached level ${this.level}!`;
-        let unlockedAbilities = this.class.getSpellbook().filter(x => x.level == this.level);
+        const unlockedAbilities = this.class.getSpellbook().filter(x => x.level == this.level);
         if (unlockedAbilities.length > 0) msgText += `\nYou have unlocked the following abilities:\n ${unlockedAbilities.map(x => `${x.ability.id} - ${x.ability.name}`).join("\n")}`;
         
         msg.channel.send(msgText);
@@ -439,7 +445,7 @@ export class User extends Actor
     onDeath()
     {
         //set exp to same % but in previous level and lose a level
-        let percentage = this.exp / this.getRequiredExp();
+        const percentage = this.exp / this.getRequiredExp();
         this.level = clamp(this.level-1, 1, Number.POSITIVE_INFINITY);
         this.exp = percentage * this.getRequiredExp();
         
@@ -450,46 +456,46 @@ export class User extends Actor
 
 export class SerializedUser
 {
-    user_id: string;
+    userID: string;
     zone: number;
-    level :number;
-    patreon_rank: string|undefined;
-    patreon_member_id: string|undefined;
-    exp :number;
-    class_id: number;
+    level: number;
+    patreonRank: string|undefined;
+    patreonMemberID: string|undefined;
+    exp: number;
+    classID: number;
     joined: Date;
-    found_bosses: number[];
-    unlocked_zones: number[];
-    currencies: {currency_id: number, amount: number}[] = []
-    inventory: (_serializedEquipmentItem | _serializedConsumableItem | _serializedMaterialItem)[] = []
-    equipment: {slot: number, item: _serializedEquipmentItem | undefined}[] = []
-    abilities: {slot: number, ability: number | undefined}[] = []
-    cooldowns: {name:string, date: Date}[] = []
+    foundBosses: number[];
+    unlockedZones: number[];
+    currencies: {currencyID: number; amount: number}[] = []
+    inventory: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem)[] = []
+    equipment: {slot: number; item: SerializedEquipmentItem | undefined}[] = []
+    abilities: {slot: number; ability: number | undefined}[] = []
+    cooldowns: {name: string; date: Date}[] = []
     hp: number;
-    professions: {id: number, skill: number}[] = [];
+    professions: {id: number; skill: number}[] = [];
     constructor(user: User)
     {
-        this.user_id = user.user_id;
+        this.userID = user.userID;
         this.zone = user.zone;
         this.level = user.level;
-        this.patreon_rank = user.patreon_rank;
-        this.patreon_member_id = user.patreon_member_id;
+        this.patreonRank = user.patreonRank;
+        this.patreonMemberID = user.patreonMemberID;
         this.exp = user.exp;
-        this.class_id = user.class._id;
+        this.classID = user.class._id;
         this.joined = user.joined;
-        this.found_bosses = user.found_bosses;
-        this.unlocked_zones = user.unlocked_zones;
-        for (let c of user.currencies) {this.currencies.push({currency_id: c[0], amount: c[1].value});}
-        for (let invEntry of user.inventory)
+        this.foundBosses = user.foundBosses;
+        this.unlockedZones = user.unlockedZones;
+        for (const c of user.currencies) {this.currencies.push({currencyID: c[0], amount: c[1].value});}
+        for (const invEntry of user.inventory)
         {
-            if (invEntry instanceof EquipmentItem) this.inventory.push(new _serializedEquipmentItem(invEntry.id,invEntry.craftingBonus));
-            if (invEntry instanceof MaterialItem) this.inventory.push(new _serializedMaterialItem(invEntry.id,invEntry.amount));
-            if (invEntry instanceof ConsumableItem) this.inventory.push(new _serializedConsumableItem(invEntry.id,invEntry.amount));
+            if (invEntry instanceof EquipmentItem) this.inventory.push(new SerializedEquipmentItem(invEntry.id,invEntry.craftingBonus));
+            if (invEntry instanceof MaterialItem) this.inventory.push(new SerializedMaterialItem(invEntry.id,invEntry.amount));
+            if (invEntry instanceof ConsumableItem) this.inventory.push(new SerializedConsumableItem(invEntry.id,invEntry.amount));
         }
-        for (let e of user.equipment) this.equipment.push({item: e[1].item ? new _serializedEquipmentItem(e[1].item.id, e[1].item?.craftingBonus): undefined, slot: e[0]})
+        for (const e of user.equipment) this.equipment.push({item: e[1].item ? new SerializedEquipmentItem(e[1].item.id, e[1].item?.craftingBonus): undefined, slot: e[0]});
         this.hp = user.hp;
-        for (let p of user.professions) this.professions.push({id: p[0], skill: p[1].skill})
-        for (let cd of user.command_cooldowns) this.cooldowns.push({name: cd[0], date: cd[1].nextDate().toDate()});
-        for (let ab of user.abilities) this.abilities.push({slot: ab[0], ability: ab[1].ability ? ab[1].ability.data.id : undefined})
+        for (const p of user.professions) this.professions.push({id: p[0], skill: p[1].skill});
+        for (const cd of user.command_cooldowns) this.cooldowns.push({name: cd[0], date: cd[1].nextDate().toDate()});
+        for (const ab of user.abilities) this.abilities.push({slot: ab[0], ability: ab[1].ability ? ab[1].ability.data.id : undefined});
     }
 }

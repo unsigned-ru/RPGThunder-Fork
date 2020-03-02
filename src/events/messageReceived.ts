@@ -1,5 +1,5 @@
 import Discord from 'discord.js';
-import cf from '../config.json'
+import cf from '../config.json';
 import { DataManager } from '../classes/dataManager.js';
 import { getServerPrefix } from '../utils.js';
 import { executeGlobalCommand } from '../commands/adminCommands.js';
@@ -15,7 +15,7 @@ export async function onMSGReceived(msg: Discord.Message)
         if (cf.DEVMODE && msg.guild.id == "646062255170912293") return; //prevent the test bot from receiving anything in the official server.
 
         //check for existing sessions.
-        let session = DataManager.sessions.get(msg.author.id);
+        const session = DataManager.sessions.get(msg.author.id);
         if (session && session.sessionChannel?.id == msg.channel.id) 
         {
             if (session.awaitingInput) session.onInput(msg.content.toLowerCase().trim());
@@ -37,42 +37,42 @@ export async function onMSGReceived(msg: Discord.Message)
         
         //construct an ARG array from the content. & get the command name.
         const args: string[] = msg.content.split(/ +/);
-        var command = args.shift()!.toLowerCase();
+        let command = args.shift()!.toLowerCase();
         command = command.slice(prefix.length);
         
         //find the command and execute if found
-        var c_cmd;
-        if (commands.has(command)) c_cmd = commands.get(command); //find command by name
-        else if (commands.filter(x => x.aliases.includes(command)).size > 0) c_cmd = commands.filter(x => x.aliases.includes(command)).first(); //find command by alias.
+        let cCmd;
+        if (commands.has(command)) cCmd = commands.get(command); //find command by name
+        else if (commands.filter(x => x.aliases.includes(command)).size > 0) cCmd = commands.filter(x => x.aliases.includes(command)).first(); //find command by alias.
         
-        if (!c_cmd) return; //no command found with name or alias; return.
+        if (!cCmd) return; //no command found with name or alias; return.
 
-        if (c_cmd.needOperator && !cf.Operators.includes(msg.author.id)) return; //do you need to be a server operator to execute the command?
+        if (cCmd.needOperator && !cf.Operators.includes(msg.author.id)) return; //do you need to be a server operator to execute the command?
 
         //check if user must be registered.
-        let user = DataManager.getUser(msg.author.id);
-        if (c_cmd.mustBeRegistered && !user) return msg.channel.send(`\`${msg.author.username}\`, you must be registered to use that command, if you were previously registered, we just recently launched a **HUGE** update, re-balancing the game. As we are still in beta, the easiest way to do this was a wipe. Sorry about the inconvenience, and thank you for your understanding.`)
+        const user = DataManager.getUser(msg.author.id);
+        if (cCmd.mustBeRegistered && !user) return msg.channel.send(`\`${msg.author.username}\`, you must be registered to use that command, if you were previously registered, we just recently launched a **HUGE** update, re-balancing the game. As we are still in beta, the easiest way to do this was a wipe. Sorry about the inconvenience, and thank you for your understanding.`);
 
         //check if the user has a reaction pending.
-        if (user?.reaction.isPending) return msg.channel.send(`\`${msg.author.username}\`, you have a pending reaction. Please react to it first.`)
+        if (user?.reaction.isPending) return msg.channel.send(`\`${msg.author.username}\`, you have a pending reaction. Please react to it first.`);
 
         //check if the command is executable when travelling, if not and the user is travelling then return
-        if (!c_cmd.executeWhileTravelling && user?.command_cooldowns.has("travel")) return msg.channel.send(`\`${msg.author.username}\`, that command cannot be executed while travelling. Please wait another ${user.getCooldown("travel")}`); 
+        if (!cCmd.executeWhileTravelling && user?.command_cooldowns.has("travel")) return msg.channel.send(`\`${msg.author.username}\`, that command cannot be executed while travelling. Please wait another ${user.getCooldown("travel")}`); 
 
         //set the cooldown of the command right before execution.
-        if(c_cmd.cooldown)
+        if(cCmd.cooldown)
         {
-            let c_cd = c_cmd.cooldown;
-            let cd = user!.getCooldown(c_cd.name);
+            const cCd = cCmd.cooldown;
+            const cd = user!.getCooldown(cCd.name);
             if (cd) return msg.channel.send(`\`${msg.author.username}\`, that command is on cooldown for another ${cd}`);
-            user!.setCooldown(c_cd.name, c_cd.duration, c_cmd.ignoreCooldownReduction);
+            user!.setCooldown(cCd.name, cCd.duration, cCmd.ignoreCooldownReduction);
         }
 
-        c_cmd.execute(msg,args,user);
+        cCmd.execute(msg,args,user);
     }
     catch (error) 
     {
-  	    console.error(error);
+        console.error(error);
         msg.reply('there was an error trying to execute that command!');
     }
     

@@ -8,10 +8,10 @@ export function onMemberJoin(member: Discord.GuildMember)
     if (s) s.createChannelPermissions();
 
     //check if user has any patreon ranks.
-    let useraccount = DataManager.getUser(member.id);
-    if (useraccount && useraccount.patreon_rank)
+    const useraccount = DataManager.getUser(member.id);
+    if (useraccount && useraccount.patreonRank)
     {
-        let rank = DataManager.getPatreonRank(useraccount.patreon_rank);
+        const rank = DataManager.getPatreonRank(useraccount.patreonRank);
         if (rank) member.addRole(rank.discordrole_id);
     }
 }

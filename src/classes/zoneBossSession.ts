@@ -1,9 +1,10 @@
+/* eslint-disable no-async-promise-executor */
 import { Session } from "./session";
 import { User } from "./user";
 import Discord from "discord.js";
-import cf from "../config.json"
+import cf from "../config.json";
 import { colors, sleep, round, randomIntFromInterval, clamp, parseComblatLogString, constructCurrencyString, numberToIcon} from "../utils";
-import { _bossData} from "../interfaces";
+import { BossDataInterface} from "../interfaces";
 import { Boss } from "./boss";
 import { DataManager } from "./dataManager";
 import { Actor } from "./actor";
@@ -14,10 +15,10 @@ export class ZoneBossSession extends Session
     boss: Boss;
     status = {started: false, ended: false}
     combatLogMsg: Discord.Message | undefined;
-    combatLog :string[] = []
+    combatLog: string[] = []
     bossdataStartMessage: Discord.Message | undefined;
     buffs: Discord.Collection<Actor, BaseBuff[]> = new Discord.Collection();
-    constructor(discordUser: Discord.User, user: User, broadcastChannel: Discord.TextChannel, bd: _bossData)
+    constructor(discordUser: Discord.User, user: User, broadcastChannel: Discord.TextChannel, bd: BossDataInterface)
     {
         super(discordUser,user,broadcastChannel);
         this.boss = new Boss(bd);
@@ -50,7 +51,7 @@ export class ZoneBossSession extends Session
         .addField("**Starting**",`To start the session and engage the boss type \`start\``)
 
         .setTimestamp()
-        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
         
         //construct and send boss data message
         const dataEmbed = new Discord.RichEmbed()
@@ -59,15 +60,15 @@ export class ZoneBossSession extends Session
         .addField("**Stats**",`❤️ ${round(this.boss.stats.max_hp)}\n🗡️ ${round(this.boss.stats.atk)}\n🛡️ ${round(this.boss.stats.def)}\n⚡ ${round(this.boss.stats.acc)}`,true)
         .addField("**Abilities**",`${this.boss.abilities.map(x => x.data.name).join("\n")}`,true)
         .setTimestamp()
-        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
         await this.sessionChannel?.send(infoEmbed);
-        this.bossdataStartMessage = await this.sessionChannel?.send(dataEmbed) as Discord.Message
+        this.bossdataStartMessage = await this.sessionChannel?.send(dataEmbed) as Discord.Message;
     }
 
-    async startGame() :Promise<boolean>
+    async startGame(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             this.user!.setCooldown('boss', 7200);
             this.bossdataStartMessage?.delete();
@@ -76,32 +77,32 @@ export class ZoneBossSession extends Session
 
             //create the combat log and the fighting board.
             this.combatLog.push(`**[START ROLEPLAY]**`);
-            await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))
+            await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"));
             await sleep(1);
 
-            for (let rpmsg of this.boss.dialogue)
+            for (const rpmsg of this.boss.dialogue)
             {
                 this.combatLog.push(rpmsg);
-                await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"))
+                await this.updateLiveMessage(this.constructBoardMessage(colors.purple, "starting [RP]"));
                 await sleep(1);
             }
             this.combatLog.push(`**[END ROLEPLAY]**`);
-            await this.updateLiveMessage(this.constructBoardMessage(colors.green, "your turn"))
+            await this.updateLiveMessage(this.constructBoardMessage(colors.green, "your turn"));
             return resolve(true);
-        })
+        });
     }
 
-    async useAbility(slot:number) :Promise<boolean>
+    async useAbility(slot: number): Promise<boolean>
     {
         this.setTimer(120);
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
-            let ability = this.user.abilities.get(slot)!.ability!;
+            const ability = this.user.abilities.get(slot)!.ability!;
             if (ability.remainingCooldown > 0) {await this.updateLiveMessage(this.constructBoardMessage(colors.green, "your turn", [`You tried to use \`${ability.data.name}\` but it's on cooldown for another ${ability.remainingCooldown} turns.`])); return resolve(true);} 
             
             ability.remainingCooldown = ability.data.cooldown; //set cooldown
             //use the ability's effect
-            for (let e of ability.data.effects) 
+            for (const e of ability.data.effects) 
             {
                 let targets: Actor[] = [this.boss];
                 if (e.target == 'self') targets = [this.user];
@@ -111,27 +112,27 @@ export class ZoneBossSession extends Session
             if (this.user.hp <= 0) return resolve(await this.onLose());
 
             return resolve(await this.bossUseAbility());
-        })
+        });
     }
 
-    async endRound() :Promise<boolean>
+    async endRound(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             //damage over time
-            for (let ubf of this.buffs)
+            for (const ubf of this.buffs)
             {
-                for (let bf of ubf[1].filter(x => x instanceof DamageOverTimeDebuff) as DamageOverTimeDebuff[]) 
+                for (const bf of ubf[1].filter(x => x instanceof DamageOverTimeDebuff) as DamageOverTimeDebuff[]) 
                 {
-                    let {dmgTaken} = ubf[0].takeDamage(bf.damage,true,this.buffs,true);
+                    const {dmgTaken} = ubf[0].takeDamage(bf.damage,true,this.buffs,true);
                     this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]])+ `__🗡️ ${round(dmgTaken)}__`);
                 }
             }
             
             //healing over time
-            for (let ubf of this.buffs)
+            for (const ubf of this.buffs)
             {
-                for (let bf of ubf[1].filter(x => x instanceof HealingOverTimeBuff) as HealingOverTimeBuff[]) 
+                for (const bf of ubf[1].filter(x => x instanceof HealingOverTimeBuff) as HealingOverTimeBuff[]) 
                 {
                     ubf[0].takeHealing(bf.healing, true);
                     this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]]));
@@ -139,9 +140,9 @@ export class ZoneBossSession extends Session
             }
 
             //expired buffs
-            for (let ubf of this.buffs)
+            for (const ubf of this.buffs)
             {
-                for (let bf of ubf[1]) 
+                for (const bf of ubf[1]) 
                 {
                     bf.duration--;
                     if (bf.duration == 0) ubf[1].splice(ubf[1].indexOf(bf),1);
@@ -149,43 +150,43 @@ export class ZoneBossSession extends Session
             }
 
             //cooldown
-            for (let ab of this.boss.abilities) ab.remainingCooldown = clamp(ab.remainingCooldown-1 , 0, Number.POSITIVE_INFINITY);
-            for (let ab of this.user.abilities) if (ab[1].ability) ab[1].ability.remainingCooldown = clamp(ab[1].ability.remainingCooldown-1, 0, Number.POSITIVE_INFINITY);
+            for (const ab of this.boss.abilities) ab.remainingCooldown = clamp(ab.remainingCooldown-1 , 0, Number.POSITIVE_INFINITY);
+            for (const ab of this.user.abilities) if (ab[1].ability) ab[1].ability.remainingCooldown = clamp(ab[1].ability.remainingCooldown-1, 0, Number.POSITIVE_INFINITY);
             
-            await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`))
+            await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`));
 
             if (this.boss.hp <= 0) return resolve(await this.onWin());
             if (this.user.hp <= 0) return resolve(await this.onLose());
 
             return resolve(true);
-        })
+        });
     }
 
-    async bossUseAbility() :Promise<boolean>
+    async bossUseAbility(): Promise<boolean>
     {
         this.setTimer(120);
-        return new Promise(async (resolve, reject) => 
+        return new Promise(async (resolve) => 
         {
             await this.updateLiveMessage(this.constructBoardMessage(colors.red, `boss turn`));
 
             //get abilities that are not on cooldown.
-            let abs = this.boss.abilities.filter(x => x.remainingCooldown == 0);
+            const abs = this.boss.abilities.filter(x => x.remainingCooldown == 0);
             //get a ability to use based on chance.
-            let tempabs = abs.slice();
-			let rng = randomIntFromInterval(0,abs.reduce((pv,cv) => pv + cv.chance,0))
+            const tempabs = abs.slice();
+			let rng = randomIntFromInterval(0,abs.reduce((pv,cv) => pv + cv.chance,0));
 			while (tempabs.length > 0 && rng > 0)
 			{
-				let d = tempabs[0];
+				const d = tempabs[0];
 				if (rng <= d.chance) break;
 				else rng-= d.chance;
 				tempabs.splice(0,1);
             }
-            let ability = abs.find(x => x.data.id == tempabs[0].data.id)!;
+            const ability = abs.find(x => x.data.id == tempabs[0].data.id)!;
             ability.remainingCooldown = ability.data.cooldown; //set cooldown
             //use the ability's effect
-            for (let e of ability.data.effects) 
+            for (const e of ability.data.effects) 
             {
-                let targets: Actor[] = [this.user]
+                let targets: Actor[] = [this.user];
                 if (e.target == 'self') targets = [this.boss];
                 if (!e.execute(ability.data,this.boss, targets, this.combatLog, this.buffs)) break;
             }
@@ -193,7 +194,7 @@ export class ZoneBossSession extends Session
             if (this.boss.hp <= 0) return resolve(await this.onWin());
             if (this.user.hp <= 0) return resolve(await this.onLose());
             return resolve(await this.endRound());
-        })
+        });
     }
 
     async destroySession()
@@ -207,22 +208,22 @@ export class ZoneBossSession extends Session
         if (this.status.started && !this.status.ended)
         {
             this.user.onDeath();
-            if (message) this.broadcastChannel.send(`\`${this.discordUser.username}\`'s zone boss session expired while being active. They have lost a level as penalty.`)
+            if (message) this.broadcastChannel.send(`\`${this.discordUser.username}\`'s zone boss session expired while being active. They have lost a level as penalty.`);
         }
-        await super.onTimeout()
+        await super.onTimeout();
     }
 
     async onInput(input: string)
     {
         //check if it's a number and a owned ability
-        if (this.status.started && !this.status.ended && !isNaN(+input) && this.user.abilities.get(+input)?.ability) {this.awaitingInput = false; this.awaitingInput = await this.useAbility(+input);};
+        if (this.status.started && !this.status.ended && !isNaN(+input) && this.user.abilities.get(+input)?.ability) {this.awaitingInput = false; this.awaitingInput = await this.useAbility(+input);}
         switch(input)
         {
             case "start":
                 if (!this.status.started) {this.awaitingInput = false; this.awaitingInput = await this.startGame();}
             break;
             case "exit":
-                if (!this.status.started) {await this.onTimeout(false)}
+                if (!this.status.started) {await this.onTimeout(false);}
                 if (this.status.ended) {await this.destroySession();}
             break;
             default:
@@ -231,9 +232,9 @@ export class ZoneBossSession extends Session
         }
     }
 
-    async onWin() : Promise<boolean>
+    async onWin(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve) => {
             await this.updateLiveMessage(this.constructBoardMessage(colors.green, "you won"));
             this.status.ended = true;
             const embed = new Discord.RichEmbed()
@@ -242,15 +243,15 @@ export class ZoneBossSession extends Session
             .setTimestamp()
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
-            let rewardStrings = [];
+            const rewardStrings = [];
             //Give EXP
-            if (!this.user.unlocked_zones.includes(this.user.zone+1))
+            if (!this.user.unlockedZones.includes(this.user.zone+1))
             {
                 //user has not unlocked new zone yet.
                 rewardStrings.push(`**You have unlocked the next zone __${DataManager.zones.get(this.user.zone+1)}__**`);
                 rewardStrings.push(`${round(this.boss.expReward)} EXP`);
                 this.user.gainExp(this.boss.expReward,this.liveMsg!);
-                this.user.unlocked_zones.push(this.user.zone+1);
+                this.user.unlockedZones.push(this.user.zone+1);
             }
             else 
             {
@@ -259,28 +260,28 @@ export class ZoneBossSession extends Session
             }
 
             //Give currencies
-            for (let cd of this.boss.currencyDrops)
+            for (const cd of this.boss.currencyDrops)
             {
                 this.user.getCurrency(cd.id).value += cd.amount;
                 rewardStrings.push(constructCurrencyString(cd.id,cd.amount));
             }
             //Give Items
-            for (let id of this.boss.itemDrops)
+            for (const id of this.boss.itemDrops)
             {
                 this.user.addItemToInventoryFromId(id.id,id.amount);
                 rewardStrings.push(DataManager.getItem(id.id)?.getDisplayString()+` x${id.amount}`);
             }
             //Send message
-            embed.setDescription(`**Rewards:**\n${rewardStrings.join("\n")}\n\n If you are done looking at the result, type \`exit\` to close the session.`)
+            embed.setDescription(`**Rewards:**\n${rewardStrings.join("\n")}\n\n If you are done looking at the result, type \`exit\` to close the session.`);
             this.sessionChannel?.send(embed);
-            this.broadcastChannel.send(`\`${this.discordUser.username}\` has defeated \`${this.boss.name}\`, zone boss of **${this.user.getZone().name}**`)
+            this.broadcastChannel.send(`\`${this.discordUser.username}\` has defeated \`${this.boss.name}\`, zone boss of **${this.user.getZone().name}**`);
             return resolve(true);
         });
     }
 
-    async onLose() : Promise<boolean>
+    async onLose(): Promise<boolean>
     {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve) => {
             await this.updateLiveMessage(this.constructBoardMessage(colors.red, "you lost"));
             this.status.ended = true;
             //send message
@@ -301,69 +302,69 @@ export class ZoneBossSession extends Session
     //utils
     private constructBoardMessage(color: string, status: string, warnings: string[] = [])
     {
-        let embed = new Discord.RichEmbed()
+        const embed = new Discord.RichEmbed()
         .setColor(color)
         .setTitle(`Boss Battle: ${this.boss.name}`)
         .setDescription(`__**Combat Log**__\n${this.combatLog.slice(-10).join("\n")}\n\n__Status:__ **${status}**\n${warnings.join("\n")}`)
         .setTimestamp()
-        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
-        let boss_healthPercentage = this.boss.getHealthPercentage();
-        let boss_healthBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(boss_healthPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(boss_healthPercentage/(20/3))); 
+        const bossHealthPercentage = this.boss.getHealthPercentage();
+        const bossHealthBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(bossHealthPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(bossHealthPercentage/(20/3))); 
         
-        let boss_absorbPercentage = 0;
-        let bossBuffs = this.buffs.get(this.boss);
+        let bossAbsorbPercentage = 0;
+        const bossBuffs = this.buffs.get(this.boss);
         if (bossBuffs) 
         {
-            let babs = bossBuffs.filter(x => x instanceof AbsorbBuff);
+            const babs = bossBuffs.filter(x => x instanceof AbsorbBuff);
             if (babs.length > 0) 
             {
-                let healthtotal = babs.reduce((pv,cv) => pv + (cv as AbsorbBuff).health,0);
-                boss_absorbPercentage = healthtotal/this.boss.stats.max_hp * 100;
+                const healthtotal = babs.reduce((pv,cv) => pv + (cv as AbsorbBuff).health,0);
+                bossAbsorbPercentage = healthtotal/this.boss.stats.max_hp * 100;
 
             }
         }
-        let boss_absorbBar = boss_absorbPercentage > 0 ? "<:expBar:674948948103790610>".repeat(Math.ceil(boss_absorbPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(boss_absorbPercentage/(20/3))) : "";
+        const bossAbsorbBar = bossAbsorbPercentage > 0 ? "<:expBar:674948948103790610>".repeat(Math.ceil(bossAbsorbPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(bossAbsorbPercentage/(20/3))) : "";
 
         embed.addField(`**Boss**`, 
             `☠️ **${this.boss.name}**\n`+
-            `${round(boss_healthPercentage)}% [${round(this.boss.hp)}/${round(this.boss.stats.max_hp)}]\n`+
-            `❤️ ${boss_healthBar}\n`+
-            `${boss_absorbBar.length > 0 ? `💙 ${boss_absorbBar}`: ""}`
+            `${round(bossHealthPercentage)}% [${round(this.boss.hp)}/${round(this.boss.stats.max_hp)}]\n`+
+            `❤️ ${bossHealthBar}\n`+
+            `${bossAbsorbBar.length > 0 ? `💙 ${bossAbsorbBar}`: ""}`
         );
 
-        let player_healthPercentage = this.user.getHealthPercentage();
-        let player_progressBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(player_healthPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(player_healthPercentage/(20/3))); 
+        const playerHealthPercentage = this.user.getHealthPercentage();
+        const playerProgressBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(playerHealthPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(playerHealthPercentage/(20/3))); 
         
-        let player_absorbPercentage = 0;
-        let playerBuffs = this.buffs.get(this.user);
+        let playerAbsorbPercentage = 0;
+        const playerBuffs = this.buffs.get(this.user);
         if (playerBuffs) 
         {
-            let pabs = playerBuffs.filter(x => x instanceof AbsorbBuff);
+            const pabs = playerBuffs.filter(x => x instanceof AbsorbBuff);
             if (pabs.length > 0) 
             {
-                let healthtotal = pabs.reduce((pv,cv) => pv + (cv as AbsorbBuff).health,0);
-                player_absorbPercentage = healthtotal/this.user.getStats().total.hp * 100;
+                const healthtotal = pabs.reduce((pv,cv) => pv + (cv as AbsorbBuff).health,0);
+                playerAbsorbPercentage = healthtotal/this.user.getStats().total.hp * 100;
             }
         }
-        let player_absorbBar = player_absorbPercentage > 0 ? "<:expBar:674948948103790610>".repeat(Math.ceil(player_absorbPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(player_absorbPercentage/(20/3))) : "";
+        const playerAbsorbBar = playerAbsorbPercentage > 0 ? "<:expBar:674948948103790610>".repeat(Math.ceil(playerAbsorbPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(playerAbsorbPercentage/(20/3))) : "";
 
 
         embed.addField(`**Player**`, 
             `${this.user.class.icon} **${this.discordUser.username}**\n`+
-            `${round(player_healthPercentage)}% [${round(this.user.hp)}/${round(this.user.getStats().base.hp)}]\n`+
-            `❤️ ${player_progressBar}\n`+
-            `${player_absorbBar.length > 0 ? `💙 ${player_absorbBar}`: ""}`
+            `${round(playerHealthPercentage)}% [${round(this.user.hp)}/${round(this.user.getStats().base.hp)}]\n`+
+            `❤️ ${playerProgressBar}\n`+
+            `${playerAbsorbBar.length > 0 ? `💙 ${playerAbsorbBar}`: ""}`
         );
 
         //create ability string.
-        let abStrings = []
-        for (let ab of this.user.abilities)
+        const abStrings = [];
+        for (const ab of this.user.abilities)
         {
             if (!ab[1].ability) continue;
             let abstring = `${numberToIcon(ab[0])} - **${ab[1].ability.data.name}**`;
             if (ab[1].ability.remainingCooldown > 0) abstring += ` <:cooldown:674944207663923219> ${ab[1].ability.remainingCooldown}`;
-            abStrings.push(abstring)
+            abStrings.push(abstring);
         }
 
         embed.addField(`**Abilities**`, abStrings.join("\n"));
