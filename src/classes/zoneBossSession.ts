@@ -70,7 +70,7 @@ export class ZoneBossSession extends Session
     {
         return new Promise(async (resolve) => 
         {
-            this.user!.setCooldown('boss', 7200);
+            this.user?.setCooldown('boss', 7200);
             this.bossdataStartMessage?.delete();
             this.setTimer(120);
             this.status.started = true;

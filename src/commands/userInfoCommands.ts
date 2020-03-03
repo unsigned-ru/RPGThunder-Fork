@@ -35,7 +35,7 @@ export const cmds: CommandInterface[] =
 			.addField("Info:",
 			`**Class:** ${user.class.icon} ${user.class.name}\n`+
 			`**Level:** ${user.level}\n`+
-			`**Exp:** ${round(user.exp)}/${user.getRequiredExp()}\n`+
+			`**Exp:** ${round(user.exp)}/${round(user.getRequiredExp())}\n`+
 			`**Zone:** ${user.getZone().name}\n`+
 			`**Rank:** ${user.getPatreonRank() ? user.getPatreonRank()?.name : "None"}\n`
 			,true);

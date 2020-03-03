@@ -57,7 +57,7 @@ export async function onMSGReceived(msg: Discord.Message)
         if (user?.reaction.isPending) return msg.channel.send(`\`${msg.author.username}\`, you have a pending reaction. Please react to it first.`);
 
         //check if the command is executable when travelling, if not and the user is travelling then return
-        if (!cCmd.executeWhileTravelling && user?.command_cooldowns.has("travel")) return msg.channel.send(`\`${msg.author.username}\`, that command cannot be executed while travelling. Please wait another ${user.getCooldown("travel")}`); 
+        if (!cCmd.executeWhileTravelling && user?.commandCooldowns.has("travel")) return msg.channel.send(`\`${msg.author.username}\`, that command cannot be executed while travelling. Please wait another ${user.getCooldown("travel")}`); 
 
         //set the cooldown of the command right before execution.
         if(cCmd.cooldown)

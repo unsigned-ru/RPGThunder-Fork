@@ -345,12 +345,12 @@ export const cmds: CommandInterface[] =
             if (client.guilds.get(cf.official_server)?.members.get(user.userID)?.roles.has("651567406967291904")) reduction += 0.1;
             d.setSeconds(d.getSeconds() + travelTime);
         
-            user.command_cooldowns.set("travel",new CronJob(d, 
+            user.commandCooldowns.set("travel",new CronJob(d, 
                 function(this: {user: User; channel: Discord.TextChannel; destination: Zone}) 
                 {
                     user.zone = this.destination._id;
                     this.channel.send(`\`${msg.author.username}\` has arrived at ${this.destination.name}.`);
-                    this.user.command_cooldowns.delete("travel");
+                    this.user.commandCooldowns.delete("travel");
                 }, undefined, true, undefined, {user: user, channel: msg.channel, destination: zone}));
 
             msg.channel.send(`\`${msg.author.username}\` has started travelling to ${zone.name}.`);

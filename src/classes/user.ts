@@ -46,7 +46,7 @@ export class User extends Actor
     currencies: Discord.Collection<number, {value:  number}> = new Discord.Collection();
     inventory: (ConsumableItem | EquipmentItem | MaterialItem)[] = [];
     equipment: Discord.Collection<number, {item: EquipmentItem | undefined}> = new Discord.Collection();
-    command_cooldowns: Discord.Collection<string, CronJob> = new Discord.Collection();
+    commandCooldowns: Discord.Collection<string, CronJob> = new Discord.Collection();
     professions: Discord.Collection<number, {skill: number}> = new Discord.Collection();
     abilities: Discord.Collection<number, {ability: UserAbility | undefined}> = new Discord.Collection();
 
@@ -74,11 +74,11 @@ export class User extends Actor
             for (const cd of params.cooldowns)
             {
                 if (cd.date < new Date()) continue;
-                this.command_cooldowns.set(cd.name, new CronJob(cd.date, 
-                function(this: {command_cooldowns: Discord.Collection<string,CronJob>; name: string}) 
+                this.commandCooldowns.set(cd.name, new CronJob(cd.date, 
+                function(this: any) 
                 {
-                    this.command_cooldowns.delete(this.name);
-                }, undefined, true, undefined, {commandCooldowns: this.command_cooldowns, name: cd.name}));
+                    this.commandCooldowns.delete(this.name);
+                }, undefined, true, undefined, {commandCooldowns: this.commandCooldowns, name: cd.name}));
             }
         }
         
@@ -132,8 +132,8 @@ export class User extends Actor
     getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
     getCooldown(name: string)
     {
-        if (!this.command_cooldowns.has(name)) return undefined;
-        const cd = this.command_cooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
+        if (!this.commandCooldowns.has(name)) return undefined;
+        const cd = this.commandCooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
         return formatTime(cd);
     }
     getProfession(id: number) { return this.professions.get(id); }
@@ -142,19 +142,19 @@ export class User extends Actor
     //GENERAL SETTERS
     setCooldown(name: string, duration: number, ignoreReduction = false)
     {
-        if (this.command_cooldowns.has(name)) return;
+        if (this.commandCooldowns.has(name)) return;
         const d = new Date();
         let reduction = this.getPatreonRank() ? this.getPatreonRank()!.cooldown_reduction : 0;
         if (client.guilds.get(cf.official_server)?.members.get(this.userID)?.roles.has("651567406967291904")) reduction += 0.03;
         if (ignoreReduction) d.setSeconds(d.getSeconds() + duration);
         else d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
-        this.command_cooldowns.set(name, new CronJob(d, 
-        function(this: {command_cooldowns: Discord.Collection<string,CronJob>; name: string}) 
+        this.commandCooldowns.set(name, new CronJob(d, 
+        function(this: {commandCooldowns: Discord.Collection<string,CronJob>; name: string}) 
         {
-            this.command_cooldowns.delete(this.name);
-        }, undefined, true, undefined, {commandCooldowns: this.command_cooldowns, name: name}));
+            this.commandCooldowns.delete(this.name);
+        }, undefined, true, undefined, {commandCooldowns: this.commandCooldowns, name: name}));
     }
-    clearCooldown(name: string) { if(this.command_cooldowns.has(name)) this.command_cooldowns.get(name)?.stop(); this.command_cooldowns.delete(name); }
+    clearCooldown(name: string) { if(this.commandCooldowns.has(name)) this.commandCooldowns.get(name)?.stop(); this.commandCooldowns.delete(name); }
     gainExp(amount: number, msg: Discord.Message)
     {
         while (amount > 0)
@@ -495,7 +495,7 @@ export class SerializedUser
         for (const e of user.equipment) this.equipment.push({item: e[1].item ? new SerializedEquipmentItem(e[1].item.id, e[1].item?.craftingBonus): undefined, slot: e[0]});
         this.hp = user.hp;
         for (const p of user.professions) this.professions.push({id: p[0], skill: p[1].skill});
-        for (const cd of user.command_cooldowns) this.cooldowns.push({name: cd[0], date: cd[1].nextDate().toDate()});
+        for (const cd of user.commandCooldowns) this.cooldowns.push({name: cd[0], date: cd[1].nextDate().toDate()});
         for (const ab of user.abilities) this.abilities.push({slot: ab[0], ability: ab[1].ability ? ab[1].ability.data.id : undefined});
     }
 }
