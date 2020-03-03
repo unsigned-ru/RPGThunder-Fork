@@ -80,7 +80,7 @@ export abstract class DataManager
             this.blacklistedChannels = (await blacklistCollection.findOne({})).channels;
 
             const professionsCollection = await db.collection("professions");
-            for (const pd of await professionsCollection.find({}).toArray()) this.professions.set(pd._id, pd);
+            for (const pd of await professionsCollection.find({}).toArray()) this.professions.set(pd._id, new Profession(pd));
 
             const patreonRankCollection = await db.collection("patreonTiers");
             for (const pt of await patreonRankCollection.find({}).toArray()) this.patreonRanks.set(pt._id, pt);
@@ -321,24 +321,27 @@ export abstract class DataManager
     {
         const userCollection = await db.collection("userData");
 
-        for (const pd of await userCollection.find({}).toArray()) this.users.set(pd._id, new User({
-            userID: pd._id,
-            selectedClass: DataManager.getClass(pd.class_id),
-            currencies: pd.currencies,
-            equipment: pd.equipment,
-            exp: pd.exp,
-            foundBosses: pd.found_bosses,
-            hp: pd.hp,
-            inventory: pd.inventory,
-            joined: pd.joined,
-            level: pd.level,
-            professions: pd.professions,
-            unlockedZones: pd.unlocked_zones,
-            zone: pd.zone,
-            cooldowns: pd.cooldowns,
-            abilities: pd.abilities,
-            patreonRank: pd.patreon_rank
-        }));
+        for (const pd of await userCollection.find({}).toArray()) 
+        {
+            this.users.set(pd._id, new User({
+                userID: pd._id,
+                selectedClass: DataManager.getClass(pd.classID),
+                currencies: pd.currencies,
+                equipment: pd.equipment,
+                exp: pd.exp,
+                foundBosses: pd.found_bosses,
+                hp: pd.hp,
+                inventory: pd.inventory,
+                joined: pd.joined,
+                level: pd.level,
+                professions: pd.professions,
+                unlockedZones: pd.unlocked_zones,
+                zone: pd.zone,
+                cooldowns: pd.cooldowns,
+                abilities: pd.abilities,
+                patreonRank: pd.patreon_rank
+            }));
+        }
     }
 
     static async syncroniseRanks()

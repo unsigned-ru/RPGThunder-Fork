@@ -14,7 +14,7 @@ export interface UserConstructorParams
     userID: string;
     zone?: number;
     patreonRank?: string;
-    patreon_member_id?: string;
+    patreonMemberID?: string;
     level?: number;
     exp?: number;
     selectedClass: Class;
@@ -22,7 +22,7 @@ export interface UserConstructorParams
     hp?: number;
     foundBosses?: number[];
     unlockedZones?: number[];
-    currencies?: {currency_id: number; amount: number}[];
+    currencies?: {currencyID: number; amount: number}[];
     inventory?: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem)[];
     equipment?: {slot: number; item: SerializedEquipmentItem}[];
     professions?: {id: number; skill: number}[];
@@ -61,7 +61,7 @@ export class User extends Actor
 
         //initialize optional parameters.
         if(params.patreonRank) this.patreonRank = params.patreonRank;
-        if(params.patreon_member_id) this.patreonMemberID = params.patreon_member_id;
+        if(params.patreonMemberID) this.patreonMemberID = params.patreonMemberID;
         if(params.zone) this.zone = params.zone;
         if(params.exp) this.exp = params.exp;
         if(params.joined) this.joined = params.joined;
@@ -85,7 +85,7 @@ export class User extends Actor
         //initialize all currencies to a value of 0
         for (const currency of DataManager.currencies) this.currencies.set(currency[1]._id,{value: 0});
         //populate currencies if param was provided.
-        if (params.currencies) for (const currency of params.currencies) this.currencies.set(currency.currency_id,{value: currency.amount});
+        if (params.currencies) for (const currency of params.currencies) this.currencies.set(currency.currencyID,{value: currency.amount});
 
         //initialize all professions with skill 0
         for (const p of DataManager.professions) this.professions.set(p[1]._id , {skill: 0});
