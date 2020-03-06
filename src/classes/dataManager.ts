@@ -114,7 +114,7 @@ export abstract class DataManager
             await this.loadCharacterData(db);
 
             const serverPrefixesCollection = await db.collection("serverPrefixes");
-            for (const prefix of (await serverPrefixesCollection.findOne({_id: 1})).prefixes) this.serverPrefixes.set(prefix.server_id, prefix.prefix);
+            for (const prefix of (await serverPrefixesCollection.findOne({_id: 1})).prefixes) this.serverPrefixes.set(prefix.serverID, prefix.prefix);
 
             await mongoClient.close();
         }
@@ -329,17 +329,17 @@ export abstract class DataManager
                 currencies: pd.currencies,
                 equipment: pd.equipment,
                 exp: pd.exp,
-                foundBosses: pd.found_bosses,
+                foundBosses: pd.foundBosses,
                 hp: pd.hp,
                 inventory: pd.inventory,
                 joined: pd.joined,
                 level: pd.level,
                 professions: pd.professions,
-                unlockedZones: pd.unlocked_zones,
+                unlockedZones: pd.unlockedZones,
                 zone: pd.zone,
                 cooldowns: pd.cooldowns,
                 abilities: pd.abilities,
-                patreonRank: pd.patreon_rank
+                patreonRank: pd.patreonRank
             }));
         }
     }

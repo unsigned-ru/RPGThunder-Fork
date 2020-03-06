@@ -8,7 +8,7 @@ import { BossDataInterface} from "../interfaces";
 import { Boss } from "./boss";
 import { DataManager } from "./dataManager";
 import { Actor } from "./actor";
-import { BaseBuff, DamageOverTimeDebuff, HealingOverTimeBuff, AbsorbBuff } from "./tb_effects";
+import { BaseBuff, DamageOverTimeBuff, HealingOverTimeBuff, AbsorbBuff } from "./tb_effects";
 
 export class ZoneBossSession extends Session
 {
@@ -122,7 +122,7 @@ export class ZoneBossSession extends Session
             //damage over time
             for (const ubf of this.buffs)
             {
-                for (const bf of ubf[1].filter(x => x instanceof DamageOverTimeDebuff) as DamageOverTimeDebuff[]) 
+                for (const bf of ubf[1].filter(x => x instanceof DamageOverTimeBuff) as DamageOverTimeBuff[]) 
                 {
                     const {dmgTaken} = ubf[0].takeDamage(bf.damage,true,this.buffs,true);
                     this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]])+ `__🗡️ ${round(dmgTaken)}__`);
@@ -153,6 +153,9 @@ export class ZoneBossSession extends Session
             for (const ab of this.boss.abilities) ab.remainingCooldown = clamp(ab.remainingCooldown-1 , 0, Number.POSITIVE_INFINITY);
             for (const ab of this.user.abilities) if (ab[1].ability) ab[1].ability.remainingCooldown = clamp(ab[1].ability.remainingCooldown-1, 0, Number.POSITIVE_INFINITY);
             
+            //check if user has cooldowns ready
+            if (!this.user.abilities.some(x => x.ability?.remainingCooldown == 0)) { this.combatLog.push(`${this.user.getName()} has no off cooldown spells. Skipping turn...`); return resolve(this.bossUseAbility()); }
+
             await this.updateLiveMessage(this.constructBoardMessage(colors.green, `your turn`));
 
             if (this.boss.hp <= 0) return resolve(await this.onWin());
@@ -248,7 +251,7 @@ export class ZoneBossSession extends Session
             if (!this.user.unlockedZones.includes(this.user.zone+1))
             {
                 //user has not unlocked new zone yet.
-                rewardStrings.push(`**You have unlocked the next zone __${DataManager.zones.get(this.user.zone+1)}__**`);
+                rewardStrings.push(`**You have unlocked the next zone __${DataManager.zones.get(this.user.zone+1)?.name}__**`);
                 rewardStrings.push(`${round(this.boss.expReward)} EXP`);
                 this.user.gainExp(this.boss.expReward,this.liveMsg!);
                 this.user.unlockedZones.push(this.user.zone+1);

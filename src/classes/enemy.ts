@@ -24,7 +24,7 @@ export class Enemy extends Actor
         this.name = ed.name;
         this.icon = ed.icon;
         this.type = DataManager.getEnemyType(ed.type)!; 
-        this.exp = ((5 * Math.exp(-((u.level-1)/28))) / 100 * u.getRequiredExp(this.level)) * (1 - clamp(0.05 * (u.level - this.level) ,0,1));
+        this.exp = ((5 * Math.exp(-((u.level-1)/24))) / 100 * u.getRequiredExp(this.level)) * (1 - clamp(0.05 * (u.level - this.level) ,0,1));
         //calculate stats
         const w = getTotalWeightForLevel(this.level) * ze.weight;
         this.stats = 

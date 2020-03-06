@@ -334,7 +334,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
           {
             return b.getTotalStats().def - a.getTotalStats().def;
           }
-          else return 0;
+          else return -1;
         });
       break;
       case "acc": 
@@ -348,7 +348,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
           {
             return b.getTotalStats().acc - a.getTotalStats().acc;
           }
-          else return 0;
+          else return -1;
         });
       break;
       case "quality": 
@@ -372,7 +372,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
           {
             return b.amount - a.amount;
           }
-          else return 0;
+          else return -1;
         });
       break;
   }

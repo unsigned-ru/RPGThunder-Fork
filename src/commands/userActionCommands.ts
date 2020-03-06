@@ -70,6 +70,34 @@ export const cmds: CommandInterface[] =
         }
     },
     {
+		name: 'unequip',
+        aliases: ['deequip',"uq"],
+        category: CC.Equipment,
+		description: 'unequips an item.',
+        usage: `[prefix]unequip [main-hand/off-hand/head/chest/legs/feet/trinket]`,
+        executeWhileTravelling: true,
+        mustBeRegistered: true,
+		execute(msg: Discord.Message, args, user: User) 
+		{
+            //check if args are correct
+            if (args.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you did not provide what to unequip.\n${this.usage}`);
+
+            //check if arg is a slot.
+            const slotData = DataManager.itemSlots.find(x => x.name.toLowerCase() == args[0].toLowerCase());
+            if (!slotData) return msg.channel.send(`\`${msg.author.username}\`, did not find a slot with that name.\n${this.usage}`);
+
+            const playerSlot = user.equipment.get(slotData._id)!;
+            if (!playerSlot.item) return msg.channel.send(`\`${msg.author.username}\`, you have no item equipped in that slot.`);
+
+            //we have an item in the slot. Unequip it and add it to the inventory
+            const item = playerSlot.item;
+            playerSlot.item = undefined;
+            user.addItemToInventory(item);
+
+            msg.channel.send(`\`${msg.author.username}\`, You have sucessfully unequipped ${item.getData()?.getDisplayString()}`);
+        }
+    },
+    {
 		name: 'equipspell',
         aliases: ['es', 'equipability'],
         category: CC.Equipment,

@@ -16,10 +16,10 @@ export class Lottery
   {
     this.id = dbObj1.id;
     this.drawDate = dbObj1.drawDate;
-    this.msgID = dbObj1.msg_id;
+    this.msgID = dbObj1.msgID;
     this.ticketCost = dbObj1.ticketCost;
 
-    for (const obj of dbObj1.tickets) this.tickets.set(obj.user_id, {tickets: obj.tickets});
+    for (const obj of dbObj1.tickets) this.tickets.set(obj.userID, {tickets: obj.tickets});
   }
   public getTicketsForUser(userID: string)
   {

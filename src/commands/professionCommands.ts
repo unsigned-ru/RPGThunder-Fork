@@ -268,7 +268,7 @@ export const cmds: CommandInterface[] =
 		category: CC.Professions,
 		executeWhileTravelling: false,
 		mustBeRegistered: true,
-		aliases: [],
+		aliases: ['fh'],
 		description: 'Fish in a nearby lake.',
 		usage: `[prefix]fish`,
 		cooldown: {name: "mine/chop/fish/harvest", duration: 60},

@@ -39,14 +39,9 @@ export const cmds: CommandInterface[] =
 					case "maxitems":
 						if (!isNaN(+p[1])) if (+p[1] < cf.inventory_maxItemsLimit && +p[1] > 0) maxItems = +p[1];
 						break;
-					case "filter":
-					{
-						const filter = p[1].toLowerCase().trim().split("=");
-						if (filter.length < 2) return;
-						listingItems = filterItemArray(filter, listingItems) as _anyItem[];
+					default:
+						listingItems = filterItemArray(p, listingItems) as _anyItem[];
 						break;
-					}
-
 				}
 			}
 
@@ -202,15 +197,8 @@ export const cmds: CommandInterface[] =
 		async execute(msg: Discord.Message, args, user: User) 
 		{	
 			let cinventory = user.inventory.slice(); 
-			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
-			{
-				if(p[0].toLowerCase() == "filter")
-				{
-					const filter = p[1].toLowerCase().trim().split("=");
-					if (filter.length < 2) continue;
-					cinventory = filterItemArray(filter, cinventory) as anyItem[];
-				}
-			}
+			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" "))) cinventory = filterItemArray(p, cinventory) as anyItem[];
+			
 			if (cinventory.length == 0) return msg.channel.send(`\`${msg.author.username}\` you have no items that fit your query.`);
 			
 			const totalPrice = cinventory.reduce((pv, v) => {

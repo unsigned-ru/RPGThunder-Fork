@@ -6,7 +6,7 @@ import { DataManager } from "../classes/dataManager";
 import { Class } from "../classes/class";
 import { CommandInterface } from "../interfaces";
 import { Ability } from "../classes/ability";
-import { InstantDamageEffect, InstantHealingEffect, DamageOverTimeDebuffEffect, HealingOverTimeBuffEffect, AbsorbBuffEffect, DamageReductionBuffEffect } from "../classes/tb_effects";
+import { InstantDamageEffect, InstantHealingEffect, DamageOverTimeDebuffEffect, HealingOverTimeBuffEffect, AbsorbBuffEffect, DamageReductionBuffEffect, InstantDrainLifeEffect, DamageImmunityBuffEffect } from "../classes/tb_effects";
 
 export const cmds: CommandInterface[] = 
 [
@@ -171,13 +171,24 @@ export const cmds: CommandInterface[] =
 				{
 					infostrings.push(`Type: \`Instant Damage\``);
 					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
-					infostrings.push(`Base Hit Chance: \`${e.baseHitChance}%\` <:baseHitChance:674941186858942464>`);
+					infostrings.push(`Base Hit Chance: \`${e.baseHitChance}\` <:baseHitChance:674941186858942464>`);
+					infostrings.push(`Max Damage: \`${e.maxDamage}\``);
 				}
 				if (e instanceof InstantHealingEffect)
 				{
 					infostrings.push(`Type: \`Instant Healing\``);
 					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
 					infostrings.push(`Base Hit Chance: \`${e.baseHitChance}%\` <:baseHitChance:674941186858942464>`);
+					infostrings.push(`Max Healing: \`${e.maxHealing}\``);
+				}
+				if (e instanceof InstantDrainLifeEffect)
+				{
+					infostrings.push(`Type: \`Drain Life\``);
+					infostrings.push(`ATK Multiplier: \`x${e.multiplier}\``);
+					infostrings.push(`HEAL of ATK Multiplier: \`x${e.healingMultiplier}\``);
+					infostrings.push(`Base Hit Chance: \`${e.baseHitChance}%\` <:baseHitChance:674941186858942464>`);
+					infostrings.push(`Max Damage: \`${e.maxDamage}\``);
+					infostrings.push(`Max Healing: \`${e.maxHealing}\``);
 				}
 				if (e instanceof DamageOverTimeDebuffEffect)
 				{
@@ -187,6 +198,7 @@ export const cmds: CommandInterface[] =
 					infostrings.push(`Tick Interval: \`${e.interval}\``);
 					infostrings.push(`Spread Damage Over Duration: \`${e.spread}\``);
 					infostrings.push(`Success Chance: \`${e.successChance}%\``);
+					infostrings.push(`Max Damage: \`${e.maxDamage}\``);
 				}
 				if (e instanceof HealingOverTimeBuffEffect)
 				{
@@ -196,17 +208,25 @@ export const cmds: CommandInterface[] =
 					infostrings.push(`Tick Interval: \`${e.interval}\``);
 					infostrings.push(`Spread Healing Over Duration: \`${e.spread}\``);
 					infostrings.push(`Success Chance: \`${e.successChance}%\``);
+					infostrings.push(`Max Healing: \`${e.maxHealing}\``);
 				}
 				if (e instanceof AbsorbBuffEffect)
 				{
 					infostrings.push(`Type: \`Absorb Buff\``);
-					infostrings.push(`Health Percentage: \`x${e.healthPercentage}\``);
+					if (e.healthPercentage) infostrings.push(`Health Percentage: \`${e.healthPercentage * 100}%\``);
+					if (e.amount) infostrings.push(`Amount: \`x${e.amount}\``);
 					infostrings.push(`Duration: \`${e.duration}\` rounds`);
+					infostrings.push(`Max Absorb: \`${e.maxHealing}\``);
 				}
 				if (e instanceof DamageReductionBuffEffect)
 				{
 					infostrings.push(`Type: \`Damage Reduction Buff\``);
-					infostrings.push(`Damage Reduction: \`x${e.multiplier*100}%\``);
+					infostrings.push(`Damage Reduction: \`${e.multiplier*100}%\``);
+					infostrings.push(`Duration: \`${e.duration}\` rounds`);
+				}
+				if (e instanceof DamageImmunityBuffEffect)
+				{
+					infostrings.push(`Type: \`Damage Immunity\``);
 					infostrings.push(`Duration: \`${e.duration}\` rounds`);
 				}
 

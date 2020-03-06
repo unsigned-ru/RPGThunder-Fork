@@ -266,27 +266,19 @@ export const cmds: CommandInterface[] =
 			//check for input of -params
 			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
 			{
-				
 				switch(p[0].toLowerCase())
 				{
 					case "maxitems":
 						if (!isNaN(+p[1])) if (+p[1] < cf.inventory_maxItemsLimit && +p[1] > 0) maxItems = +p[1];
 					break;
-					case "sortby":
+					case "sort":
 						user.inventory = sortItemArray(p[1],user.inventory) as anyItem[];
 					break;
 				}
 			}
 			let cinventory = user.inventory.slice(); 
 			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
-			{
-				if(p[0].toLowerCase() == "filter")
-				{
-					const filter = p[1].toLowerCase().trim().split("=");
-					if (filter.length < 2) return;
-					cinventory = filterItemArray(filter, cinventory) as anyItem[];
-				}
-			}
+			cinventory = filterItemArray(p, cinventory) as anyItem[];
 			
 			for (const i of cinventory)
 			{

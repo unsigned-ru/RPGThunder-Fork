@@ -1,4 +1,4 @@
-import { InstantDamageEffect, InstantHealingEffect, AbsorbBuffEffect, DamageOverTimeDebuffEffect, DamageReductionBuffEffect, HealingOverTimeBuffEffect } from "./tb_effects";
+import { InstantDamageEffect, InstantHealingEffect, AbsorbBuffEffect, DamageOverTimeDebuffEffect, DamageReductionBuffEffect, HealingOverTimeBuffEffect, InstantDrainLifeEffect, DamageImmunityBuffEffect } from "./tb_effects";
 
 type AnyEffect = InstantDamageEffect | InstantHealingEffect | AbsorbBuffEffect | DamageOverTimeDebuffEffect | DamageReductionBuffEffect;
 
@@ -28,16 +28,15 @@ export class Ability
       {
           if(ed.effect == "DMG") this.effects.push(new InstantDamageEffect(ed));
           if(ed.effect == "HEAL") this.effects.push(new InstantHealingEffect(ed));
+          if(ed.effect == "LIFEDRAIN") this.effects.push(new InstantDrainLifeEffect(ed));
       }
       else if (ed.type == "BUFF")
       {
         if (ed.effect == "DMG_REDUCTION") this.effects.push(new DamageReductionBuffEffect(ed));
         else if (ed.effect == "ABSORB") this.effects.push(new AbsorbBuffEffect(ed));
         else if (ed.effect == "HealingOverTime") this.effects.push(new HealingOverTimeBuffEffect(ed));
-      }
-      else if (ed.type == "DEBUFF")
-      {
-        if (ed.effect == "DamageOverTime") this.effects.push(new DamageOverTimeDebuffEffect(ed));
+        else if (ed.effect == "DamageOverTime") this.effects.push(new DamageOverTimeDebuffEffect(ed));
+        else if (ed.effect == "Immunity") this.effects.push(new DamageImmunityBuffEffect(ed));
       }
     }
   }

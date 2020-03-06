@@ -1,6 +1,6 @@
 import Discord from "discord.js";
 import { commands } from "../main";
-import { CC, getServerPrefix, getItemAndAmountFromArgs } from "../utils";
+import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import {CommandInterface } from "../interfaces";
 
@@ -19,6 +19,39 @@ export const cmds: CommandInterface[] =
 			DataManager.syncroniseRanks();
 		}
 	},
+
+	{
+		name: "op_listicons",
+		aliases: [],
+		category: CC.hidden,
+		description: "Operator command, resyncronise ranks.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_syncranks",
+		async execute(msg)
+		{
+			//unique
+			const icons = [...new Set(DataManager.items.map(x => x.icon).filter(x => x.length > 0))];
+			
+			const strings = [];
+			
+			let counter = 0;
+			let string = "";
+			for (const icon of icons)
+			{
+				if (counter % 27 == 0) { strings.push(string); string = "";}
+				string += icon;
+				counter++;
+			}
+			if (string.length > 0) strings.push(string);
+
+			for (const s of strings)
+			{
+				msg.channel.send(s);
+				await sleep(1);	
+			}
+		}
+	},
 	{
 		name: "op_giveitem",
 		aliases: ['op_gi'],
@@ -30,12 +63,18 @@ export const cmds: CommandInterface[] =
 		execute(msg, args)
 		{
 			let targetUser = msg.mentions.users.first();
-			if (!targetUser) targetUser = msg.author;
+			if (targetUser) args.slice(args.indexOf(targetUser.toString(),1));
+			else targetUser = msg.author;
 
-			const {item,amount,errormsg} = getItemAndAmountFromArgs(args);
-			if (errormsg) msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
+			const pargs = args.join(" ").split(",").map(x => x.trim().split(" "));
 
-			DataManager.getUser(targetUser.id)?.addItemToInventoryFromId(item!._id, amount);
+			for (const parg of pargs)
+			{
+				const {item,amount,errormsg} = getItemAndAmountFromArgs(parg);
+				if (errormsg) { msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`); continue; }
+
+				DataManager.getUser(targetUser.id)?.addItemToInventoryFromId(item!._id, amount);
+			}
 		}
 	},
 	{
