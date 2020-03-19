@@ -31,10 +31,12 @@ export function getAccFromLevelWeight(lvl: number, weight: number, multiplier = 
 {
   return weight / ((((((8.5 * lvl)+1) / (lvl *10)) - 0.85) * (0.5 * ((cf.stats.base.atk + ((lvl-1) * cf.stats.increase.atk) * multiplier)))) - ((((8.5 * lvl) / (lvl *10)) - 0.85) * (0.5 * (cf.stats.base.atk + ((lvl-1) * cf.stats.increase.atk) * multiplier))));
 }
-export function round(n: number)
+export function round(n: number){ return +n.toFixed(2); }
+
+export function displayRound(n: number)
 {
   if (n >= 1000) return +(n/1000).toFixed(2)+"k";
-  return +n.toFixed(2);
+  return (+n.toFixed(2)).toString();
 }
 
 export function groupArrayBy(array: any[], key: string) 
@@ -161,7 +163,7 @@ export function constructCurrencyString(currency: number, amount: number)
   const cd = DataManager.getCurrency(currency);
   return `${cd?.icon} ${round(amount)} ${cd?.name}`;
 }
-export async function awaitConfirmMessage(title: string, description: string, msg: Discord.Message, user: User): Promise<boolean>
+export async function awaitConfirmMessage(title: string, description: string, msg: Discord.Message, user: User, thumbnail?: string, fields?: {name: string; value: string; inline: boolean}[]): Promise<boolean>
 {
   return new Promise(async (resolve) => {
     //construct confirm message
@@ -170,7 +172,8 @@ export async function awaitConfirmMessage(title: string, description: string, ms
     .setDescription(description)
     .setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
     .setColor('#fcf403');
-
+    if (fields && fields.length > 0) for (const f of fields) confirmEmbed.addField(f.name, f.value, f.inline);
+    if (thumbnail) confirmEmbed.setThumbnail(thumbnail);
     //send and await reaction
     const confirmMessage = await msg.channel.send(confirmEmbed) as Discord.Message;
     user.reaction.isPending = true;
@@ -178,7 +181,7 @@ export async function awaitConfirmMessage(title: string, description: string, ms
     await confirmMessage.react("❌");
     const rr = await confirmMessage.awaitReactions((m: Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
     user.reaction.isPending = false;
-    if (rr.first().emoji && rr.first().emoji.name == '✅') resolve(true);
+    if (rr.first() && rr.first().emoji && rr.first().emoji.name == '✅') resolve(true);
     else resolve(false);
   });
 }
@@ -431,7 +434,7 @@ export async function PatreonGet(path: string): Promise<any>
         {
             let data = "";
             res.on('data', (d) => data += d);
-            res.on('end', () => resolve(JSON.parse(data)));
+            res.on('end', () => {try {console.log(data); resolve(JSON.parse(data));} catch(err) {console.log(err);}});
         }).on('error', (err) => reject(err));
         req.end();
     });

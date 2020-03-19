@@ -22,6 +22,8 @@ export class Boss extends Actor
 
     currencyDrops: {id: number; amount: number}[] = [];
     itemDrops: {id: number; amount: number}[] = [];
+    
+    portraitURL: string;
 
     constructor(bd: BossDataInterface)
     {
@@ -47,6 +49,10 @@ export class Boss extends Actor
         // calculate item drops
         for (const id of bd.item_drops) if (randomIntFromInterval(0,100) <= id.chance) this.itemDrops.push({id: id.id, amount: id.minAmount && id.maxAmount ? randomIntFromInterval(id.minAmount, id.maxAmount, true) : 1});
 
+        //calculate first time item drops
+        if (bd.firstTimeDrops) for (const id of bd.firstTimeDrops) if (randomIntFromInterval(0,100) <= id.chance) this.itemDrops.push({id: id.id, amount: id.minAmount && id.maxAmount ? randomIntFromInterval(id.minAmount, id.maxAmount, true) : 1});
+
+        this.portraitURL = bd.portraitURL;
     }
 
     getHealthPercentage() { return this.hp / this.stats.max_hp * 100; }

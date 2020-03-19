@@ -3,8 +3,7 @@ import { Session } from "./session";
 import { User } from "./user";
 import Discord from "discord.js";
 import cf from "../config.json";
-import { colors, sleep, round, randomIntFromInterval, clamp, parseComblatLogString, constructCurrencyString, numberToIcon} from "../utils";
-import { BossDataInterface} from "../interfaces";
+import { colors, sleep, randomIntFromInterval, clamp, parseComblatLogString, constructCurrencyString, numberToIcon, displayRound} from "../utils";
 import { Boss } from "./boss";
 import { DataManager } from "./dataManager";
 import { Actor } from "./actor";
@@ -18,10 +17,10 @@ export class ZoneBossSession extends Session
     combatLog: string[] = []
     bossdataStartMessage: Discord.Message | undefined;
     buffs: Discord.Collection<Actor, BaseBuff[]> = new Discord.Collection();
-    constructor(discordUser: Discord.User, user: User, broadcastChannel: Discord.TextChannel, bd: BossDataInterface)
+    constructor(discordUser: Discord.User, user: User, broadcastChannel: Discord.TextChannel, boss: Boss)
     {
         super(discordUser,user,broadcastChannel);
-        this.boss = new Boss(bd);
+        this.boss = boss;
     }
 
     async initialize()
@@ -57,8 +56,9 @@ export class ZoneBossSession extends Session
         const dataEmbed = new Discord.RichEmbed()
         .setColor(colors.yellow) //Yelow 
         .setTitle(`${this.boss.name}`)
-        .addField("**Stats**",`❤️ ${round(this.boss.stats.max_hp)}\n🗡️ ${round(this.boss.stats.atk)}\n🛡️ ${round(this.boss.stats.def)}\n⚡ ${round(this.boss.stats.acc)}`,true)
-        .addField("**Abilities**",`${this.boss.abilities.map(x => x.data.name).join("\n")}`,true)
+        .addField("**Stats**",`❤️ ${displayRound(this.boss.stats.max_hp)}\n🗡️ ${displayRound(this.boss.stats.atk)}\n🛡️ ${displayRound(this.boss.stats.def)}\n⚡ ${displayRound(this.boss.stats.acc)}`,true)
+        .addField("**Abilities**",`${this.boss.abilities.map(x => `${x.data.icon} ${x.data.name}`).join("\n")}`,true)
+        .setThumbnail(this.boss.portraitURL)
         .setTimestamp()
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 
@@ -70,7 +70,7 @@ export class ZoneBossSession extends Session
     {
         return new Promise(async (resolve) => 
         {
-            this.user?.setCooldown('boss', 7200);
+            this.user?.setCooldown('boss', 21600);
             this.bossdataStartMessage?.delete();
             this.setTimer(120);
             this.status.started = true;
@@ -125,7 +125,7 @@ export class ZoneBossSession extends Session
                 for (const bf of ubf[1].filter(x => x instanceof DamageOverTimeBuff) as DamageOverTimeBuff[]) 
                 {
                     const {dmgTaken} = ubf[0].takeDamage(bf.damage,true,this.buffs,true);
-                    this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]])+ `__🗡️ ${round(dmgTaken)}__`);
+                    this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]])+ `__🗡️ ${displayRound(dmgTaken)}__`);
                 }
             }
             
@@ -252,13 +252,13 @@ export class ZoneBossSession extends Session
             {
                 //user has not unlocked new zone yet.
                 rewardStrings.push(`**You have unlocked the next zone __${DataManager.zones.get(this.user.zone+1)?.name}__**`);
-                rewardStrings.push(`${round(this.boss.expReward)} EXP`);
+                rewardStrings.push(`${displayRound(this.boss.expReward)} EXP`);
                 this.user.gainExp(this.boss.expReward,this.liveMsg!);
                 this.user.unlockedZones.push(this.user.zone+1);
             }
             else 
             {
-                rewardStrings.push(`${round(this.boss.expReward/3)} EXP`);
+                rewardStrings.push(`${displayRound(this.boss.expReward/3)} EXP`);
                 this.user.gainExp(this.boss.expReward / 3,this.liveMsg!);
             }
 
@@ -310,8 +310,8 @@ export class ZoneBossSession extends Session
         .setTitle(`Boss Battle: ${this.boss.name}`)
         .setDescription(`__**Combat Log**__\n${this.combatLog.slice(-10).join("\n")}\n\n__Status:__ **${status}**\n${warnings.join("\n")}`)
         .setTimestamp()
+        .setThumbnail(this.boss.portraitURL)
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-
         const bossHealthPercentage = this.boss.getHealthPercentage();
         const bossHealthBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(bossHealthPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(bossHealthPercentage/(20/3))); 
         
@@ -331,7 +331,7 @@ export class ZoneBossSession extends Session
 
         embed.addField(`**Boss**`, 
             `☠️ **${this.boss.name}**\n`+
-            `${round(bossHealthPercentage)}% [${round(this.boss.hp)}/${round(this.boss.stats.max_hp)}]\n`+
+            `${displayRound(bossHealthPercentage)}% [${displayRound(this.boss.hp)}/${displayRound(this.boss.stats.max_hp)}]\n`+
             `❤️ ${bossHealthBar}\n`+
             `${bossAbsorbBar.length > 0 ? `💙 ${bossAbsorbBar}`: ""}`
         );
@@ -355,7 +355,7 @@ export class ZoneBossSession extends Session
 
         embed.addField(`**Player**`, 
             `${this.user.class.icon} **${this.discordUser.username}**\n`+
-            `${round(playerHealthPercentage)}% [${round(this.user.hp)}/${round(this.user.getStats().base.hp)}]\n`+
+            `${displayRound(playerHealthPercentage)}% [${displayRound(this.user.hp)}/${displayRound(this.user.getStats().base.hp)}]\n`+
             `❤️ ${playerProgressBar}\n`+
             `${playerAbsorbBar.length > 0 ? `💙 ${playerAbsorbBar}`: ""}`
         );
@@ -365,7 +365,7 @@ export class ZoneBossSession extends Session
         for (const ab of this.user.abilities)
         {
             if (!ab[1].ability) continue;
-            let abstring = `${numberToIcon(ab[0])} - **${ab[1].ability.data.name}**`;
+            let abstring = `${numberToIcon(ab[0])} - **${ab[1].ability.data.icon} ${ab[1].ability.data.name}**`;
             if (ab[1].ability.remainingCooldown > 0) abstring += ` <:cooldown:674944207663923219> ${ab[1].ability.remainingCooldown}`;
             abStrings.push(abstring);
         }

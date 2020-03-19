@@ -1,6 +1,6 @@
 import Discord from "discord.js";
 import { commands } from "../main";
-import { groupArrayBy, round, CC, getServerPrefix, colors } from "../utils";
+import { groupArrayBy, CC, getServerPrefix, colors, displayRound } from "../utils";
 import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, _anyItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";
 import { Class } from "../classes/class";
@@ -103,12 +103,15 @@ export const cmds: CommandInterface[] =
 				`**Type:** ${item.getType().name}\n`+
 				`${item.slots.includes(1) || item.slots.includes(2) ? `**TwoHand:** ${item.twoHand}\n` : ``}`+
 				`**Level Requirement:** ${item.levelRequirement}\n`+
-				`**Sell Price:** ${item.sellPrice}`,true)
+				`**Sellable: ** ${item.sellable}\n`+
+				`${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+				`**Soulbound: ** ${item.soulbound}\n`
+				,true)
 			
 				.addField("Stats:",
-				`🗡️**ATK:** ${round(item.stats.base.atk)}\n`+
-				`🛡️**DEF:** ${round(item.stats.base.def)}\n`+
-				`⚡**ACC:** ${round(item.stats.base.acc)}\n`,true)
+				`🗡️**ATK:** ${displayRound(item.stats.base.atk)}\n`+
+				`🛡️**DEF:** ${displayRound(item.stats.base.def)}\n`+
+				`⚡**ACC:** ${displayRound(item.stats.base.acc)}\n`,true)
 				.setTimestamp()
 				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 			
@@ -124,7 +127,9 @@ export const cmds: CommandInterface[] =
 				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
 				`**Type:** Material\n`+
 				`**Effects:** ${item.getEffectsString().length==0 ? "None" : `\n${item.getEffectsString()}`}`+
-				`**Sell Price:** ${item.sellPrice}`);
+				`**Sellable: ** ${item.sellable}\n`+
+				`${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+				`**Soulbound: ** ${item.soulbound}\n`);
 
 				msg.channel.send(embed);
 			}
@@ -137,7 +142,9 @@ export const cmds: CommandInterface[] =
 				.addField("Info:",
 				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
 				`**Type:** Material\n`+
-				`**Sell Price:** ${item.sellPrice}`);
+				`**Sellable: ** ${item.sellable}\n`+
+				`${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+				`**Soulbound: ** ${item.soulbound}\n`);
 
 				msg.channel.send(embed);
 			}
@@ -160,7 +167,7 @@ export const cmds: CommandInterface[] =
 
 			const embed = new Discord.RichEmbed()
 			.setColor(colors.yellow) //Yelow
-			.setTitle(`Spell #${spell.id}: ${spell.name}`)
+			.setTitle(`Spell #${spell.id}: ${spell.icon} ${spell.name}`)
 			.setDescription(`Cooldown: \`${spell.cooldown}\` <:cooldown:674944207663923219>\n*${spell.description}*`);
 
 			const effectCounter = 1;

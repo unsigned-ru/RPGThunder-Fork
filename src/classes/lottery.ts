@@ -39,7 +39,7 @@ export class Lottery
     //construct embed
     const embed = new Discord.RichEmbed()
     .setTitle(`Lottery #${DataManager.activeLottery.id} | Prize: ${constructCurrencyString(1,DataManager.activeLottery.getPrize())}`)
-    .setDescription(`**Top Entries:**\n${DataManager.activeLottery.tickets.keyArray().sort((a,b) => DataManager.activeLottery.tickets.get(a)!.tickets - DataManager.activeLottery.tickets.get(b)!.tickets).slice(0,10).map(x => `\`${client.users.get(x)?.username}\` - **${DataManager.activeLottery.tickets.get(x)?.tickets} tickets**`).join("\n")}`)
+    .setDescription(`**Top Entries:**\n${DataManager.activeLottery.tickets.keyArray().sort((a,b) => DataManager.activeLottery.tickets.get(b)!.tickets - DataManager.activeLottery.tickets.get(a)!.tickets).slice(0,15).map(x => `\`${client.users.get(x)?.username}\` - **${DataManager.activeLottery.tickets.get(x)?.tickets} tickets**`).join("\n")}`)
     .setTimestamp(DataManager.activeLottery.drawDate)
     .setFooter("Ends", 'http://159.89.133.235/DiscordBotImgs/logo.png')
     .setColor('#fcf403');

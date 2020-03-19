@@ -3,16 +3,15 @@ import cf from '../config.json';
 import { DataManager } from '../classes/dataManager.js';
 import { getServerPrefix } from '../utils.js';
 import { executeGlobalCommand } from '../commands/adminCommands.js';
-import { commands } from '../main.js';
+import { commands, client } from '../main.js';
 
 
 export async function onMSGReceived(msg: Discord.Message)
 {
     try 
     {
-        if (msg.channel.type == "dm") return;
         if (msg.author.bot) return;
-        if (cf.DEVMODE && msg.guild.id == "646062255170912293") return; //prevent the test bot from receiving anything in the official server.
+        if (cf.DEVMODE && msg.channel.type != "dm" && msg.guild.id == "646062255170912293") return; //prevent the test bot from receiving anything in the official server.
 
         //check for existing sessions.
         const session = DataManager.sessions.get(msg.author.id);
@@ -22,12 +21,41 @@ export async function onMSGReceived(msg: Discord.Message)
             return msg.delete(); 
         }
         
+        const user = DataManager.getUser(msg.author.id);
+        if (user)
+        {
+            if (user.macroProtection.commandCounter >= cf.macroProtectionFrequency) {
+                user.askMacroProtection();
+                msg.channel.send(`Halt \`${msg.author.username}\`! 👮\nYou have been selected for inspection! Please confirm you are not a robot by solving the problem sent to you as a direct message from the bot.`);
+            }
+            if (user.macroProtection.questionActive)
+            {
+                if (msg.channel.type == "dm")
+                {
+                    const answer = msg.content.trim();
+                    if (isNaN(+answer)) return msg.channel.send(`That is not a number.`);
+                    else if (+answer != user.macroProtection.questionAnswer) return msg.channel.send(`Your answer is incorrect!`);
+                    else 
+                    {
+                        msg.channel.send(`Correct!\n✨ Thank you for playing fair, your rock! ✨`);
+                        user.macroProtection.questionActive = false;
+                    }
+                }
+                else return;
+            }
+        }
+
+        if (msg.channel.type == "dm") return;
+
         //check for global command prefix
         if (msg.content.toLowerCase().startsWith("rpgthunder")) return executeGlobalCommand(msg, msg.content.split(/ +/)[1],msg.content.split(/ +/).slice(2));
         
         //check if it starts with local prefix
         const prefix = getServerPrefix(msg);
         if (!msg.content.startsWith(prefix)) return;
+
+        if (!msg.guild.channels.get(msg.channel.id)?.permissionsFor(client.user)?.has(["READ_MESSAGES", "SEND_MESSAGES"])) return msg.author.send("I do not have permissions to read and write messages in that channel.").catch();
+
 
         //check if the receiving channel is blacklisted.
         if (DataManager.blacklistedChannels.includes(msg.channel.id) && !cf.Operators.includes(msg.author.id)) return msg.delete();
@@ -50,7 +78,6 @@ export async function onMSGReceived(msg: Discord.Message)
         if (cCmd.needOperator && !cf.Operators.includes(msg.author.id)) return; //do you need to be a server operator to execute the command?
 
         //check if user must be registered.
-        const user = DataManager.getUser(msg.author.id);
         if (cCmd.mustBeRegistered && !user) return msg.channel.send(`\`${msg.author.username}\`, you must be registered to use that command, if you were previously registered, we just recently launched a **HUGE** update, re-balancing the game. As we are still in beta, the easiest way to do this was a wipe. Sorry about the inconvenience, and thank you for your understanding.`);
 
         //check if the user has a reaction pending.
@@ -69,6 +96,7 @@ export async function onMSGReceived(msg: Discord.Message)
         }
 
         cCmd.execute(msg,args,user);
+        if (user) user.macroProtection.commandCounter++;
     }
     catch (error) 
     {

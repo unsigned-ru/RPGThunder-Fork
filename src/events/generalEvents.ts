@@ -16,7 +16,7 @@ export async function SetupEvents()
     console.log("Finished setting up events.");
 }
 
-async function onReady() { console.log(`Logged in as ${client.user.tag} on ${client.guilds.size} servers with a total of ${client.users.size} members.`); }
+async function onReady() { console.log(`Logged in as ${client.user.tag} on ${client.guilds.size} servers with a total of ${client.users.size} members.`);}
 function onguildMemberUpdate(oldm: Discord.GuildMember, newm: Discord.GuildMember)
 {
     if (oldm.guild.id == cf.official_server && newm.guild.id == cf.official_server)

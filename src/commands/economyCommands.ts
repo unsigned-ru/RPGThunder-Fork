@@ -158,6 +158,7 @@ export const cmds: CommandInterface[] =
 				if (!item) {warningMessages.push(errormsg); continue;}
 				const invEntry = user.inventory.find(x => x.id == item?._id);
 				if (!invEntry) {warningMessages.push(`You don't own the item: ${item.icon} ${item.name}`); continue;}
+				if (!invEntry.getData()?.sellable) {warningMessages.push(`${item.icon} ${item.name} is not sellable.`); continue;}
 				if ((invEntry instanceof ConsumableItem || invEntry instanceof MaterialItem))
 				{
 					if (amount < 1) {warningMessages.push(`selling amount cannot be smaller than 1 (for item ${item.icon} ${item.name})`); continue;}
@@ -196,7 +197,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]sellall -[filter1] -[filter2] -[filter3]...`,
 		async execute(msg: Discord.Message, args, user: User) 
 		{	
-			let cinventory = user.inventory.slice(); 
+			let cinventory = user.inventory.slice().filter(x => x.getData()?.sellable); 
 			for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" "))) cinventory = filterItemArray(p, cinventory) as anyItem[];
 			
 			if (cinventory.length == 0) return msg.channel.send(`\`${msg.author.username}\` you have no items that fit your query.`);
@@ -205,12 +206,12 @@ export const cmds: CommandInterface[] =
 				if (v instanceof ConsumableItem || v instanceof MaterialItem) return pv + v.amount * v.getData()!.sellPrice;
 				else return pv + v.getData()!.sellPrice;
 			},0);
-			let itemsString = cinventory.slice(0,20).map(x => {
+			let itemsString = cinventory.slice(0,15).map(x => {
 				const id = x.getData();
 				if (x instanceof ConsumableItem || x instanceof MaterialItem) return `${id?._id} - ${id?.icon} ${id?.name} x${x.amount} for ${constructCurrencyString(1,x.amount * id?.sellPrice!)}`;
 				return `${id?._id} - ${id?.icon} ${id?.name} for ${constructCurrencyString(1,id?.sellPrice!)}`;
 			}).join("\n");
-			if (cinventory.length > 20) itemsString += `\n**And more...**`;
+			if (cinventory.length > 15) itemsString += `\n**And more...**`;
 			if (!await awaitConfirmMessage(`\`${msg.author.username}\`, are you sure you want to sell the items for ${constructCurrencyString(1,totalPrice)}?`, `**Items:**\n${itemsString}`,msg,user)) return;
 
 			for (const e of cinventory) user.removeEntryFromInventory(e);
@@ -238,7 +239,7 @@ export const cmds: CommandInterface[] =
 			//parse args amount and item
 			const {item, amount, errormsg} = getItemAndAmountFromArgs(args,suser);
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
-
+			if (item.soulbound) return msg.channel.send(`\`${msg.author.username}\`, that item is soulbound and untradable.`); 
 			//check if user has enough / has item
 			if ((item instanceof DbMaterialItem || item instanceof DbConsumableItem)) 
 			{
@@ -318,6 +319,7 @@ export const cmds: CommandInterface[] =
 				// eslint-disable-next-line prefer-const
 				let {item, amount, errormsg} = getItemAndAmountFromArgs(parg,user);
 				if (!item) {warningMessages.push(errormsg); continue;}
+				if (!item.sellable) {warningMessages.push(`${item.icon} ${item.name} is not sellable.`); continue;}
 				const invEntries = user.inventory.filter(x => x.id == item?._id);
 				if (invEntries.length == 0) {warningMessages.push(`You don't own the item: ${item.icon} ${item.name}`); continue;}
 				if ((invEntries[0] instanceof ConsumableItem || invEntries[0] instanceof MaterialItem))

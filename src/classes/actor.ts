@@ -1,7 +1,7 @@
 import { clamp } from "../utils";
 import cf from '../config.json';
 import Discord from 'discord.js';
-import { DamageReductionBuff, AbsorbBuff, BaseBuff } from "./tb_effects";
+import { DamageReductionBuff, AbsorbBuff, BaseBuff, DamageImmunityBuff } from "./tb_effects";
 import { StatObjectInterface } from "../interfaces";
 
 export abstract class Actor
@@ -35,7 +35,11 @@ export abstract class Actor
         
         //iterate over damage reduction buffs and get total damage reduction. Then apply the damage reduction to the incoming damage.
         let totalReduction = 0;
-        if (bfs) for (const bf of bfs.filter(x => x instanceof DamageReductionBuff) as DamageReductionBuff[]) totalReduction += bf.multiplier;
+        if (bfs)
+        {
+            for (const bf of bfs.filter(x => x instanceof DamageReductionBuff) as DamageReductionBuff[]) totalReduction += bf.multiplier;
+            for (const bf of bfs.filter(x => x instanceof DamageImmunityBuff) as DamageImmunityBuff[]) parsedDamage = 0;
+        }
         parsedDamage = clamp(parsedDamage - parsedDamage * totalReduction, 0, Number.POSITIVE_INFINITY);
 
         if (execute)

@@ -33,6 +33,7 @@ export interface UserConstructorParams
 
 export class User extends Actor
 {
+    //#region generalStats
     userID: string;
     exp = 0;
     class: Class;
@@ -51,6 +52,16 @@ export class User extends Actor
     abilities: Discord.Collection<number, {ability: UserAbility | undefined}> = new Discord.Collection();
 
     reaction = { isPending: false, timerID: 0 }
+    //#endregion generalStats
+    
+    //#region macroProtection
+    macroProtection = {
+        userLocked: false,
+        commandCounter: 0,
+        questionActive: false,
+        questionAnswer: 0
+    }
+    //#endregion macroProtection
 
     constructor(params: UserConstructorParams)
     {
@@ -122,7 +133,7 @@ export class User extends Actor
         if (params.abilities) for (const ab of params.abilities) this.abilities.set(ab.slot, {ability: ab.ability ? new UserAbility(DataManager.getAbility(ab.ability)) : undefined});
     }
 
-    //GENERAL GETTERS ------------------------------
+    //#region GeneralGetters ------------------------------------------------------
     getCurrency(id: number) { return this.currencies.get(id)!; }
     getZone() {return DataManager.zones.get(this.zone)!;}
     getUnlockedZones() {return DataManager.zones.filter(x => this.unlockedZones.includes(x._id));}
@@ -139,7 +150,9 @@ export class User extends Actor
     getProfession(id: number) { return this.professions.get(id); }
     getUnlockedAbilities() { return this.class.getSpellbook().filter(x => x.level <= this.level); }
     getPatreonRank() { return this.patreonRank ? DataManager.getPatreonRank(this.patreonRank) : undefined;}
-    //GENERAL SETTERS
+    //#endregion GeneralGetters ------------------------------------------------------
+
+    //#region GeneralSetters ------------------------------------------------------
     setCooldown(name: string, duration: number, ignoreReduction = false)
     {
         if (this.commandCooldowns.has(name)) return;
@@ -192,8 +205,9 @@ export class User extends Actor
         prof.skill = clamp(prof.skill + skill, 0, pd.maxSkill);
         return {skillgain: skill, newRecipes: newRecipes};
     }
-
-    //EQUIPMENT & ITEMS ------------------------------
+    //#endregion GeneralSetters ------------------------------------------------------
+    
+    //#region EQUIPMENT & ITEMS ------------------------------
     async equipItem(item: _anyItem, msg: Discord.Message)
     {
         //check if user owns the item in inventory.
@@ -367,8 +381,9 @@ export class User extends Actor
         }
         return costErrorStrings;
     }
+    //#endregion EQUIPMENT & ITEMS ------------------------------
 
-    //COMBAT METHODS
+    //#region COMBAT METHODS -----------------------------------------------------------
     getStats() 
     {
         const result = { 
@@ -428,8 +443,9 @@ export class User extends Actor
             ab[1].ability.remainingCooldown = 0;
         }
     }
-    
-    //EVENTS ----------
+    //#endregion COMBAT METHODS -----------------------------------------------------------
+
+    //#region EVENTS -----------------------------------------------------------
     onLevel(msg: Discord.Message)
     {
         //regenerate health
@@ -452,6 +468,44 @@ export class User extends Actor
         //reset hp
         this.hp = this.getStats().base.hp;
     }
+    //#endregion Events -----------------------------------------------------------
+
+    //#region OTHERS -------------------------------------
+    askMacroProtection()
+    {
+        //set vars
+        this.macroProtection.commandCounter = 0;
+        this.macroProtection.questionActive = true;
+        const runes = ["<:MacroVar1:688688830630461500>", "<:MacroVar2:688689212131639310>", "<:MacroVar3:688689212140290056>"];
+        const mathOperator = ['+','-','*'][randomIntFromInterval(0,2,true)];
+        const questionVariables = [];
+        //create question.
+        //get 2 random runes and assign a number to them.
+        for (let i=0; i < 2; i++)
+        {
+            const rune = runes[randomIntFromInterval(0,runes.length-1,true)];
+            if (mathOperator == "+" || mathOperator == "-") questionVariables.push({rune: rune, value: randomIntFromInterval(1, 50, true)});
+            else if (mathOperator == "*") questionVariables.push({rune: rune, value: randomIntFromInterval(1, 5, true)});
+            runes.splice(runes.indexOf(rune), 1);
+        }
+
+        //calculate answer.
+        const answer = eval(`${questionVariables[0].value}${mathOperator}${questionVariables[1].value}`);
+        this.macroProtection.questionAnswer = answer;
+
+        //send the question
+        this.getUser().send(
+            `**__Macro Protection:__**\n`+
+            `*To keep our game fair for everyone we want to prevent players making things unfair by using macros. This is a system implemented to prevent this from happening. Solve the math question below and show us you are not a robot :robot:!*\n\n`+
+            `__When you know:__\n`+
+            `${questionVariables[0].rune} has a value of **${questionVariables[0].value}**\n`+
+            `${questionVariables[1].rune} has a value of **${questionVariables[1].value}**\n\n`+
+            `**What is the value of ${runes[0]} in the question below:**\n`+
+            `**${questionVariables[0].rune} ${mathOperator} ${questionVariables[1].rune} = ${runes[0]}**\n`
+            );
+        
+    }
+    //#endregion OTHERS -------------------------------------
 }
 
 export class SerializedUser

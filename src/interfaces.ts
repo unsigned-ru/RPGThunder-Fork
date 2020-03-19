@@ -47,7 +47,9 @@ export interface BossDataInterface
   intro_dialogue: string[];
   abilities: {id: number; chance: number}[];
   currency_drops: { id: number; chance: number; minAmount: number; maxAmount: number }[];
+  firstTimeDrops?: { id: number; chance: number; minAmount?: number; maxAmount?: number }[];
   item_drops: { id: number; chance: number; minAmount?: number; maxAmount?: number }[];
+  portraitURL: string;
 }
 
 export interface StatObjectInterface 

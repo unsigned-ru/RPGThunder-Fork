@@ -39,12 +39,12 @@ export const cmds: CommandInterface[] =
 
 			if (result == args[0]) 
 			{
-				user.getCurrency(1).value += amount;
+				user.getCurrency(1).value += Math.round(amount);
 				msgString += `**won** `;
 			}
 			else
 			{
-				user.getCurrency(1).value -= amount;
+				user.getCurrency(1).value -= Math.round(amount);
 				msgString += `**lost** `;
 			}
 			msgString += `${cd?.icon} ${amount} ${cd?.name}!\nTheir new balance is: ${cd?.icon} ${user.getCurrency(1).value} ${cd?.name}.`;
@@ -66,6 +66,7 @@ export const cmds: CommandInterface[] =
 			//check for amount
 			let amount = 0;
 
+			if (args.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you must specify the amount you wish to bet.\n${this.usage}`);
 			if (args[0].toLowerCase() == "full" || args[0].toLowerCase() == "all") amount = user.getCurrency(1).value;
 			else if (args[0].toLowerCase() == "half") amount = Math.round(user.getCurrency(1).value/2);
 			else if (!isNaN(+args[0])) amount = Math.round(+args[0]);

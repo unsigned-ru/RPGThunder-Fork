@@ -1,7 +1,7 @@
-import Discord from "discord.js";
+import Discord, { UserProfile } from "discord.js";
 import { commands, client } from "../main";
 import { DataManager } from "../classes/dataManager";
-import { randomIntFromInterval, CC, round, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp, formatTime } from "../utils";
+import { randomIntFromInterval, CC, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp, formatTime, displayRound } from "../utils";
 import { CommandInterface} from "../interfaces";
 import { User } from "../classes/user";
 import { DbMaterialItem, MaterialItem } from "../classes/items";
@@ -11,6 +11,7 @@ import { Enemy } from "../classes/enemy";
 import { Zone } from "../classes/zone";
 import { ZoneBossSession } from "../classes/zoneBossSession";
 import { Ability, UserAbility } from "../classes/ability";
+import { Boss } from "../classes/boss";
 
 export const cmds: CommandInterface[] = 
 [
@@ -38,13 +39,16 @@ export const cmds: CommandInterface[] =
 
             try
             {
-                const rr = await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxMatches: 1});
-                const selectedClass = DataManager.classes.find(x => rr.first().content.toLowerCase().includes(x.name.toLowerCase()));
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxMatches: 1})).first();
+                if (!rr || !rr.content) return;
+
+                const selectedClass = DataManager.classes.find(x => rr.content.toLowerCase().includes(x.name.toLowerCase()));
                 if (!selectedClass) return msg.channel.send("Did not find a class with that name.");
+                
                 DataManager.registerUser(msg.author,selectedClass);
                 msg.channel.send(`You have been registered as the class ${selectedClass.name}`);
             }
-            catch(err) { console.log(err); return; }
+            catch(err) { return console.log(err);}
         }
     },
     {
@@ -114,7 +118,7 @@ export const cmds: CommandInterface[] =
 			else spell = DataManager.getSpellByName(args.join(" "));
             if (!spell) return msg.channel.send(`\`${msg.author.username}\`, could not find a spell with that id/name.`);
             //check if class owns spell.
-            if (!user.class.spellbook.some(x => x.ability == spell?.id)) return msg.channel.send(`\`${msg.author.username}\`, your class cannot use the spell \`${spell.name}\`.`);
+            if (!user.class.spellbook.some(x => x.ability == spell?.id)) return msg.channel.send(`\`${msg.author.username}\`, your class cannot use the spell ${spell.icon}\`${spell.name}\`.`);
             //check if user is high enough level for the spell.
             const slvl = user.class.spellbook.find(x => x.ability == spell?.id)?.level!;
             if (user.level < slvl) return msg.channel.send(`\`${msg.author.username}\`, you are not high enough level to use that spell. (requirement: \`${slvl}\`)`);
@@ -129,7 +133,7 @@ export const cmds: CommandInterface[] =
 			}
 
             const confirmEmbed = new Discord.RichEmbed()
-            .setTitle(`In what slot would you like to equip __${spell.name}__?`)
+            .setTitle(`In what slot would you like to equip __${spell.icon} ${spell.name}__?`)
             .setDescription(abStrings.join("\n"))
             .setColor(colors.yellow);
         
@@ -142,7 +146,7 @@ export const cmds: CommandInterface[] =
 
             const selectedSlot = clamp(+rr,1,user.abilities.size);
             user.abilities.set(selectedSlot, {ability: new UserAbility(spell)});
-            msg.channel.send(`\`${msg.author.username}\` has equipped __${spell.name}__ in slot ${selectedSlot}.`);
+            msg.channel.send(`\`${msg.author.username}\` has equipped __${spell.icon} ${spell.name}__ in slot ${selectedSlot}.`);
         }
     },
     {
@@ -221,8 +225,8 @@ export const cmds: CommandInterface[] =
                 .setTitle(`⚔️ Exploration Success! ✅`)
                 .setDescription(
                 `\`${msg.author.username}\` explored **${zone.name}** and **killed a level ${enemy.level} ${enemy.name}**.\n`+
-                `\`${msg.author.username}\` took **${round(dmgTaken)} damage** and gained **${round(enemy.exp)} exp**.\n`+
-                `Their remaining hp is **${round(user.hp)}/${user.getStats().base.hp}**.`)
+                `\`${msg.author.username}\` took **${displayRound(dmgTaken)} damage** and gained **${displayRound(enemy.exp)} exp**.\n`+
+                `Their remaining hp is **${displayRound(user.hp)}/${displayRound(user.getStats().base.hp)}**.`)
                 .setTimestamp()
                 .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
                 
@@ -361,7 +365,8 @@ export const cmds: CommandInterface[] =
             const distance = Math.abs(currentZone.loc.x - zone.loc.x) + Math.abs(currentZone.loc.y - zone.loc.y);
 
             //calculate travel time and apply duration reductions.
-            let reduction = user.getPatreonRank() ? user.getPatreonRank()!.cooldown_reduction : 0;
+            const pRank = user.getPatreonRank();
+            let reduction = pRank ? pRank.travel_cooldown_reduction : 0;
             const travelTime = (cf.chunk_travel_time * distance) * clamp(1 - reduction, 0, 1); //in seconds
 
             //await user confirm
@@ -386,6 +391,23 @@ export const cmds: CommandInterface[] =
 		},
     },
     {
+		name: 'canceltravel',
+		category: CC.Fighting,
+		aliases: ['ctravel'],
+		description: 'cancel travelling to another zone.',
+        usage: `[prefix]canceltravel`,
+        executeWhileTravelling: true,
+        mustBeRegistered: true,
+		async execute(msg: Discord.Message, args: string[], user: User) 
+		{
+            const travelCd = user.commandCooldowns.get('travel');
+            if (!travelCd) return msg.channel.send(`\`${msg.author.username}\`, you are not travelling.`);
+            travelCd.stop();
+            user.commandCooldowns.delete('travel');
+            return msg.channel.send(`\`${msg.author.username}\`, you have stopped travelling.`);
+		},
+    },
+    {
 		name: 'boss',
 		category: CC.Fighting,
 		aliases: ['travelling'],
@@ -403,9 +425,11 @@ export const cmds: CommandInterface[] =
             if (!bd) return msg.channel.send(`\`${msg.author.username}\`, a problem occured getting the boss data. Please inform an administrator.`);
             if (user.abilities.filter(x => x.ability != undefined).size == 0) return msg.channel.send(`\`${msg.author.username}\`, you cannot enter a turn based battle without abilities equipped.`);
 
-            if (!await awaitConfirmMessage(`Are you sure you would like to battle **${bd?.name}**?`, `⚠️ The suggested minimum level requirement is ${bd?.level}. ⚠️`, msg, user)) return;
+            const boss = new Boss(bd);
+
+            if (!await awaitConfirmMessage(`Are you sure you would like to battle **${bd?.name}**?`, `⚠️ The suggested minimum level requirement is ${bd?.level}. ⚠️\n\n`, msg, user, bd.portraitURL, [{name: "**Stats**", value: `❤️ ${displayRound(boss.stats.max_hp)}\n🗡️ ${displayRound(boss.stats.atk)}\n🛡️ ${displayRound(boss.stats.def)}\n⚡ ${displayRound(boss.stats.acc)}`, inline: false}, {name: "**Abilities**", value: `${boss.abilities.map(x => `${x.data.icon} ${x.data.name}`).join("\n")}`, inline: true}])) return;
         
-            const bs = new ZoneBossSession(msg.author, user, msg.channel as Discord.TextChannel, bd);
+            const bs = new ZoneBossSession(msg.author, user, msg.channel as Discord.TextChannel, boss);
             DataManager.sessions.set(msg.author.id, bs);
             await bs.initialize();
 		},

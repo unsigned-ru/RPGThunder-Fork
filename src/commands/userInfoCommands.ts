@@ -1,7 +1,7 @@
 import Discord from "discord.js";
 import { commands} from "../main";
 import { DataManager } from "../classes/dataManager";
-import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon } from "../utils";
+import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon, displayRound } from "../utils";
 import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
@@ -26,7 +26,7 @@ export const cmds: CommandInterface[] =
 
 			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
-
+			const pRank = user.getPatreonRank();
 			//Create an embedd with the profile data.
 			const embed = new Discord.RichEmbed()
 			.setColor('#fcf403') //Yelow
@@ -35,17 +35,17 @@ export const cmds: CommandInterface[] =
 			.addField("Info:",
 			`**Class:** ${user.class.icon} ${user.class.name}\n`+
 			`**Level:** ${user.level}\n`+
-			`**Exp:** ${round(user.exp)}/${round(user.getRequiredExp())}\n`+
+			`**Exp:** ${displayRound(user.exp)}/${displayRound(user.getRequiredExp())}\n`+
 			`**Zone:** ${user.getZone().name}\n`+
-			`**Rank:** ${user.getPatreonRank() ? user.getPatreonRank()?.name : "None"}\n`
+			`**Rank:** ${pRank ? pRank.name : "None"}\n`
 			,true);
 
 			const s = user.getStats();
 			embed.addField("Stats:",
-			`❤️ ${round(user.hp)} / ${round(s.base.hp)} \n`+
-			`🗡️ ${round(s.total.atk)} (${round(s.base.atk)} + ${round(s.gear.atk)})\n`+
-			`🛡️ ${round(s.total.def)} (${round(s.base.def)} + ${round(s.gear.def)})\n`+
-			`⚡ ${round(s.total.acc)} (${round(s.base.acc)} + ${round(s.gear.acc)})\n`
+			`❤️ ${displayRound(user.hp)} / ${displayRound(s.base.hp)} \n`+
+			`🗡️ ${displayRound(s.total.atk)} (${displayRound(s.base.atk)} + ${displayRound(s.gear.atk)})\n`+
+			`🛡️ ${displayRound(s.total.def)} (${displayRound(s.base.def)} + ${displayRound(s.gear.def)})\n`+
+			`⚡ ${displayRound(s.total.acc)} (${displayRound(s.base.acc)} + ${displayRound(s.gear.acc)})\n`
 			,true);
 			embed.addBlankField(false);
 
@@ -69,7 +69,7 @@ export const cmds: CommandInterface[] =
 			for (const c of user.currencies)
 			{
 				const currencyData = DataManager.getCurrency(c[0]);
-				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${round(c[1].value)}\n`;
+				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${displayRound(c[1].value)}\n`;
 			}
 			embed.addField("Currencies:",currencyString,true)
 			.setThumbnail(targetUser.user.avatarURL)
@@ -178,7 +178,7 @@ export const cmds: CommandInterface[] =
 			for (const c of user.currencies)
 			{
 				const currencyData = DataManager.getCurrency(c[0]);
-				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${round(c[1].value)}\n`;
+				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${displayRound(c[1].value)}\n`;
 			}
 			embed.addField("Currencies:",currencyString);
 			msg.channel.send(embed);
@@ -205,8 +205,8 @@ export const cmds: CommandInterface[] =
 
 			embed.setDescription(
 				`<:level:674945451866325002> ${user.level}\n`+
-				`**exp:** ${round(user.exp)}/${round(user.getRequiredExp())}\n\n`+
-				`${round(levelPercentage)}%\n`+
+				`**exp:** ${displayRound(user.exp)}/${displayRound(user.getRequiredExp())}\n\n`+
+				`${displayRound(levelPercentage)}%\n`+
 				`${progressBar}`
 				);
 			
@@ -233,8 +233,8 @@ export const cmds: CommandInterface[] =
 
 			embed.setDescription(
 				`<:level:674945451866325002> ${user.level}\n`+
-				`**HP:** ${round(user.hp)}/${round(user.getStats().base.hp)}\n\n`+
-				`${round(hpPercentage)}%\n`+
+				`**HP:** ${displayRound(user.hp)}/${displayRound(user.getStats().base.hp)}\n\n`+
+				`${displayRound(hpPercentage)}%\n`+
 				`❤️ ${progressBar}`
 				);
 			
@@ -287,7 +287,7 @@ export const cmds: CommandInterface[] =
 				itemString += `${itemdata._id.toString().padEnd(3)} - ${itemdata.icon} __${itemdata.name}__`;
 				if (i instanceof ConsumableItem || i instanceof MaterialItem) itemString += ` x${i.amount}`;
 				itemString += `\n[${itemdata.getQuality().icon}`;
-				if (i instanceof EquipmentItem) {const totalStats = i.getTotalStats(); itemString += `| 🗡️ ${round(totalStats.atk)} | 🛡️ ${round(totalStats.def)} | ⚡ ${round(totalStats.acc)}`;}
+				if (i instanceof EquipmentItem) {const totalStats = i.getTotalStats(); itemString += `| 🗡️ ${displayRound(totalStats.atk)} | 🛡️ ${displayRound(totalStats.def)} | ⚡ ${displayRound(totalStats.acc)}`;}
 				else if (i instanceof ConsumableItem) itemString += ``; 
 				else if (i instanceof MaterialItem) itemString += ``;				
 				itemString+= `]\n\n`;
@@ -383,7 +383,7 @@ export const cmds: CommandInterface[] =
 			for (const ab of user.abilities)
 			{
 				if (!ab[1].ability) abStrings.push(`${numberToIcon(ab[0])} - ❌ __None__ ❌`);
-				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`);
+				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.icon} ${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`);
 			}
 			embed.setDescription(abStrings.join("\n"));
 			msg.channel.send(embed);

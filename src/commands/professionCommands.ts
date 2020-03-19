@@ -24,7 +24,7 @@ export const cmds: CommandInterface[] =
 
 			const pages = [];
 			let recipeString = "";
-			let maxItems = 4;
+			let maxItems = 3;
 			let itemCounter = 0;
 			let selectedPage = 1;
 
@@ -53,14 +53,9 @@ export const cmds: CommandInterface[] =
 					case "sortby":
 						recipeItems = sortItemArray(p[1],recipeItems) as _anyItem[];
 					break;
-					case "filter":
-					{
-						const filter = p[1].toLowerCase().trim().split("=");
-						if (filter.length < 2) return;
-						recipeItems = filterItemArray(filter, recipeItems) as _anyItem[];
-					}
-					break;
 				}
+				for(const p of args.join(" ").split('-').slice(1).map(x => x.trim().split(" ")))
+				recipeItems = filterItemArray(p, recipeItems) as _anyItem[];
 			}
 			
 			for (const i of recipeItems)

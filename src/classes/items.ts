@@ -1,4 +1,4 @@
-import { getTotalWeightForLevel, getAccFromLevelWeight, round } from "../utils";
+import { getTotalWeightForLevel, getAccFromLevelWeight, round, displayRound } from "../utils";
 import { DataManager } from "./dataManager";
 
 export type _anyItem = DbItem | DbConsumableItem | DbEquipmentItem | DbMaterialItem;
@@ -11,8 +11,9 @@ export class DbItem
   description: string;
   icon: string;
   quality: number;
-  soulbound?: boolean;
-  sellPrice: number;
+  soulbound = false;
+  sellPrice = 0;
+  sellable = true;
 
   constructor(dbObject: any)
   {
@@ -21,7 +22,8 @@ export class DbItem
     this.description = dbObject.description;
     this.icon = dbObject.icon;
     this.quality = dbObject.quality;
-    this.soulbound = dbObject.soulbound;
+    if (dbObject.soulbound) this.soulbound = dbObject.soulbound;
+    if (dbObject.sellable) this.sellable = dbObject.sellable;
     this.sellPrice = dbObject.sell_price;
   }
 
@@ -32,7 +34,7 @@ export class DbItem
     returnVal += `\n[${this.getQuality().icon}`;
     if (this instanceof DbEquipmentItem) 
     {
-       returnVal += ` | 🗡️ ${round(this.stats.base.atk)} | 🛡️ ${round(this.stats.base.def)} | ⚡ ${round(this.stats.base.acc)}`;
+       returnVal += ` | 🗡️ ${displayRound(this.stats.base.atk)} | 🛡️ ${displayRound(this.stats.base.def)} | ⚡ ${displayRound(this.stats.base.acc)}`;
     }
     else if (this instanceof DbConsumableItem) returnVal += ``; 
     else if (this instanceof DbMaterialItem) returnVal += ``;				
@@ -127,7 +129,7 @@ export class Item
     let returnVal = "";
     if (this instanceof ConsumableItem || this instanceof MaterialItem) returnVal += ` x${this.amount}`;
     returnVal += `\n[${this.getData()!.getQuality().icon}`;
-    if (this instanceof EquipmentItem) {const totalStats = this.getTotalStats(); returnVal += `| 🗡️ ${round(totalStats.atk)} | 🛡️ ${round(totalStats.def)} | ⚡ ${round(totalStats.acc)}`;}
+    if (this instanceof EquipmentItem) {const totalStats = this.getTotalStats(); returnVal += `| 🗡️ ${displayRound(totalStats.atk)} | 🛡️ ${displayRound(totalStats.def)} | ⚡ ${displayRound(totalStats.acc)}`;}
     else if (this instanceof ConsumableItem) returnVal += ``; 
     else if (this instanceof MaterialItem) returnVal += ``;				
     returnVal+= `]\n\n`;

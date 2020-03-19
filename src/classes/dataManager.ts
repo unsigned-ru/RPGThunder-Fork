@@ -229,12 +229,15 @@ export abstract class DataManager
     {
         //one last update
         this.activeLottery.updateMessage();
+
         //make ticket array
-        let ticketCollection: string[]= [];
+        let ticketCollection: string[] = [];
         for (const t of DataManager.activeLottery.tickets) for (let i = 0; i < t[1].tickets; i++) ticketCollection.push(t[0]);
 
         //select random winner
         let winner = ticketCollection[randomIntFromInterval(0,ticketCollection.length-1,true)];
+        
+        //Check if the winner is still within the official server, and is mentionable. if not then lot a new random winner.
         while (!client.users.get(winner) && ticketCollection.length > 0)
         {
             ticketCollection = ticketCollection.filter(x => x != winner);
@@ -265,6 +268,7 @@ export abstract class DataManager
         d.setHours(18,0,0,0);
         this.activeLottery = new Lottery({id: this.activeLottery.id+1, msgID: msg.id, ticketCost: randomIntFromInterval(cf.lottery_ticketprice_min, cf.lottery_ticketprice_max,true),drawDate: d, tickets: []});
         new CronJob(this.activeLottery.drawDate, this.drawLottery, undefined, true, undefined, DataManager);
+        
         //update message.
         this.activeLottery.updateMessage();
     }

@@ -1,6 +1,6 @@
 import { Ability } from "./ability";
 import { Actor } from "./actor";
-import { parseComblatLogString, round, randomIntFromInterval, clamp } from "../utils";
+import { parseComblatLogString, round, randomIntFromInterval, clamp, displayRound } from "../utils";
 import Discord from 'discord.js';
 
 export abstract class BaseEffect
@@ -41,7 +41,7 @@ export class InstantDamageEffect extends BaseEffect
     let totalDamage = 0;
     for (const t of targets) totalDamage += t.takeDamage(clamp(dmg * this.multiplier, 0, this.maxDamage), true, buffs).dmgTaken;
 
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __🗡️${round(totalDamage)}__ ${crit ? "**[CRIT]**": ""}`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __🗡️${displayRound(totalDamage)}__ ${crit ? "**[CRIT]**": ""}`);
     return true;
   }
 
@@ -65,7 +65,7 @@ export class InstantHealingEffect extends BaseEffect
     if (miss) {log.push(`\`${user.getName()}\` tried to heal \`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\` but **missed**!`); return false;}
     let totalHealing = 0;
     for (const t of targets) totalHealing += t.takeHealing(clamp(dmg * this.multiplier, 0, this.maxDamage), true);
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __❤️${round(totalHealing)}__ ${crit ? "**[CRIT]**": ""}`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __❤️${displayRound(totalHealing)}__ ${crit ? "**[CRIT]**": ""}`);
 
     return true;
   }
@@ -92,7 +92,7 @@ export class InstantDrainLifeEffect extends BaseEffect
     let totalDamage = 0;
     for (const t of targets) totalDamage += t.takeDamage(clamp(dmg * this.multiplier, 0, this.maxDamage), true, buffs).dmgTaken;
     const healingTaken = user.takeHealing(clamp(totalDamage * this.healingMultiplier, 0, this.maxHealing), true);
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __🗡️${round(totalDamage)}__ + __❤️${round(healingTaken)}__${crit ? "**[CRIT]**": ""}`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __🗡️${displayRound(totalDamage)}__ + __❤️${displayRound(healingTaken)}__${crit ? "**[CRIT]**": ""}`);
     return true;
   }
 
@@ -181,7 +181,7 @@ export class DamageOverTimeDebuffEffect extends BaseBuffEffect
       this.applyBuff(buffs, debuff, t);
     }
     //add to the log.
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __🗡️ ${round(totalDamage)} over ${this.duration} rounds.__ ${crit ? "**[CRIT]**": ""}`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __🗡️ ${displayRound(totalDamage)} over ${this.duration} rounds.__ ${crit ? "**[CRIT]**": ""}`);
 
     return true;
   }
@@ -240,7 +240,7 @@ export class HealingOverTimeBuffEffect extends BaseBuffEffect
       this.applyBuff(buffs, buff, t);
     }
     //add to the log.
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __❤️ ${round(dmg)} over ${this.duration} rounds.__ ${crit ? "**[CRIT]**": ""}`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __❤️ ${displayRound(dmg)} over ${this.duration} rounds.__ ${crit ? "**[CRIT]**": ""}`);
 
     return true;
   }
@@ -277,7 +277,7 @@ export class AbsorbBuffEffect extends BaseBuffEffect
     for (const t of targets)
     {
       const absorb = 
-      this.healthPercentage ? clamp(this.healthPercentage! * t.getStats().total.hp, 0, this.maxHealing)
+      this.healthPercentage ? clamp((this.healthPercentage! / 100) * t.getStats().total.hp, 0, this.maxHealing)
       : this.amount ? clamp(this.amount, 0, this.maxHealing)
         : 0;
 
@@ -285,7 +285,7 @@ export class AbsorbBuffEffect extends BaseBuffEffect
       this.applyBuff(buffs,buff,t);
       totalAbsorb += absorb;
     }
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __💙${round(totalAbsorb)}__`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __💙${displayRound(totalAbsorb)}__`);
     return true;
   }
 }
@@ -316,7 +316,7 @@ export class DamageReductionBuffEffect extends BaseBuffEffect
       const buff = new DamageReductionBuff(ability.id,this.duration,this.interval, this.multiplier);
       this.applyBuff(buffs,buff,t);
     }
-    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __💙${round(this.multiplier * 100)}% DMG reduction for ${this.duration} rounds.__`);
+    log.push(`${parseComblatLogString(this.combatLog,user,targets)} __💙${displayRound(this.multiplier * 100)}% DMG reduction for ${this.duration} rounds.__`);
     return true;
   }
 }

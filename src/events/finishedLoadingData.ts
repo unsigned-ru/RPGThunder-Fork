@@ -11,7 +11,9 @@ export function onFinishedLoadingDataAndReady()
     !cf.DEVMODE ? new CronJob("*/15 * * * *", DataManager.pushDatabaseUpdate, undefined, true, undefined, DataManager) : undefined;
     !cf.DEVMODE ? new CronJob("*/15 * * * *", DataManager.activeLottery.updateMessage, undefined, true, undefined, DataManager, true) : undefined;
     new CronJob("0 */1 * * *", updateBotStatus, undefined, true, undefined, updateBotStatus, true);
-    new CronJob(DataManager.activeLottery.drawDate, DataManager.drawLottery, undefined, true, undefined, DataManager);
+    !cf.DEVMODE ? new CronJob("0 */1 30 * *", DataManager.syncroniseRanks, undefined, true, undefined, DataManager, true) : undefined;
+    !cf.DEVMODE ? new CronJob(DataManager.activeLottery.drawDate, DataManager.drawLottery, undefined, true, undefined, DataManager) : undefined;
+    
     console.log("Finished setting up CRON Jobs...");
 
     if (!cf.DEVMODE) initializeWebhooks();

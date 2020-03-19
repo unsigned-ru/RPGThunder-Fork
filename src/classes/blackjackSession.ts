@@ -150,9 +150,9 @@ export class BlackjackSesssion extends Session
 
             if (playerCardData.value == 21)
             {
-                this.user.getCurrency(1).value += this.bet*1.5;
-                await this.sessionChannel?.send(`You have won with a blackjack hand! You earned ${constructCurrencyString(1,this.bet*1.5)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}\n**Please type \`exit\` when you are finished looking at the results.**`);
-                await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session with a blackjack hand and earned ${constructCurrencyString(1,this.bet*1.5)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
+                this.user.getCurrency(1).value += Math.round(this.bet*1.5);
+                await this.sessionChannel?.send(`You have won with a blackjack hand! You earned ${constructCurrencyString(1,Math.round(this.bet*1.5))}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}\n**Please type \`exit\` when you are finished looking at the results.**`);
+                await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session with a blackjack hand and earned ${constructCurrencyString(1,Math.round(this.bet*1.5))}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
                 return resolve(true);
             }
 

@@ -36,7 +36,7 @@ export class Ability
         else if (ed.effect == "ABSORB") this.effects.push(new AbsorbBuffEffect(ed));
         else if (ed.effect == "HealingOverTime") this.effects.push(new HealingOverTimeBuffEffect(ed));
         else if (ed.effect == "DamageOverTime") this.effects.push(new DamageOverTimeDebuffEffect(ed));
-        else if (ed.effect == "Immunity") this.effects.push(new DamageImmunityBuffEffect(ed));
+        else if (ed.effect == "IMMUNITY") this.effects.push(new DamageImmunityBuffEffect(ed));
       }
     }
   }
