@@ -92,10 +92,12 @@ export function getItemAndAmountFromArgs(args: string[], user?: User)
   if (!isNaN(+args[0]))
   {
     item = DataManager.getItem(+args.splice(0, 1)[0]);
-    if (!isNaN(+args[args.length -1])) amount = +args[args.length -1];
+    if (!isNaN(+args[args.length -1])) amount = clamp(+args[args.length -1], 0, Infinity);
     else if (item && args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full") && user) 
     {
-      amount = (user.inventory.find(x => x.id == item?._id) as MaterialItem | ConsumableItem)?.amount; 
+      const ti = (user.inventory.find(x => x.id == item?._id) as MaterialItem | ConsumableItem | undefined);
+      if (ti) amount = ti.amount; 
+     
     }
     if (!item) errormessage = `Could not find a item with id: \`${args[0]}\``;
   } 
@@ -125,7 +127,7 @@ export function getCurrencyAndAmountFromArgs(args: string[], user: User)
   if (!isNaN(+args[0]))
   {
     currency = DataManager.getCurrency(+args.splice(0, 1)[0]);
-    if (!isNaN(+args[args.length -1])) amount = +args[args.length -1];
+    if (!isNaN(+args[args.length -1])) amount = clamp(+args[args.length -1], 0, Infinity);
     else if (currency && args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full")) 
     {
       amount = user.getCurrency(currency._id).value; 
@@ -189,6 +191,7 @@ export async function awaitConfirmMessage(title: string, description: string, ms
 
 export function filterItemArray(filter: string[], array: (_anyItem | anyItem)[])
 {
+  if (filter.length < 2) return array; 
   switch(filter[0])
 					{
 						case "type":
@@ -434,7 +437,7 @@ export async function PatreonGet(path: string): Promise<any>
         {
             let data = "";
             res.on('data', (d) => data += d);
-            res.on('end', () => {try {console.log(data); resolve(JSON.parse(data));} catch(err) {console.log(err);}});
+            res.on('end', () => {try {resolve(JSON.parse(data));} catch(err) {console.log(err);}});
         }).on('error', (err) => reject(err));
         req.end();
     });

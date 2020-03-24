@@ -1,4 +1,4 @@
-import { client } from "../main";
+import { client } from "../RPGThunder";
 import { PatreonGet, get } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import cf from '../config.json';

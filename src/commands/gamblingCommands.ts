@@ -1,4 +1,4 @@
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 import { CommandInterface } from "../interfaces";
 import { CC, randomIntFromInterval } from "../utils";
 import { DataManager } from "../classes/dataManager";

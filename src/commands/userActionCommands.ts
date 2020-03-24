@@ -1,5 +1,5 @@
-import Discord, { UserProfile } from "discord.js";
-import { commands, client } from "../main";
+import Discord from "discord.js";
+import { commands, client } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
 import { randomIntFromInterval, CC, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp, formatTime, displayRound } from "../utils";
 import { CommandInterface} from "../interfaces";
@@ -140,13 +140,17 @@ export const cmds: CommandInterface[] =
             //send and await reaction
             await msg.channel.send(confirmEmbed) as Discord.Message;
             user.reaction.isPending = true;
-            const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
-            user.reaction.isPending = false;
-            if (!rr || isNaN(+rr)) return msg.channel.send(`\`${msg.author.username}\`, wrong input. Exptected a number, please try again.`);
-
-            const selectedSlot = clamp(+rr,1,user.abilities.size);
-            user.abilities.set(selectedSlot, {ability: new UserAbility(spell)});
-            msg.channel.send(`\`${msg.author.username}\` has equipped __${spell.icon} ${spell.name}__ in slot ${selectedSlot}.`);
+            try 
+            {
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first();
+                user.reaction.isPending = false;
+                if (!rr || !rr.content ||isNaN(+rr.content)) return msg.channel.send(`\`${msg.author.username}\`, wrong input. Exptected a number, please try again.`);
+    
+                const selectedSlot = clamp(+rr.content,1,user.abilities.size);
+                user.abilities.set(selectedSlot, {ability: new UserAbility(spell)});
+                msg.channel.send(`\`${msg.author.username}\` has equipped __${spell.icon} ${spell.name}__ in slot ${selectedSlot}.`);
+            }
+            catch (err) { user.reaction.isPending = false; }
         }
     },
     {

@@ -4,7 +4,7 @@ import * as cf from "../config.json";
 import {CurrencyInterface, BossDataInterface, PatreonRankInterface} from '../interfaces';
 import { User, SerializedUser } from './user.js';
 import { DbMaterialItem, DbEquipmentItem, DbConsumableItem, _anyItem, ItemQualityInterface, ItemTypeInterface, ItemSlotInterface } from './items.js';
-import { client } from '../main.js';
+import { client } from '../RPGThunder.js';
 import { randomIntFromInterval, constructCurrencyString, PatreonGet, get, sleep } from '../utils.js';
 import { CronJob } from 'cron';
 import { Profession } from './profession.js';

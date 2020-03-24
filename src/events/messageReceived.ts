@@ -1,15 +1,21 @@
-import Discord from 'discord.js';
+import Discord, { TextChannel } from 'discord.js';
 import cf from '../config.json';
 import { DataManager } from '../classes/dataManager.js';
 import { getServerPrefix } from '../utils.js';
 import { executeGlobalCommand } from '../commands/adminCommands.js';
-import { commands, client } from '../main.js';
+import { commands, client } from '../RPGThunder.js';
 
+
+const rateStack: Discord.Collection<string, Date> = new Discord.Collection();
 
 export async function onMSGReceived(msg: Discord.Message)
 {
     try 
     {
+        //check if there's been atleast x ms since last command execution. 
+        const rateTrace = rateStack.get(msg.author.id);
+        if (rateTrace && new Date().getTime() - rateTrace.getTime() <= 150) return;
+
         if (msg.author.bot) return;
         if (cf.DEVMODE && msg.channel.type != "dm" && msg.guild.id == "646062255170912293") return; //prevent the test bot from receiving anything in the official server.
 
@@ -18,31 +24,27 @@ export async function onMSGReceived(msg: Discord.Message)
         if (session && session.sessionChannel?.id == msg.channel.id) 
         {
             if (session.awaitingInput) session.onInput(msg.content.toLowerCase().trim());
-            return msg.delete(); 
+            await msg.delete().catch(err => console.error(err));
+            return; 
         }
         
         const user = DataManager.getUser(msg.author.id);
-        if (user)
+        
+        if (user && user.macroProtection.questionActive)
         {
-            if (user.macroProtection.commandCounter >= cf.macroProtectionFrequency) {
-                user.askMacroProtection();
-                msg.channel.send(`Halt \`${msg.author.username}\`! 👮\nYou have been selected for inspection! Please confirm you are not a robot by solving the problem sent to you as a direct message from the bot.`);
-            }
-            if (user.macroProtection.questionActive)
+            if (msg.channel.type == "dm")
             {
-                if (msg.channel.type == "dm")
+                const answer = msg.content.trim();
+                if (isNaN(+answer)) return msg.channel.send(`That is not a number.`);
+                else if (+answer != user.macroProtection.questionAnswer) return msg.channel.send(`Your answer is incorrect!`);
+                else 
                 {
-                    const answer = msg.content.trim();
-                    if (isNaN(+answer)) return msg.channel.send(`That is not a number.`);
-                    else if (+answer != user.macroProtection.questionAnswer) return msg.channel.send(`Your answer is incorrect!`);
-                    else 
-                    {
-                        msg.channel.send(`Correct!\n✨ Thank you for playing fair, your rock! ✨`);
-                        user.macroProtection.questionActive = false;
-                    }
+                    msg.channel.send(`Correct!\n✨ Thank you for playing fair, your rock! ✨`);
+                    user.macroProtection.questionActive = false;
+                    user.macroProtection.userLocked = false;
                 }
-                else return;
             }
+            else return;
         }
 
         if (msg.channel.type == "dm") return;
@@ -56,7 +58,6 @@ export async function onMSGReceived(msg: Discord.Message)
 
         if (!msg.guild.channels.get(msg.channel.id)?.permissionsFor(client.user)?.has(["READ_MESSAGES", "SEND_MESSAGES"])) return msg.author.send("I do not have permissions to read and write messages in that channel.").catch();
 
-
         //check if the receiving channel is blacklisted.
         if (DataManager.blacklistedChannels.includes(msg.channel.id) && !cf.Operators.includes(msg.author.id)) return msg.delete();
 
@@ -68,6 +69,16 @@ export async function onMSGReceived(msg: Discord.Message)
         let command = args.shift()!.toLowerCase();
         command = command.slice(prefix.length);
         
+        if (command == "macro")
+        {
+            if (user?.macroProtection.userLocked)
+            {
+                if (!user.macroProtection.questionActive) { user.askMacroProtection(msg.channel as TextChannel);  msg.channel.send(`\`${msg.author.username}\`, you have received a direct message from the bot.`);}
+                else {msg.channel.send(`\`${msg.author.username}\`, you already have an active macro protection prompt. The message has been re-sent.`); await msg.author.send(user.macroProtection.lastQuestion).catch(() => msg.channel.send(`\`${msg.author.username}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));}
+            }
+            else msg.channel.send(`\`${msg.author.username}\`, your account is not locked and prompting macro protection confirmation.`);
+        }
+
         //find the command and execute if found
         let cCmd;
         if (commands.has(command)) cCmd = commands.get(command); //find command by name
@@ -95,8 +106,26 @@ export async function onMSGReceived(msg: Discord.Message)
             user!.setCooldown(cCd.name, cCd.duration, cCmd.ignoreCooldownReduction);
         }
 
-        cCmd.execute(msg,args,user);
-        if (user) user.macroProtection.commandCounter++;
+        
+        if (!user?.macroProtection.userLocked) 
+        {
+            cCmd.execute(msg,args,user);
+            rateStack.set(msg.author.id, new Date());
+        }
+
+
+        //check for macro protection.
+        if (user && !user.macroProtection.userLocked)
+        {
+            user.macroProtection.commandCounter++;
+
+            if (user.macroProtection.commandCounter >= cf.macroProtectionFrequency) 
+            {
+                msg.channel.send(`Halt \`${msg.author.username}\`! 👮\nYou have been selected for inspection!\n**Please confirm you are not a robot by executing the command: \`$macro\` and solving the math problem sent to you as a direct message.**`);
+                user.macroProtection.userLocked = true;
+            }
+        }
+
     }
     catch (error) 
     {

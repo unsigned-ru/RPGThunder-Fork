@@ -12,7 +12,6 @@ import * as professionCommands from "./commands/professionCommands";
 import { CommandInterface } from './interfaces.js';
 import { SetupEvents } from './events/generalEvents.js';
 import { onFinishedLoadingDataAndReady } from './events/finishedLoadingData.js';
-import DBL from "dblapi.js";
 export const client = new Discord.Client();
 export const commands = new Discord.Collection<string,CommandInterface>();
 
@@ -29,12 +28,9 @@ async function main()
   SetupEvents();
   
   await client.login(cf.DEVMODE ? cf.dev_token : cf.official_token);
+
   //sets up the CRON jobs.
   onFinishedLoadingDataAndReady();
-
-  
-  //DBL functionality.
-  if (!cf.DEVMODE) new DBL(cf.topgg_token, client);
 }
 
 export function setupAllCommands()

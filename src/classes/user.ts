@@ -4,7 +4,7 @@ import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem
 import cf from "../config.json";
 import { formatTime, clamp, randomIntFromInterval } from "../utils";
 import { CronJob } from "cron";
-import { client } from "../main";
+import { client } from "../RPGThunder";
 import { Class } from "./class";
 import { Actor } from "./actor";
 import { UserAbility } from "./ability";
@@ -59,7 +59,8 @@ export class User extends Actor
         userLocked: false,
         commandCounter: 0,
         questionActive: false,
-        questionAnswer: 0
+        questionAnswer: 0,
+        lastQuestion: "",
     }
     //#endregion macroProtection
 
@@ -143,9 +144,10 @@ export class User extends Actor
     getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
     getCooldown(name: string)
     {
-        if (!this.commandCooldowns.has(name)) return undefined;
-        const cd = this.commandCooldowns.get(name)!.nextDate().toDate().getTime() - new Date().getTime();
-        return formatTime(cd);
+        const cd = this.commandCooldowns.get(name);
+        if (!cd ||cd.nextDate().isBefore(new Date())) return undefined;
+        
+        return formatTime(cd.nextDate().toDate().getTime() - new Date().getTime());
     }
     getProfession(id: number) { return this.professions.get(id); }
     getUnlockedAbilities() { return this.class.getSpellbook().filter(x => x.level <= this.level); }
@@ -471,7 +473,7 @@ export class User extends Actor
     //#endregion Events -----------------------------------------------------------
 
     //#region OTHERS -------------------------------------
-    askMacroProtection()
+    async askMacroProtection(execChannel: Discord.TextChannel)
     {
         //set vars
         this.macroProtection.commandCounter = 0;
@@ -494,7 +496,7 @@ export class User extends Actor
         this.macroProtection.questionAnswer = answer;
 
         //send the question
-        this.getUser().send(
+        await this.getUser().send(
             `**__Macro Protection:__**\n`+
             `*To keep our game fair for everyone we want to prevent players making things unfair by using macros. This is a system implemented to prevent this from happening. Solve the math question below and show us you are not a robot :robot:!*\n\n`+
             `__When you know:__\n`+
@@ -502,7 +504,7 @@ export class User extends Actor
             `${questionVariables[1].rune} has a value of **${questionVariables[1].value}**\n\n`+
             `**What is the value of ${runes[0]} in the question below:**\n`+
             `**${questionVariables[0].rune} ${mathOperator} ${questionVariables[1].rune} = ${runes[0]}**\n`
-            );
+        ).catch(() => execChannel.send(`\`${this.getUser().username}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
         
     }
     //#endregion OTHERS -------------------------------------

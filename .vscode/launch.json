@@ -12,7 +12,7 @@
                 "<node_internals>/**"
             ],
             "preLaunchTask": "npm: compile",
-            "program": "${workspaceFolder}/dist/main.js"
+            "program": "${workspaceFolder}/dist/RPGThunder.js"
         }
     ]
 }

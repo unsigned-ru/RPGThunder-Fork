@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
 import { CC, clamp, getItemAndAmountFromArgs, constructWarningMessageForItem, awaitConfirmMessage, constructCurrencyString, filterItemArray, getCurrencyAndAmountFromArgs, colors } from "../utils";
 import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem, anyItem } from "../classes/items";
@@ -367,7 +367,7 @@ export const cmds: CommandInterface[] =
 				case "buy":
 				{
 					if (isNaN(+args[1])) return msg.channel.send(`\`${msg.author.username}\`, please enter the amount of tickets to buy`);
-					const amount = +args[1];
+					const amount = clamp(+args[1], 0, Infinity);
 					if (user.getCurrency(1).value < amount * lottery.ticketCost) return msg.channel.send(`\`${msg.author.username}\`, you need ${constructCurrencyString(1,(amount * lottery.ticketCost) - user.getCurrency(1).value)} more to buy ${amount} tickets.`);
 					if (lottery.getTicketsForUser(msg.author.id) + amount > cf.lottery_max_tickets) return msg.channel.send(`\`${msg.author.username}\`, you cannot buy ${amount} tickets. You are only allowed to buy a total of ${cf.lottery_max_tickets} tickets for each lottery. (You own ${lottery.getTicketsForUser(msg.author.id)} tickets)`);
 					//await confirmation

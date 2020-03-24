@@ -1,4 +1,4 @@
-import {client} from '../main';
+import {client} from '../RPGThunder';
 import { DataManager } from '../classes/dataManager';
 import { onMSGReceived } from './messageReceived';
 import { onMemberJoin } from './memberJoin';

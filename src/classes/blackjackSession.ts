@@ -282,6 +282,14 @@ export class BlackjackSesssion extends Session
         else userValues.push(parseInt(card.value));
         userHandStrings.push(`${card.value}${card.suit}`);
       }
+
+      //Replace any 11 ace value to 1 if the user goes over the 21 cap.
+      if (userValues.reduce((pv,v) => pv + v,0) > 21)
+      {
+        const aceValueIndex = userValues.indexOf(21);
+        if (aceValueIndex != -1) userValues[aceValueIndex] = 1;
+      }
+      
       let totalValue = userValues.reduce((pv,v) => pv + v,0);
       if (isDealer && userHandStrings.length >= 2 && this.status.staying == false)
       {

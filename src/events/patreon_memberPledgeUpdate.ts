@@ -1,5 +1,5 @@
 import { DataManager } from "../classes/dataManager";
-import { client } from "../main";
+import { client } from "../RPGThunder";
 import cf from '../config.json';
 import { get } from "../utils";
 

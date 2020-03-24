@@ -1,4 +1,4 @@
-import { client } from "../main";
+import { client } from "../RPGThunder";
 import Discord from "discord.js";
 import { DataManager } from "./dataManager";
 import { constructCurrencyString } from "../utils";

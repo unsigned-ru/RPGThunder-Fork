@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 import { groupArrayBy, CC, getServerPrefix, colors, displayRound } from "../utils";
 import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, _anyItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";

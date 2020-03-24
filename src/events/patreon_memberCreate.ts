@@ -1,6 +1,6 @@
 import { PatreonGet, get } from "../utils";
 import { DataManager } from "../classes/dataManager";
-import { client } from "../main";
+import { client } from "../RPGThunder";
 import cf from '../config.json';
 
 //Create is done only the first time a pledge happens.

@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import {CommandInterface } from "../interfaces";

@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
 import { CC, randomIntFromInterval, clamp, getItemAndAmountFromArgs, constructWarningMessageForItem, awaitConfirmMessage, filterItemArray, sortItemArray, createCraftedEquipment } from "../utils";
 import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem } from "../classes/items";

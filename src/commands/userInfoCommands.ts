@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import { commands} from "../main";
+import { commands} from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
 import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon, displayRound } from "../utils";
 import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
@@ -21,7 +21,7 @@ export const cmds: CommandInterface[] =
 			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
-			if (msg.mentions.members.size > 0) targetUser = msg.mentions.members.first();
+			if (msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first();
 			else targetUser = msg.member;
 
 			const user = DataManager.getUser(targetUser.id);
@@ -91,7 +91,7 @@ export const cmds: CommandInterface[] =
 			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
-			if (msg.mentions.members.size > 0) targetUser = msg.mentions.members.first();
+			if (msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first();
 			else targetUser = msg.member;
 
 			const user = DataManager.getUser(targetUser.id);
@@ -135,7 +135,7 @@ export const cmds: CommandInterface[] =
 			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
-			if (msg.mentions.members.size > 0) targetUser = msg.mentions.members.first();
+			if (msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first();
 			else targetUser = msg.member;
 
 			const user = DataManager.getUser(targetUser.id);
