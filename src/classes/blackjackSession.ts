@@ -48,7 +48,9 @@ export class BlackjackSesssion extends Session
         `Once you start the game you do not need to use a command prefix when playing. Instead you can type the command plainly as text.\n`+
         `**Here are the available commands during play:**\n\n`+
         `\`hit\` - Ask the dealer to add another card to your hand.\n`+
-        `\`stay\` - Stay with your current hand.\n`)
+        `\`stay\` - Stay with your current hand.\n`+
+        `\`update\` - Update the board embed, use this if you are noticing discord API lag.\n`+
+        `\`exit\` - You may exit the session before officially starting the game.\n`)
 
         .addField("**Timing**",
         `You have a **2 minute timer** running for every move you have to make. If you do not make a move in time the **dealer wins and the sessions ends**.`)

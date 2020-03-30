@@ -2,7 +2,8 @@ import Discord from "discord.js";
 import { commands } from "../RPGThunder";
 import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep } from "../utils";
 import { DataManager } from "../classes/dataManager";
-import {CommandInterface } from "../interfaces";
+import { CommandInterface } from "../interfaces";
+import { rateStack } from "../events/messageReceived";
 
 export const cmds: CommandInterface[] = 
 [
@@ -63,7 +64,7 @@ export const cmds: CommandInterface[] =
 		execute(msg, args)
 		{
 			let targetUser = msg.mentions.users.first();
-			if (targetUser) args.slice(args.indexOf(targetUser.toString(),1));
+			if (targetUser) args.splice(args.indexOf(targetUser.toString()),1);
 			else targetUser = msg.author;
 
 			const pargs = args.join(" ").split(",").map(x => x.trim().split(" "));
@@ -75,6 +76,45 @@ export const cmds: CommandInterface[] =
 
 				DataManager.getUser(targetUser.id)?.addItemToInventoryFromId(item!._id, amount);
 			}
+		}
+	},
+	{
+		name: "op_unstuck",
+		aliases: [],
+		category: CC.hidden,
+		description: "Operator command, Unstuck a user.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_unstuck [@User]",
+		execute(msg, args)
+		{
+			const targetUser = msg.mentions.users.first();
+			if (!targetUser) return;
+
+			const user = DataManager.getUser(targetUser.id);
+			if (!user) return msg.channel.send("User not registered.");
+
+			//Check for sessions
+			const s = DataManager.sessions.get(user.userID);
+			if (s) s.destroySession();
+
+			//check for confirmations
+			if (user.reaction.isPending)
+			{
+				clearTimeout(user.reaction.timerID);
+				user.reaction.isPending = false;
+			}
+
+			//check for macro confirms
+			if (user.macroProtection.userLocked)
+			{
+				user.macroProtection.userLocked = false;
+				user.macroProtection.questionActive = false;
+				user.macroProtection.commandCounter = 0;
+			}
+			
+			//check for rate limiter entry
+			if (rateStack.has(user.userID)) rateStack.delete(user.userID);
 		}
 	},
 	{

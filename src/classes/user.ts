@@ -2,7 +2,7 @@ import { DataManager } from "./dataManager";
 import Discord from 'discord.js';
 import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem, SerializedConsumableItem, SerializedMaterialItem, DbConsumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
 import cf from "../config.json";
-import { formatTime, clamp, randomIntFromInterval } from "../utils";
+import { formatTime, clamp, randomIntFromInterval, sleep, colors } from "../utils";
 import { CronJob } from "cron";
 import { client } from "../RPGThunder";
 import { Class } from "./class";
@@ -60,7 +60,7 @@ export class User extends Actor
         commandCounter: 0,
         questionActive: false,
         questionAnswer: 0,
-        lastQuestion: "",
+        lastQuestion: new Discord.RichEmbed(),
     }
     //#endregion macroProtection
 
@@ -496,16 +496,21 @@ export class User extends Actor
         this.macroProtection.questionAnswer = answer;
 
         //send the question
-        await this.getUser().send(
-            `**__Macro Protection:__**\n`+
-            `*To keep our game fair for everyone we want to prevent players making things unfair by using macros. This is a system implemented to prevent this from happening. Solve the math question below and show us you are not a robot :robot:!*\n\n`+
-            `__When you know:__\n`+
-            `${questionVariables[0].rune} has a value of **${questionVariables[0].value}**\n`+
-            `${questionVariables[1].rune} has a value of **${questionVariables[1].value}**\n\n`+
-            `**What is the value of ${runes[0]} in the question below:**\n`+
-            `**${questionVariables[0].rune} ${mathOperator} ${questionVariables[1].rune} = ${runes[0]}**\n`
-        ).catch(() => execChannel.send(`\`${this.getUser().username}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
-        
+        const questionEmbed = new Discord.RichEmbed()
+        .setColor(colors.yellow)
+        .setTitle(`Macro Protection`)
+        .setDescription(`*To keep our game fair for everyone we want to prevent players making things unfair by using macros. This is a system implemented to prevent this from happening. Solve the math question below and show us you are not a robot :robot:!*\n\n`+
+        `__When you know:__\n`+
+        `${questionVariables[0].rune} has a value of **${questionVariables[0].value}**\n`+
+        `${questionVariables[1].rune} has a value of **${questionVariables[1].value}**\n\n`+
+        `**What is the value of ${runes[0]} in the question below:**\n`+
+        `**${questionVariables[0].rune} ${mathOperator} ${questionVariables[1].rune} = ${runes[0]}**\n`)
+        .setTimestamp()
+        .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+
+        this.macroProtection.lastQuestion = questionEmbed;
+
+        await this.getUser().send(questionEmbed).catch(() => execChannel.send(`\`${this.getUser().username}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
     }
     //#endregion OTHERS -------------------------------------
 }
@@ -541,12 +546,12 @@ export class SerializedUser
         this.joined = user.joined;
         this.foundBosses = user.foundBosses;
         this.unlockedZones = user.unlockedZones;
-        for (const c of user.currencies) {this.currencies.push({currencyID: c[0], amount: c[1].value});}
+        for (const c of user.currencies) {this.currencies.push({currencyID: c[0], amount: Math.round(c[1].value)});}
         for (const invEntry of user.inventory)
         {
             if (invEntry instanceof EquipmentItem) this.inventory.push(new SerializedEquipmentItem(invEntry.id,invEntry.craftingBonus));
-            if (invEntry instanceof MaterialItem) this.inventory.push(new SerializedMaterialItem(invEntry.id,invEntry.amount));
-            if (invEntry instanceof ConsumableItem) this.inventory.push(new SerializedConsumableItem(invEntry.id,invEntry.amount));
+            if (invEntry instanceof MaterialItem) this.inventory.push(new SerializedMaterialItem(invEntry.id,  Math.round(invEntry.amount)));
+            if (invEntry instanceof ConsumableItem) this.inventory.push(new SerializedConsumableItem(invEntry.id,  Math.round(invEntry.amount)));
         }
         for (const e of user.equipment) this.equipment.push({item: e[1].item ? new SerializedEquipmentItem(e[1].item.id, e[1].item?.craftingBonus): undefined, slot: e[0]});
         this.hp = user.hp;

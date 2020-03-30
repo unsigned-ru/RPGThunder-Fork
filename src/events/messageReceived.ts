@@ -1,12 +1,12 @@
 import Discord, { TextChannel } from 'discord.js';
 import cf from '../config.json';
 import { DataManager } from '../classes/dataManager.js';
-import { getServerPrefix } from '../utils.js';
+import { getServerPrefix, colors, sleep } from '../utils.js';
 import { executeGlobalCommand } from '../commands/adminCommands.js';
 import { commands, client } from '../RPGThunder.js';
 
 
-const rateStack: Discord.Collection<string, Date> = new Discord.Collection();
+export const rateStack: Discord.Collection<string, Date> = new Discord.Collection();
 
 export async function onMSGReceived(msg: Discord.Message)
 {
@@ -23,7 +23,7 @@ export async function onMSGReceived(msg: Discord.Message)
         const session = DataManager.sessions.get(msg.author.id);
         if (session && session.sessionChannel?.id == msg.channel.id) 
         {
-            if (session.awaitingInput) session.onInput(msg.content.toLowerCase().trim());
+            if (session.awaitingInput) session.onInput(msg.content.toLowerCase().trim().replace("$",""));
             await msg.delete().catch(err => console.error(err));
             return; 
         }
@@ -39,7 +39,8 @@ export async function onMSGReceived(msg: Discord.Message)
                 else if (+answer != user.macroProtection.questionAnswer) return msg.channel.send(`Your answer is incorrect!`);
                 else 
                 {
-                    msg.channel.send(`Correct!\n✨ Thank you for playing fair, your rock! ✨`);
+                    msg.channel.send(`Correct!\n✨ Thank you for playing fair, your rock! ✨\n\nYou have received <:coin:654764078451130379> 5 Coins`);
+                    user.getCurrency(1).value += 5;
                     user.macroProtection.questionActive = false;
                     user.macroProtection.userLocked = false;
                 }
@@ -73,12 +74,13 @@ export async function onMSGReceived(msg: Discord.Message)
         {
             if (user?.macroProtection.userLocked)
             {
-                if (!user.macroProtection.questionActive) { user.askMacroProtection(msg.channel as TextChannel);  msg.channel.send(`\`${msg.author.username}\`, you have received a direct message from the bot.`);}
+                if (!user.macroProtection.questionActive) { await user.askMacroProtection(msg.channel as TextChannel);  msg.channel.send(`\`${msg.author.username}\`, you have received a direct message from the bot.`);}
                 else {msg.channel.send(`\`${msg.author.username}\`, you already have an active macro protection prompt. The message has been re-sent.`); await msg.author.send(user.macroProtection.lastQuestion).catch(() => msg.channel.send(`\`${msg.author.username}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));}
             }
             else msg.channel.send(`\`${msg.author.username}\`, your account is not locked and prompting macro protection confirmation.`);
         }
 
+        
         //find the command and execute if found
         let cCmd;
         if (commands.has(command)) cCmd = commands.get(command); //find command by name
@@ -97,6 +99,8 @@ export async function onMSGReceived(msg: Discord.Message)
         //check if the command is executable when travelling, if not and the user is travelling then return
         if (!cCmd.executeWhileTravelling && user?.commandCooldowns.has("travel")) return msg.channel.send(`\`${msg.author.username}\`, that command cannot be executed while travelling. Please wait another ${user.getCooldown("travel")}`); 
 
+        if (user?.macroProtection.userLocked) return;
+
         //set the cooldown of the command right before execution.
         if(cCmd.cooldown)
         {
@@ -106,13 +110,8 @@ export async function onMSGReceived(msg: Discord.Message)
             user!.setCooldown(cCd.name, cCd.duration, cCmd.ignoreCooldownReduction);
         }
 
-        
-        if (!user?.macroProtection.userLocked) 
-        {
-            cCmd.execute(msg,args,user);
-            rateStack.set(msg.author.id, new Date());
-        }
-
+        cCmd.execute(msg,args,user);
+        rateStack.set(msg.author.id, new Date());
 
         //check for macro protection.
         if (user && !user.macroProtection.userLocked)
@@ -121,8 +120,16 @@ export async function onMSGReceived(msg: Discord.Message)
 
             if (user.macroProtection.commandCounter >= cf.macroProtectionFrequency) 
             {
-                msg.channel.send(`Halt \`${msg.author.username}\`! 👮\nYou have been selected for inspection!\n**Please confirm you are not a robot by executing the command: \`$macro\` and solving the math problem sent to you as a direct message.**`);
+                const mpEmbed = new Discord.RichEmbed()
+                .setColor(colors.red)
+                .setTitle(`Halt \`${msg.author.username}\`! 👮`)
+                .setDescription(`You have been selected for inspection!\n**Please confirm you are not a robot by executing the command: \`$macro\` and solving the math problem sent to you as a direct message.**`)
+                .setTimestamp()
+                .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
                 user.macroProtection.userLocked = true;
+                await sleep(1.5);
+                msg.channel.send(mpEmbed);
+                
             }
         }
 

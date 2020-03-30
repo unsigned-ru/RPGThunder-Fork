@@ -47,7 +47,9 @@ export class ZoneBossSession extends Session
         .addField("**Abilities**",`There are several types of abilities. Ex: *instant damage,instant healing, damage over time, healing over time, shields, damage reductions, ...*. Abilities are unlocked by leveling up and can be equipped using the \`$equipspell\` command.`)
         .addField("**Cooldowns**",`Each ability has its own cooldown. The remaining cooldown of a ability is displayed as a number before the icon: <:cooldown:674944207663923219>. **The cooldown lowers once both you and the boss have finished a turn.**`)
         .addField("**Advanced Combat Logging**",`Above the information board there is another message displaying everything that happens during the battle. **It tracks all of the details of what's happening.**`)
-        .addField("**Starting**",`To start the session and engage the boss type \`start\``)
+        .addField("**Starting**",`To start the session and engage the boss type \`start\`\n`+
+        `\`update\` - Update the board embed, use this if you are noticing discord API lag.\n`+
+        `\`exit\` - You may exit the session before officially starting it.\n`)
 
         .setTimestamp()
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');

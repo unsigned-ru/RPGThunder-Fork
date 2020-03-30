@@ -170,7 +170,7 @@ export const cmds: CommandInterface[] =
 			.setTitle(`Spell #${spell.id}: ${spell.icon} ${spell.name}`)
 			.setDescription(`Cooldown: \`${spell.cooldown}\` <:cooldown:674944207663923219>\n*${spell.description}*`);
 
-			const effectCounter = 1;
+			let effectCounter = 1;
 			for (const e of spell.effects)
 			{
 				const infostrings: string[] = [];
@@ -238,6 +238,7 @@ export const cmds: CommandInterface[] =
 				}
 
 				embed.addField(`Effect #${effectCounter}`, `${infostrings.join("\n")}`);
+				effectCounter++;
 			}
 
 			msg.channel.send(embed);

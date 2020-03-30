@@ -354,13 +354,13 @@ export abstract class DataManager
         //make a key value pair array of users and ranks to assign.
         const rankValuePairs: {patreonID: string; discordID: string; tierID: string}[] = [];
         const res = await PatreonGet("campaigns/2881951/members?include=user,currently_entitled_tiers&fields%5Buser%5D=social_connections");
-        for (const d of res.data.filter((x: any) => get(x, "relationships.currently_entitled_tiers.data.length") > 0))
+        for (const d of res.data.filter((x: any) => x?.relationships?.currently_entitled_tiers?.data?.length > 0))
         {
             const tierID = d.relationships.currently_entitled_tiers.data[0].id;
-            const pUserID = get(d, "relationships.user.data.id");
+            const pUserID = d?.relationships?.user?.data?.id;
 
             const userObj = res.included.find((x: any) => x.id == pUserID && x.type == "user");
-            const discordID = get(userObj, "attributes.social_connections.discord.user_id");
+            const discordID = userObj?.attributes?.social_connections?.discord?.user_id;
             if (!discordID) continue;
 
             rankValuePairs.push({patreonID: d.id, discordID: discordID, tierID: tierID});

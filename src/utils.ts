@@ -69,7 +69,7 @@ export const enum colors {
   yellow = "#fcf403",
   red = "#ff0000",
   purple = "#5e03fc",
-  black = "#000000"
+  black = "#000000",
 }
 
 export function formatTime(ms: number): string
@@ -92,7 +92,7 @@ export function getItemAndAmountFromArgs(args: string[], user?: User)
   if (!isNaN(+args[0]))
   {
     item = DataManager.getItem(+args.splice(0, 1)[0]);
-    if (!isNaN(+args[args.length -1])) amount = clamp(+args[args.length -1], 0, Infinity);
+    if (!isNaN(+args[args.length -1])) amount = Math.floor(clamp(+args[args.length -1], 0, Infinity));
     else if (item && args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full") && user) 
     {
       const ti = (user.inventory.find(x => x.id == item?._id) as MaterialItem | ConsumableItem | undefined);
@@ -127,7 +127,7 @@ export function getCurrencyAndAmountFromArgs(args: string[], user: User)
   if (!isNaN(+args[0]))
   {
     currency = DataManager.getCurrency(+args.splice(0, 1)[0]);
-    if (!isNaN(+args[args.length -1])) amount = clamp(+args[args.length -1], 0, Infinity);
+    if (!isNaN(+args[args.length -1])) amount = Math.round(clamp(+args[args.length -1], 0, Infinity));
     else if (currency && args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full")) 
     {
       amount = user.getCurrency(currency._id).value; 
@@ -156,8 +156,8 @@ export function getCurrencyAndAmountFromArgs(args: string[], user: User)
 export function constructWarningMessageForItem(item: _anyItem, user: User)
 {
   let warningMessage = "";
-  if (item instanceof DbEquipmentItem && item.levelRequirement > user.level) warningMessage+= `You will not be able to equip the item because your level is below the level requirement. (level requirement: ${item.levelRequirement})\n`;
-  if (item instanceof DbEquipmentItem && !user.class.types.includes(item.type)) warningMessage+= `You will not be able to equip the item because your class is not allowed to wear the type: \`${item.getType().name}\`.\n`;
+  if (item instanceof DbEquipmentItem && item.levelRequirement > user.level) warningMessage += `You will not be able to equip the item because your level is below the level requirement. (level requirement: ${item.levelRequirement})\n`;
+  if (item instanceof DbEquipmentItem && !user.class.types.includes(item.type)) warningMessage += `You will not be able to equip the item because your class is not allowed to wear the type: \`${item.getType().name}\`.\n`;
   return warningMessage;
 }
 export function constructCurrencyString(currency: number, amount: number)
