@@ -6,7 +6,7 @@ import { Class } from "../classes/class";
 import { CommandInterface } from "../interfaces";
 import { Ability } from "../classes/ability";
 import { InstantDamageEffect, InstantHealingEffect, DamageOverTimeDebuffEffect, HealingOverTimeBuffEffect, AbsorbBuffEffect, DamageReductionBuffEffect, InstantDrainLifeEffect, DamageImmunityBuffEffect } from "../classes/tb_effects";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [
@@ -24,7 +24,7 @@ export const cmds: CommandInterface[] =
 				if (args.length == 0)
 				{
 					const prefix = getServerPrefix(msg);
-					const embed = new Discord.RichEmbed()
+					const embed = new Discord.MessageEmbed()
 					.setAuthor(`Add ${prefix} before any command!`,'http://159.89.133.235/DiscordBotImgs/logo.png')
 					.setColor(colors.yellow) //Yelow⛏️
 					.setTitle(`**Commands**`)
@@ -55,7 +55,7 @@ export const cmds: CommandInterface[] =
 
 				//Create an embed with its info
 				const prefix = getServerPrefix(msg);
-				const embed = new Discord.RichEmbed()
+				const embed = new Discord.MessageEmbed()
 				.setColor('#fcf403') //Yelow⛏️
 				.setTitle(`**Command info -- ${cmd.name}**`)
 				.setDescription(cmd.description)
@@ -109,7 +109,7 @@ export const cmds: CommandInterface[] =
 			else spell = DataManager.getSpellByName(args.join(" "));
 			if (!spell) return msg.channel.send(`\`${msg.author.username}\`, could not find a spell with that id/name.`);
 
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor(colors.yellow) //Yelow
 			.setTitle(`Spell #${spell.id}: ${spell.icon} ${spell.name}`)
 			.setDescription(`Cooldown: \`${spell.cooldown}\` <:cooldown:674944207663923219>\n*${spell.description}*`);
@@ -199,7 +199,7 @@ export const cmds: CommandInterface[] =
 		{
 			let zoneString = "";
 			for (const zone of DataManager.zones.values()) zoneString += `**${zone.name}** | lvl: ${zone.levelSuggestion}\n`;
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`**Available Zones**`)
 			.addField("Zones", zoneString)
@@ -218,7 +218,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]classes`,
 		execute(msg: Discord.Message) 
 		{
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow⛏️
 			.setTitle(`**Available classes**`)
 			.setTimestamp()
@@ -255,7 +255,7 @@ export const cmds: CommandInterface[] =
 			}
 
 			//We have class info, create embed
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow⛏️
 			.setTitle(`**Class Info -- ${c.icon} ${c.name}**`)
 			.setDescription(c.description)
@@ -274,7 +274,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]donate`,
 		execute(msg: Discord.Message) 
 		{
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor(colors.yellow)
 			.setTitle(`✨ Support RPG Thunder ✨`)
 			.setDescription(`*Are you enjoying this game?*\n*Would you like to help us in improving the quality and the rate at which we push out content?*\n**Then consider helping us out with funding the project!**`)

@@ -83,7 +83,7 @@ export function formatTime(ms: number): string
   else return `${Math.ceil(ms / 1000)} second(s)`;
 }
 
-export function getServerPrefix(msg: Discord.Message) { return DataManager.serverPrefixes.has(msg.guild.id) ? DataManager.serverPrefixes.get(msg.guild.id)! : '$'; }
+export function getServerPrefix(msg: Discord.Message) { return DataManager.serverPrefixes.has(msg.guild!.id) ? DataManager.serverPrefixes.get(msg.guild!.id)! : '$'; }
 
 export function getItemAndAmountFromArgs(args: string[], user?: User)
 {
@@ -170,7 +170,7 @@ export async function awaitConfirmMessage(title: string, description: string, ms
 {
   return new Promise(async (resolve) => {
     //construct confirm message
-    const confirmEmbed = new Discord.RichEmbed()
+    const confirmEmbed = new Discord.MessageEmbed()
     .setTitle(title)
     .setDescription(description)
     .setFooter("Yes / No", 'http://159.89.133.235/DiscordBotImgs/logo.png')
@@ -182,9 +182,9 @@ export async function awaitConfirmMessage(title: string, description: string, ms
     user.reaction.isPending = true;
     await confirmMessage.react("✅");
     await confirmMessage.react("❌");
-    const rr = await confirmMessage.awaitReactions((m: Discord.MessageReaction) => m.users.has(msg.author.id),{time: 20000, max: 1});
+    const rr = await confirmMessage.awaitReactions((m: Discord.MessageReaction) => m.users.cache.has(msg.author.id),{time: 20000, max: 1});
     user.reaction.isPending = false;
-    if (rr.first() && rr.first().emoji && rr.first().emoji.name == '✅') resolve(true);
+    if (rr.first() && rr.first()!.emoji && rr.first()!.emoji.name == '✅') resolve(true);
     else resolve(false);
   });
 }
@@ -452,7 +452,7 @@ export function get(obj: any, key: string) {
 
 export function getItemDataEmbed(item: DbItem)
 {
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   if (item instanceof DbEquipmentItem)
   {
     embed.setColor('#fcf403') //Yelow

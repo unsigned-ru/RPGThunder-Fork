@@ -3,7 +3,7 @@ import { User } from "./user";
 import cf from "../config.json";
 import { CronJob, CronTime } from "cron";
 import { DataManager } from "./dataManager";
-import { manager } from "../RPGThunder";
+import { client } from "../RPGThunder";
 
 export class Session
 {
@@ -15,7 +15,7 @@ export class Session
     sessionChannel!: Discord.TextChannel;
     invite: Discord.Invite | undefined;
     liveMsg: Discord.Message | undefined;
-    lastUpdateMsg: Discord.RichEmbed | undefined; 
+    lastUpdateMsg: Discord.MessageEmbed | undefined; 
     awaitingInput = true;
     finishedSettingUp = false;
 
@@ -30,19 +30,19 @@ export class Session
     async createChannel(channelTitle: string)
     {
         //Get the official server
-        const officialGuild = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server);
+        const officialGuild = client.guilds.cache.find((x: Discord.Guild) => x.id == cf.official_server);
         if (!officialGuild) return console.error("Session error: CreateChannel-> official guild not found.");
 
         //create session channel with category as parent.
-        const parentCategory = officialGuild.channels.get(cf.session_category);
+        const parentCategory = officialGuild.channels.cache.get(cf.session_category);
         if (!parentCategory) return console.error("Session error: CreateChannel-> parentCategory not found.");
 
         //if the channel exists delete it first.
-        const ctd = await officialGuild.channels.find((x: Discord.TextChannel) => x.name.includes(this.discordUser.id.slice(0,4)));
+        const ctd = await officialGuild.channels.cache.find((x) => x.name.includes(this.discordUser.id.slice(0,4)));
         if (ctd && ctd.deletable) await ctd.delete().catch((err: any) => console.error(err));
 
         //Create a channel for play and add permissions for user.
-        const newchannel = await officialGuild.createChannel(`${channelTitle}-#${this.discordUser.id.slice(0,4)}`, {type: "text", parent: parentCategory, rateLimitPerUser: 1});
+        const newchannel = await officialGuild.channels.create(`${channelTitle}-#${this.discordUser.id.slice(0,4)}`, {type: "text", parent: parentCategory, rateLimitPerUser: 1});
         this.sessionChannel = newchannel as Discord.TextChannel;
         await this.createChannelPermissions();
         this.finishedSettingUp = true;
@@ -50,12 +50,12 @@ export class Session
     async createChannelPermissions()
     {
         await this.sessionChannel.lockPermissions();
-        const guild = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server);
+        const guild = client.guilds.cache.find((x: Discord.Guild) => x.id == cf.official_server);
         if (!guild) return console.error("Failed to create session channel permissions: Guild not found.");
         try 
         {
-            const member = await guild.fetchMember(this.user.userID);
-            await this.sessionChannel.overwritePermissions(member,{ VIEW_CHANNEL: true, READ_MESSAGES: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
+            const member = await guild.members.fetch(this.user.userID);
+            await this.sessionChannel.overwritePermissions([{id: member, allow: ["VIEW_CHANNEL", "READ_MESSAGE_HISTORY", "SEND_MESSAGES"]}]);
         }
         catch(err) {console.error(err);}
     }
@@ -64,12 +64,12 @@ export class Session
         if (!this.sessionChannel) return;
         this.invite = await this.sessionChannel.createInvite({unique: true, maxAge: 0});
     }
-    async promptStart(embed: Discord.RichEmbed)
+    async promptStart(embed: Discord.MessageEmbed)
     {
         if (!this.sessionChannel) return;
         await this.sessionChannel.send(embed);
     }
-    async updateLiveMessage(embed: Discord.RichEmbed): Promise<boolean>
+    async updateLiveMessage(embed: Discord.MessageEmbed): Promise<boolean>
     {
         return new Promise(async (resolve) => {
             if (!this.liveMsg) this.liveMsg = await this.sessionChannel?.send(embed) as Discord.Message;

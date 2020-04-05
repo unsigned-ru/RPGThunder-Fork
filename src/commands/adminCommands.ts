@@ -3,7 +3,7 @@ import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep, getItemDataEmbed,
 import { DataManager } from "../classes/dataManager";
 import { CommandInterface } from "../interfaces";
 import { rateStack } from "../events/messageReceived";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [
@@ -208,7 +208,19 @@ export const cmds: CommandInterface[] =
 			DataManager.pushDatabaseUpdate();
 		}
 	},
-
+	{
+		name: "op_updatestatus",
+		aliases: [],
+		category: CC.hidden,
+		description: "Operator command, save the local data and push it to the database.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "",
+		execute()
+		{
+			DataManager.updateBotStatus();
+		}
+	},
 	{
 		name: "op_say",
 		aliases: ['op_s'],
@@ -233,7 +245,7 @@ export const cmds: CommandInterface[] =
 		usage: "[prefix]blacklist [#Channel]",
 		execute(msg)
 		{
-			if (!msg.member.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
+			if (!msg.member?.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
 			if (msg.mentions.channels.size == 0) return msg.channel.send(`\`${msg.author.username}\`, please mention the text channels you wish to blacklist.`);
 			let successMessage = `\`${msg.author.username}\`,\n`;
 			for (const c of msg.mentions.channels.values())
@@ -265,16 +277,16 @@ export function executeGlobalCommand(msg: Discord.Message, cmd: string, args: st
             msg.channel.send(`\`${msg.author.username}\`, this server's prefix is \`${getServerPrefix(msg)}\`.`);
             break;
         case "setprefix":
-            if (!msg.member.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
+            if (!msg.member?.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
             if (args.length == 0) return msg.channel.send(`\`${msg.author.username}\`, please enter a prefix.`);
             if (args.length > 1) return msg.channel.send(`\`${msg.author.username}\`, please enter a prefix without a space in it.`);
             if (args[0].length > 10) return msg.channel.send(`\`${msg.author.username}\`, custom prefixes may not be longer than 10 characters.`);
-            DataManager.serverPrefixes.set(msg.guild.id,args[0]);
+            if (msg.guild) DataManager.serverPrefixes.set(msg.guild.id,args[0]);
             msg.channel.send(`\`${msg.author.username}\`, the server's prefix has been set to \`${getServerPrefix(msg)}\``);
             break;
         case "resetprefix":
-            if (!msg.member.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
-            if (DataManager.serverPrefixes.has(msg.guild.id)) DataManager.serverPrefixes.delete(msg.guild.id);
+            if (!msg.member?.permissions.has("ADMINISTRATOR")) return msg.channel.send(`\`${msg.author.username}\`, you must have administrator permissions to execute this command.`);
+            if (msg.guild && DataManager.serverPrefixes.has(msg.guild.id)) DataManager.serverPrefixes.delete(msg.guild.id);
             msg.channel.send(`\`${msg.author.username}\`, the prefix has been sucessfully reset to \`${getServerPrefix(msg)}\``);
             break;
     }

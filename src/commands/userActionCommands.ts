@@ -11,7 +11,7 @@ import { Zone } from "../classes/zone";
 import { ZoneBossSession } from "../classes/zoneBossSession";
 import { Ability, UserAbility } from "../classes/ability";
 import { Boss } from "../classes/boss";
-import {client, commands} from "../main";
+import {client, commands} from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [
@@ -26,7 +26,7 @@ export const cmds: CommandInterface[] =
 		{
             if(DataManager.users.has(msg.author.id)) return msg.channel.send(`\`${msg.author.username}\` is already registered.`);
             
-            const embed = new Discord.RichEmbed()
+            const embed = new Discord.MessageEmbed()
             .setColor('#fcf403')
             .setTitle(`Welcome to RPG Thunder!`)
             .setDescription(`**To start off your adventure, you must pick a class! What class do you want to be?**`)
@@ -39,7 +39,7 @@ export const cmds: CommandInterface[] =
 
             try
             {
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxMatches: 1})).first();
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxProcessed: 1})).first();
                 if (!rr || !rr.content) return;
 
                 const selectedClass = DataManager.classes.find(x => rr.content.toLowerCase().includes(x.name.toLowerCase()));
@@ -132,7 +132,7 @@ export const cmds: CommandInterface[] =
 				else abStrings.push(`${numberToIcon(ab[0])} - __${ab[1].ability.data.name}__ <:cooldown:674944207663923219> ${ab[1].ability.data.cooldown}`);
 			}
 
-            const confirmEmbed = new Discord.RichEmbed()
+            const confirmEmbed = new Discord.MessageEmbed()
             .setTitle(`In what slot would you like to equip __${spell.icon} ${spell.name}__?`)
             .setDescription(abStrings.join("\n"))
             .setColor(colors.yellow);
@@ -142,7 +142,7 @@ export const cmds: CommandInterface[] =
             user.reaction.isPending = true;
             try 
             {
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first();
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxProcessed: 1 })).first();
                 user.reaction.isPending = false;
                 if (!rr || !rr.content ||isNaN(+rr.content)) return msg.channel.send(`\`${msg.author.username}\`, wrong input. Exptected a number, please try again.`);
     
@@ -209,7 +209,7 @@ export const cmds: CommandInterface[] =
 
             if (died)
             {
-                const embed = new Discord.RichEmbed()
+                const embed = new Discord.MessageEmbed()
                 .setColor(colors.red)
                 .setTitle(`⚔️ Exploration Failed! ❌`)
                 .setDescription(
@@ -224,7 +224,7 @@ export const cmds: CommandInterface[] =
             }
             else
             {
-                const embed = new Discord.RichEmbed()
+                const embed = new Discord.MessageEmbed()
                 .setColor(user.hp/user.getStats().base.hp <= 0.25 ? colors.orangeRed : colors.green)
                 .setTitle(`⚔️ Exploration Success! ✅`)
                 .setDescription(
@@ -276,7 +276,7 @@ export const cmds: CommandInterface[] =
         mustBeRegistered: true,
 		execute(msg: Discord.Message, args, user: User) 
 		{
-            const embed = new Discord.RichEmbed()
+            const embed = new Discord.MessageEmbed()
             .setTitle(`Weekly Reward -- ${msg.author.username}`)
             .setDescription(`\`${msg.author.username}\` has claimed their weekly reward!`)
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
@@ -305,7 +305,7 @@ export const cmds: CommandInterface[] =
         mustBeRegistered: true,
 		execute(msg: Discord.Message, args, user: User) 
 		{
-            const embed = new Discord.RichEmbed()
+            const embed = new Discord.MessageEmbed()
             .setTitle(`Daily Reward -- ${msg.author.username}`)
             .setDescription(`\`${msg.author.username}\` has claimed their daily reward!`)
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
@@ -353,7 +353,7 @@ export const cmds: CommandInterface[] =
 		{
             if (args.length == 0)
             {
-                const embed = new Discord.RichEmbed()
+                const embed = new Discord.MessageEmbed()
                 .setTitle(`Travelling -- Unlocked zones: ${msg.author.username}`)
                 .setDescription(`To travel you must enter what zone you'd like to travel to, here is a list of your unlocked zones.`)
                 .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
@@ -385,7 +385,7 @@ export const cmds: CommandInterface[] =
             //Add to traveling cds
             const d = new Date();
             
-            if (client.guilds.get(cf.official_server)?.members.get(user.userID)?.roles.has("651567406967291904")) reduction += 0.1;
+            if (client.guilds.cache.get(cf.official_server)?.members.cache.get(user.userID)?.roles.cache.has("651567406967291904")) reduction += 0.1;
             d.setSeconds(d.getSeconds() + travelTime);
         
             user.commandCooldowns.set("travel",new CronJob(d, 

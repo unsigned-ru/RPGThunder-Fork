@@ -40,7 +40,7 @@ export class BlackjackSesssion extends Session
         }
 
         //construct and send start message
-        const embed = new Discord.RichEmbed()
+        const embed = new Discord.MessageEmbed()
         .setColor('#fcf403') //Yelow
         .setTitle(`Welcome to your blackjack session, ${this.discordUser.username}`)
         .setDescription("I will your dealer today. If you do not know how the game works here's the required information!")
@@ -256,7 +256,7 @@ export class BlackjackSesssion extends Session
         const dealerCardData = this.getUserValueAndString(this.cards.dealer,true);
         const playerCardData = this.getUserValueAndString(this.cards.player,false);
 
-        return new Discord.RichEmbed()
+        return new Discord.MessageEmbed()
         .setColor(color)
         .setTitle(`Blackjack board - Bet amount: ${constructCurrencyString(1,this.bet)}`)
         .setDescription(`**Status:** __${status}__`)

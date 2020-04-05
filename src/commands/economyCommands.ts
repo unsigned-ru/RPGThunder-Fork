@@ -1,11 +1,11 @@
 import Discord from "discord.js";
 import { DataManager } from "../classes/dataManager";
 import { CC, clamp, getItemAndAmountFromArgs, constructWarningMessageForItem, awaitConfirmMessage, constructCurrencyString, filterItemArray, getCurrencyAndAmountFromArgs, colors } from "../utils";
-import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem, anyItem, DbEasterEgg, EasterEgg } from "../classes/items";
+import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem, anyItem, StackableItem } from "../classes/items";
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
 import cf from "../config.json";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [
@@ -63,7 +63,7 @@ export const cmds: CommandInterface[] =
 			//clamp the selectedpage to the min and max values
 			selectedPage = clamp(selectedPage, 1, pages.length);
 			
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
             .setTitle(`Shop -- ${zone.name} | Page ${selectedPage}/${pages.length}`)
 			.setDescription(pages[selectedPage - 1])
 			.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
@@ -232,8 +232,8 @@ export const cmds: CommandInterface[] =
 		{	
 			//get mentioned user
 			if (!msg.mentions.users.first()) return msg.channel.send(`\`${msg.author.username}\`, please mention a user to send the item to.`);
-			const ruser = DataManager.users.get(msg.mentions.users.first().id);
-			if (!ruser) return msg.channel.send(`\`${msg.author.username}\`, receiver \`${msg.mentions.users.first().username}\` is not registered.`);
+			const ruser = DataManager.users.get(msg.mentions.users.first()!.id);
+			if (!ruser) return msg.channel.send(`\`${msg.author.username}\`, receiver \`${msg.mentions.users.first()!.username}\` is not registered.`);
 			args.splice(args.indexOf(msg.mentions.users.first.toString()),1);
 
 			//parse args amount and item
@@ -241,9 +241,9 @@ export const cmds: CommandInterface[] =
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
 			if (item.soulbound) return msg.channel.send(`\`${msg.author.username}\`, that item is soulbound and untradable.`); 
 			//check if user has enough / has item
-			if ((item instanceof DbMaterialItem || item instanceof DbConsumableItem || item instanceof DbEasterEgg)) 
+			if (item instanceof StackableItem) 
 			{
-				const invEntry = suser.inventory.find(x => x.id == item?._id) as ConsumableItem | MaterialItem | EasterEgg | undefined;
+				const invEntry = suser.inventory.find(x => x.id == item?._id) as StackableItem | undefined;
 				if (!invEntry) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item ${item.getDisplayString()}__`);
 				if (amount > invEntry.amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item ${item.getDisplayString()}__ (sending: ${amount} | you own: ${invEntry.amount})`);
 				
@@ -279,8 +279,8 @@ export const cmds: CommandInterface[] =
 		{	
 			//get mentioned user
 			if (!msg.mentions.users.first()) return msg.channel.send(`\`${msg.author.username}\`, please mention a user to send the item to.`);
-			const ruser = DataManager.users.get(msg.mentions.users.first().id);
-			if (!ruser) return msg.channel.send(`\`${msg.author.username}\`, receiver \`${msg.mentions.users.first().username}\` is not registered.`);
+			const ruser = DataManager.users.get(msg.mentions.users.first()!.id);
+			if (!ruser) return msg.channel.send(`\`${msg.author.username}\`, receiver \`${msg.mentions.users.first()!.username}\` is not registered.`);
 			args.splice(args.indexOf(msg.mentions.users.first.toString()),1);
 
 			//parse args amount and item

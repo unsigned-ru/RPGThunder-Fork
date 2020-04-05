@@ -1,7 +1,7 @@
 import { DataManager } from "../classes/dataManager";
 import Discord from 'discord.js';
 
-export function onMemberJoin(member: Discord.GuildMember)
+export function onMemberJoin(member: Discord.GuildMember | Discord.PartialGuildMember)
 {
     //check if the member has an active session and give the perms when joining.
     const s = DataManager.sessions.find(x => x.discordUser.id == member.id);
@@ -12,6 +12,6 @@ export function onMemberJoin(member: Discord.GuildMember)
     if (useraccount && useraccount.patreonRank)
     {
         const rank = DataManager.getPatreonRank(useraccount.patreonRank);
-        if (rank) member.addRole(rank.discordrole_id);
+        if (rank) member.roles.add(rank.discordrole_id);
     }
 }

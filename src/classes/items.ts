@@ -176,41 +176,40 @@ export class EquipmentItem extends Item
     return totalStats;
   }
 }
-
-export class MaterialItem extends Item
+export class StackableItem extends Item
 {
   amount: number;
-
   constructor(id: number, amount: number)
   {
     super(id);
     this.amount = amount;
   }
 }
-
-export class EasterEgg extends Item
+export class MaterialItem extends StackableItem
 {
-  amount: number;
-
   constructor(id: number, amount: number)
   {
-    super(id);
-    this.amount = amount;
+    super(id, amount);
+  }
+}
+
+export class EasterEgg extends StackableItem
+{
+  constructor(id: number, amount: number)
+  {
+    super(id,amount);
   }
 } 
 
-export class ConsumableItem extends Item
+export class ConsumableItem extends StackableItem
 {
-  amount: number;
   effects: {effect: string; [key: string]: any}[]
   constructor(id: number, amount: number, effects: {effect: string; [key: string]: any}[])
   {
-    super(id);
-    this.amount = amount;
+    super(id, amount);
     this.effects = effects;
   }
 } 
-
 
 export class SerializedItem
 {

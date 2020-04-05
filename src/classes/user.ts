@@ -1,6 +1,6 @@
 /* eslint-disable no-case-declarations */
 import Discord from 'discord.js';
-import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem, SerializedConsumableItem, SerializedMaterialItem, DbConsumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem, DbEasterEgg, EasterEgg, SerializedEasterEggItem } from "./items";
+import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem, SerializedConsumableItem, SerializedMaterialItem, DbConsumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem, DbEasterEgg, EasterEgg, SerializedEasterEggItem, StackableItem } from "./items";
 import cf from "../config.json";
 import { formatTime, clamp, randomIntFromInterval, colors } from "../utils";
 import { CronJob } from "cron";
@@ -8,7 +8,7 @@ import { Class } from "./class";
 import { Actor } from "./actor";
 import { DataManager } from "./dataManager";
 import { UserAbility } from "./ability";
-import { manager } from "../RPGThunder";
+import { client } from '../RPGThunder';
 
 export interface UserConstructorParams
 {
@@ -61,7 +61,7 @@ export class User extends Actor
         commandCounter: 0,
         questionActive: false,
         questionAnswer: 0,
-        lastQuestion: new Discord.RichEmbed(),
+        lastQuestion: new Discord.MessageEmbed(),
     }
     //#endregion macroProtection
 
@@ -142,8 +142,8 @@ export class User extends Actor
     getZone() {return DataManager.zones.get(this.zone)!;}
     getUnlockedZones() {return DataManager.zones.filter(x => this.unlockedZones.includes(x._id));}
     getRequiredExp(level = this.level) {return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level  ** cf.exp_req_multiplier)-level)));}
-    async getUser(): Promise<Discord.User> { return (await manager.fetchClientValues("users")).find((x: Discord.User) => x.id == this.userID)!; }
-    async getName() { return (await manager.fetchClientValues("users") as Discord.User[]).find(x => x.id == this.userID)!.username; }
+    async getUser(): Promise<Discord.User> { return client.users.cache.find((x: Discord.User) => x.id == this.userID)!; }
+    async getName() { return  client.users.cache.find(x => x.id == this.userID)!.username; }
     getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
     getCooldown(name: string)
     {
@@ -163,7 +163,7 @@ export class User extends Actor
         if (this.commandCooldowns.has(name)) return;
         const d = new Date();
         let reduction = this.getPatreonRank() ? this.getPatreonRank()!.cooldown_reduction : 0;
-        if ((await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server)?.members.get(this.userID)?.roles.has("651567406967291904")) reduction += 0.03;
+        if (client.guilds.cache.find((x: Discord.Guild) => x.id == cf.official_server)?.members.cache.get(this.userID)?.roles.cache.has("651567406967291904")) reduction += 0.03;
         if (ignoreReduction) d.setSeconds(d.getSeconds() + duration);
         else d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
         this.commandCooldowns.set(name, new CronJob(d, 
@@ -230,7 +230,7 @@ export class User extends Actor
         // eslint-disable-next-line no-async-promise-executor
         ? await new Promise(async function (resolve)
             {
-                const itemSelectEmbed = new Discord.RichEmbed()
+                const itemSelectEmbed = new Discord.MessageEmbed()
                 .setColor('#fcf403')
                 .setTitle(`Duplicate items found`)
                 .setDescription(`**You have multiple items with that id. Which one do you want to equip, \`${msg.author.username}\`?**`)
@@ -241,8 +241,8 @@ export class User extends Actor
                 itemSelectEmbed.addField("**Options**", optionString);
                 msg.channel.send(itemSelectEmbed);
                 //await response and check it
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
-                if (isNaN(+rr) || +rr - 1 < 0 || +rr > finv.length) return resolve(undefined);
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, {time: 30000, maxProcessed: 1})).first()?.content;
+                if (!rr || isNaN(+rr) || +rr - 1 < 0 || +rr > finv.length) return resolve(undefined);
                 return resolve(finv[+rr - 1]);
             })
         : finv[0];
@@ -254,7 +254,7 @@ export class User extends Actor
             // eslint-disable-next-line no-async-promise-executor
             ? await new Promise(async function (resolve)
             {
-                const slotSelectEmbed = new Discord.RichEmbed()
+                const slotSelectEmbed = new Discord.MessageEmbed()
                 .setColor('#fcf403')
                 .setTitle(`Multiple slots possible.`)
                 .setDescription(`**This item can be equipped in multiple slots. What slot would you like it to be equipped in, \`${msg.author.username}\`?**`)
@@ -265,8 +265,8 @@ export class User extends Actor
                 slotSelectEmbed.addField("**Possible slots**", slotString);
                 msg.channel.send(slotSelectEmbed);
                 //await response and check it
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxMatches: 1 })).first().content;
-                if (isNaN(+rr) || !item.slots.includes(+rr)) return resolve(-1);
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, {time: 30000, maxProcessed: 1})).first()?.content;
+                if (!rr || isNaN(+rr) || !item.slots.includes(+rr)) return resolve(-1);
                 return resolve(+rr);
             })
             : item.slots[0];
@@ -388,12 +388,7 @@ export class User extends Actor
         const itemData = DataManager.getItem(id);
         const invEntry = this.inventory.find(x => x.id == id);
         if (itemData instanceof DbEquipmentItem && invEntry) for (let i = 0; i < amount; i++) this.inventory.splice(this.inventory.indexOf(invEntry),1);
-        else if (itemData instanceof DbMaterialItem && invEntry && invEntry instanceof MaterialItem) 
-        {
-            if (invEntry.amount > amount) invEntry.amount -= amount;
-            else this.inventory.splice(this.inventory.indexOf(invEntry),1);
-        }
-        else if (itemData instanceof DbConsumableItem && invEntry && invEntry instanceof ConsumableItem) 
+        else if (invEntry && invEntry instanceof StackableItem)
         {
             if (invEntry.amount > amount) invEntry.amount -= amount;
             else this.inventory.splice(this.inventory.indexOf(invEntry),1);
@@ -405,9 +400,9 @@ export class User extends Actor
     }
     addItemToInventory(item: EquipmentItem | ConsumableItem | MaterialItem): void
     {
-        if (item instanceof ConsumableItem || item instanceof MaterialItem || item instanceof EasterEgg)
+        if (item instanceof StackableItem)
         {
-            const i = this.inventory.find(x => Object.getPrototypeOf(item) == Object.getPrototypeOf(x) && x.id == item.id) as ConsumableItem | MaterialItem | EasterEgg;
+            const i = this.inventory.find(x => Object.getPrototypeOf(item) == Object.getPrototypeOf(x) && x.id == item.id) as StackableItem;
             if (i) i.amount += item.amount;
             else this.inventory.push(item);
         }
@@ -422,7 +417,7 @@ export class User extends Actor
             if (!cost.item) continue;
             const invEntry = this.inventory.find(x => x.id == cost.item?._id);
             if (!invEntry) { costErrorStrings.push(`${cost.item.getDisplayString()} x${multiplier * cost.amount}`); continue; }
-            if (invEntry instanceof ConsumableItem || invEntry instanceof MaterialItem)
+            if (invEntry instanceof StackableItem)
             {
                 if (invEntry.amount < cost.amount * multiplier) costErrorStrings.push(`${cost.item.getDisplayString()} x${(cost.amount * multiplier) - invEntry.amount}`);
             }
@@ -547,7 +542,7 @@ export class User extends Actor
         this.macroProtection.questionAnswer = answer;
 
         //send the question
-        const questionEmbed = new Discord.RichEmbed()
+        const questionEmbed = new Discord.MessageEmbed()
         .setColor(colors.yellow)
         .setTitle(`Macro Protection`)
         .setDescription(`*To keep our game fair for everyone we want to prevent players making things unfair by using macros. This is a system implemented to prevent this from happening. Solve the math question below and show us you are not a robot :robot:!*\n\n`+

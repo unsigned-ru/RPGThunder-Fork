@@ -5,7 +5,7 @@ import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, _anyItem } from "../
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
 import cf from "../config.json";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [
@@ -19,7 +19,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]recipes [profession] [page] -[filter1] -[filter2]...`,
 		execute(msg, args) 
 		{	
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403'); //Yelow
 
 			const pages = [];

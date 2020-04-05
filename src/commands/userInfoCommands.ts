@@ -5,7 +5,7 @@ import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem, 
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
 import cf from "../config.json";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [
@@ -21,14 +21,14 @@ export const cmds: CommandInterface[] =
 			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
-			if (msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first();
-			else targetUser = msg.member;
+			if (msg.mentions.members && msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first()!;
+			else targetUser = msg.member!;
 
 			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
 			const pRank = user.getPatreonRank();
 			//Create an embedd with the profile data.
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User profile: ${targetUser.user.username}`)
 			
@@ -47,7 +47,7 @@ export const cmds: CommandInterface[] =
 			`🛡️ ${displayRound(s.total.def)} (${displayRound(s.base.def)} + ${displayRound(s.gear.def)})\n`+
 			`⚡ ${displayRound(s.total.acc)} (${displayRound(s.base.acc)} + ${displayRound(s.gear.acc)})\n`
 			,true);
-			embed.addBlankField(false);
+			embed.addField('\u200b', '\u200b',false);
 
 			let equipmentString = "";
 			for (const e of user.equipment)
@@ -72,7 +72,7 @@ export const cmds: CommandInterface[] =
 				currencyString += `${currencyData?.icon} **${currencyData?.name}**: ${displayRound(c[1].value)}\n`;
 			}
 			embed.addField("Currencies:",currencyString,true)
-			.setThumbnail(targetUser.user.avatarURL)
+			.setThumbnail(targetUser.user.displayAvatarURL())
 			.setTimestamp()
 			.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
 			
@@ -91,14 +91,14 @@ export const cmds: CommandInterface[] =
 			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
-			if (msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first();
-			else targetUser = msg.member;
+			if (msg.mentions.members && msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first()!;
+			else targetUser = msg.member!;
 
 			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
 
 			//Create an embedd with the profile data.
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User equipment: ${user.class.icon} ${targetUser.user.username}`);
 
@@ -135,14 +135,14 @@ export const cmds: CommandInterface[] =
 			let targetUser: Discord.GuildMember;
 
 			//check if there is a mentioned user to get the profile from.
-			if (msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first();
-			else targetUser = msg.member;
+			if (msg.mentions.members && msg.mentions.members.size > 0 && msg.mentions.members.first()) targetUser = msg.mentions.members.first()!;
+			else targetUser = msg.member!;
 
 			const user = DataManager.getUser(targetUser.id);
 			if (!user) return msg.channel.send(`\`${targetUser.user.username}\` is not registered.`);
 
 			//Create an embedd with the profile data.
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User Professions: ${targetUser.user.username}`);
 
@@ -170,7 +170,7 @@ export const cmds: CommandInterface[] =
 		execute(msg: Discord.Message, args, user: User) 
 		{	
 			//Create an embedd with the currencies.
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User currencies: ${msg.author.username}`);
 
@@ -195,7 +195,7 @@ export const cmds: CommandInterface[] =
 		execute(msg, args, user: User) 
 		{	
 			//Create an embedd with the currencies.
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User experience: ${user.class.icon} ${msg.author.username}`);
 
@@ -224,7 +224,7 @@ export const cmds: CommandInterface[] =
 		execute(msg, args, user: User) 
 		{	
 			//Create an embedd with the currencies.
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403') //Yelow
 			.setTitle(`User health: ${user.class.icon} ${msg.author.username}`);
 
@@ -251,7 +251,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]inventory [page] -[query1] -[query2]...`,
 		execute(msg, args, user: User) 
 		{	
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403'); //Yelow
 
 			const pages = [];
@@ -315,7 +315,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]spellbook [page] -[query1] -[query2]...`,
 		execute(msg, args, user: User) 
 		{	
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setColor('#fcf403'); //Yelow
 
 			let showAll = false;
@@ -375,7 +375,7 @@ export const cmds: CommandInterface[] =
 		usage: `[prefix]spells`,
 		execute(msg, args, user: User) 
 		{	
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
 			.setTitle(`Equipped Spells ${msg.author.username}`)
 			.setColor(colors.yellow); //Yelow
 			
@@ -401,7 +401,7 @@ export const cmds: CommandInterface[] =
 		{
 			const cdCmds = commands.filter(x => x.cooldown != undefined);
 			
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
             .setTitle(`User cooldowns -- ${msg.author.username}`)
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
             .setColor('#fcf403');
@@ -439,7 +439,7 @@ export const cmds: CommandInterface[] =
 		{
 			const cdCmds = commands.filter(x => x.cooldown != undefined);
 			
-			const embed = new Discord.RichEmbed()
+			const embed = new Discord.MessageEmbed()
             .setTitle(`Ready commands -- ${msg.author.username}`)
             .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png')
             .setColor('#fcf403');

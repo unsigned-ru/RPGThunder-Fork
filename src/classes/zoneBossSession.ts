@@ -39,7 +39,7 @@ export class ZoneBossSession extends Session
         }
 
         //construct and send information message.
-        const infoEmbed = new Discord.RichEmbed()
+        const infoEmbed = new Discord.MessageEmbed()
         .setColor(colors.yellow) //Yelow 
         .setTitle(`Zone boss fight information`)
         .setDescription(`Here is an overview of the information you want to know when fighting the zone bosses.`)
@@ -55,7 +55,7 @@ export class ZoneBossSession extends Session
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
         
         //construct and send boss data message
-        const dataEmbed = new Discord.RichEmbed()
+        const dataEmbed = new Discord.MessageEmbed()
         .setColor(colors.yellow) //Yelow 
         .setTitle(`${this.boss.name}`)
         .addField("**Stats**",`❤️ ${displayRound(this.boss.stats.max_hp)}\n🗡️ ${displayRound(this.boss.stats.atk)}\n🛡️ ${displayRound(this.boss.stats.def)}\n⚡ ${displayRound(this.boss.stats.acc)}`,true)
@@ -242,7 +242,7 @@ export class ZoneBossSession extends Session
         return new Promise(async (resolve) => {
             await this.updateLiveMessage(this.constructBoardMessage(colors.green, "you won"));
             this.status.ended = true;
-            const embed = new Discord.RichEmbed()
+            const embed = new Discord.MessageEmbed()
             .setColor(colors.green) //Yelow 
             .setTitle(`Congratulations! You have defeated ${this.boss.name}!`)
             .setTimestamp()
@@ -291,7 +291,7 @@ export class ZoneBossSession extends Session
             this.status.ended = true;
             //send message
             this.user.onDeath();
-            const embed = new Discord.RichEmbed()
+            const embed = new Discord.MessageEmbed()
             .setColor(colors.red) //Yelow 
             .setTitle(`Defeat! You were defeated by ${this.boss.name}!`)
             .setDescription(`**You have lost one level as death penalty.**\n\n If you are done looking at the result, type \`exit\` to close the session.`)
@@ -307,7 +307,7 @@ export class ZoneBossSession extends Session
     //utils
     private constructBoardMessage(color: string, status: string, warnings: string[] = [])
     {
-        const embed = new Discord.RichEmbed()
+        const embed = new Discord.MessageEmbed()
         .setColor(color)
         .setTitle(`Boss Battle: ${this.boss.name}`)
         .setDescription(`__**Combat Log**__\n${this.combatLog.slice(-10).join("\n")}\n\n__Status:__ **${status}**\n${warnings.join("\n")}`)

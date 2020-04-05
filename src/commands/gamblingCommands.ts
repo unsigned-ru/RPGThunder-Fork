@@ -4,7 +4,7 @@ import { DataManager } from "../classes/dataManager";
 import { User } from "../classes/user";
 import { BlackjackSesssion } from "../classes/blackjackSession";
 import { TextChannel } from "discord.js";
-import { commands } from "../main";
+import { commands } from "../RPGThunder";
 
 export const cmds: CommandInterface[] = 
 [

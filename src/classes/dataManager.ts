@@ -13,7 +13,7 @@ import { Zone } from './zone.js';
 import {  EnemyTypeInterface, EnemyInterface } from './enemy.js';
 import { Session } from './session.js';
 import { Ability } from './ability.js';
-import { manager } from '../RPGThunder';
+import { client } from '../RPGThunder';
 
 
 export abstract class DataManager 
@@ -41,6 +41,7 @@ export abstract class DataManager
     {
         try
         {
+            console.log("Initializing data...");
             const mongoClient = new mongo.MongoClient(`mongodb://${cf.host}:27017`, { auth: { user: cf.mongo_user, password: cf.mongo_pass }, useUnifiedTopology: true });
             await mongoClient.connect();
             const db = await mongoClient.db(cf.mongo_dbname);
@@ -124,6 +125,8 @@ export abstract class DataManager
             for (const prefix of (await serverPrefixesCollection.findOne({_id: 1})).prefixes) this.serverPrefixes.set(prefix.serverID, prefix.prefix);
 
             await mongoClient.close();
+            console.log(this.users);
+            console.log("Finished initializing data");
         }
         catch(err)
         {
@@ -236,13 +239,7 @@ export abstract class DataManager
     static getPatreonRank(id: string) { return this.patreonRanks.get(id);}
     static hpRegenTick() { for (const user of this.users.values()) user.applyEffect({effect: "INSTANT_HEAL", amount: user.getStats().base.hp*0.021}); }
     static async updateBotStatus() { 
-        // console.log(await manager.fetchClientValues("user"));
-        // map(
-        //     async x => 
-        //     (await x.fetchClientValue('user'))
-        //     .setActivity(`$help | ${DataManager.users.size} registered users on 
-        //     ${(await manager.fetchClientValues("guilds.size")).reduce((total, add) => total + add, 0)}
-        //      servers`,{type: "WATCHING"}));
+        client.user?.setActivity({name: `$help | ${DataManager.users.size} registered users on ${client.guilds.cache.size} servers.`, type: "WATCHING"});
     }
 
     static async drawLottery()
@@ -258,15 +255,14 @@ export abstract class DataManager
         let winner = ticketCollection[randomIntFromInterval(0,ticketCollection.length-1,true)];
         
         //Check if the winner is still within the official server, and is mentionable. if not then lot a new random winner.
-        const clientusers = await manager.fetchClientValues("users");
-        while (!clientusers.find((x: Discord.User) => x.id == winner) && ticketCollection.length > 0)
+        while (!client.users.cache.find((x: Discord.User) => x.id == winner) && ticketCollection.length > 0)
         {
             ticketCollection = ticketCollection.filter(x => x != winner);
             winner = ticketCollection[randomIntFromInterval(0,ticketCollection.length-1,true)];
         }
-        const userWinner = clientusers.find((x: Discord.User) => x.id == winner);   
+        const userWinner = client.users.cache.find((x: Discord.User) => x.id == winner);   
 
-        const channel = ((await manager.fetchClientValues("channels")).find((x: Discord.Channel) => x.id == cf.lottery_textChannel) as Discord.TextChannel);
+        const channel = (client.channels.cache.find((x: Discord.Channel) => x.id == cf.lottery_textChannel) as Discord.TextChannel);
         if (userWinner)
         {
             //announce winner and message
@@ -387,13 +383,13 @@ export abstract class DataManager
             rankValuePairs.push({patreonID: d.id, discordID: discordID, tierID: tierID});
         }
         const rolesToRemove = DataManager.patreonRanks.map(x => x.discordrole_id);
-        const officialServer: Discord.Guild = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server)!;
-        for (const u of (await manager.fetchClientValues("users")) as Discord.User[])
+        const officialServer: Discord.Guild = client.guilds.cache.find((x: Discord.Guild) => x.id == cf.official_server)!;
+        for (const u of client.users.cache.values())
         {
             let shouldWait = false;
             //removing
-            const m = officialServer.members.get(u.id);
-            if (m && m.roles.some((x) => rolesToRemove.includes(x.id))) {await m.removeRoles(rolesToRemove); shouldWait = true;}
+            const m = officialServer.members.cache.get(u.id);
+            if (m && m.roles.cache.some((x) => rolesToRemove.includes(x.id))) {await m.roles.remove(rolesToRemove); shouldWait = true;}
             const userAccount = DataManager.getUser(u.id);
             if (userAccount) {userAccount.patreonRank = undefined; userAccount.patreonMemberID = undefined;}
 
@@ -402,7 +398,7 @@ export abstract class DataManager
             if (data)
             {
                 if (userAccount) {userAccount.patreonRank = data.tierID; userAccount.patreonMemberID = data.patreonID;}
-                if (m) {await m.addRole(DataManager.getPatreonRank(data.tierID)!.discordrole_id); shouldWait = true;}
+                if (m) {await m.roles.add(DataManager.getPatreonRank(data.tierID)!.discordrole_id); shouldWait = true;}
             }
             if (shouldWait) await sleep(1);
         }

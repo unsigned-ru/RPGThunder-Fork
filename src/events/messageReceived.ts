@@ -3,7 +3,7 @@ import cf from '../config.json';
 import { DataManager } from '../classes/dataManager.js';
 import { getServerPrefix, colors, sleep } from '../utils.js';
 import { executeGlobalCommand } from '../commands/adminCommands.js';
-import { client, commands } from '../main';
+import { client, commands } from '../RPGThunder';
 
 
 export const rateStack: Discord.Collection<string, Date> = new Discord.Collection();
@@ -17,7 +17,7 @@ export async function onMSGReceived(msg: Discord.Message)
         if (rateTrace && new Date().getTime() - rateTrace.getTime() <= 150) return;
 
         if (msg.author.bot) return;
-        if (cf.DEVMODE && msg.channel.type != "dm" && msg.guild.id == "646062255170912293") return; //prevent the test bot from receiving anything in the official server.
+        if (cf.DEVMODE && msg.channel.type != "dm" && msg.guild?.id == "646062255170912293") return; //prevent the test bot from receiving anything in the official server.
 
         //check for existing sessions.
         const session = DataManager.sessions.get(msg.author.id);
@@ -57,7 +57,7 @@ export async function onMSGReceived(msg: Discord.Message)
         const prefix = getServerPrefix(msg);
         if (!msg.content.startsWith(prefix)) return;
 
-        if (!msg.guild.channels.get(msg.channel.id)?.permissionsFor(client.user)?.has(["READ_MESSAGES", "SEND_MESSAGES"])) return msg.author.send("I do not have permissions to read and write messages in that channel.").catch();
+        if (!msg.guild?.channels.cache.get(msg.channel.id)?.permissionsFor(client.user!)?.has(["READ_MESSAGE_HISTORY", "SEND_MESSAGES"])) return msg.author.send("I do not have permissions to read and write messages in that channel.").catch();
 
         //check if the receiving channel is blacklisted.
         if (DataManager.blacklistedChannels.includes(msg.channel.id) && !cf.Operators.includes(msg.author.id)) return msg.delete();
@@ -120,7 +120,7 @@ export async function onMSGReceived(msg: Discord.Message)
 
             if (user.macroProtection.commandCounter >= cf.macroProtectionFrequency) 
             {
-                const mpEmbed = new Discord.RichEmbed()
+                const mpEmbed = new Discord.MessageEmbed()
                 .setColor(colors.red)
                 .setTitle(`Halt \`${msg.author.username}\`! 👮`)
                 .setDescription(`You have been selected for inspection!\n**Please confirm you are not a robot by executing the command: \`$macro\` and solving the math problem sent to you as a direct message.**`)
