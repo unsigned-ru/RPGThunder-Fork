@@ -32,13 +32,13 @@ export class Lottery
   }
   public async updateMessage()
   {
-    const message = (client.channels.cache.find((x: Discord.Channel) => x.id == cf.lottery_textChannel)) ? (client.channels.cache.find(x => x.id == cf.lottery_textChannel) as Discord.TextChannel).messages.cache.get(DataManager.activeLottery.msgID) : undefined;
+    const message = (await client.channels.fetch(cf.lottery_textChannel, true)) ? await (await client.channels.fetch(cf.lottery_textChannel, true) as Discord.TextChannel).messages.fetch(DataManager.activeLottery.msgID) : undefined;
     if (!message) return console.error(`Fatal Error: Failed to update lottery message due to not finding the message.`);
 
     //construct embed
     const embed = new Discord.MessageEmbed()
     .setTitle(`Lottery #${DataManager.activeLottery.id} | Prize: ${constructCurrencyString(1,DataManager.activeLottery.getPrize())}`)
-    .setDescription(`**Top Entries:**\n${DataManager.activeLottery.tickets.keyArray().sort((a,b) => DataManager.activeLottery.tickets.get(b)!.tickets - DataManager.activeLottery.tickets.get(a)!.tickets).slice(0,15).map(async x => `\`${client.users.cache.find((y: Discord.User) => y.id == x)?.username}\` - **${DataManager.activeLottery.tickets.get(x)?.tickets} tickets**`).join("\n")}`)
+    .setDescription(`**Top Entries:**\n${DataManager.activeLottery.tickets.keyArray().sort((a,b) => DataManager.activeLottery.tickets.get(b)!.tickets - DataManager.activeLottery.tickets.get(a)!.tickets).slice(0,15).map(x => `\`${client.users.cache.find((y) => y.id == x)?.username}\` - **${DataManager.activeLottery.tickets.get(x)?.tickets} tickets**`).join("\n")}`)
     .setTimestamp(DataManager.activeLottery.drawDate)
     .setFooter("Ends", 'http://159.89.133.235/DiscordBotImgs/logo.png')
     .setColor('#fcf403');

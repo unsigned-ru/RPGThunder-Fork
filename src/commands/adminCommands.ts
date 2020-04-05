@@ -37,7 +37,19 @@ export const cmds: CommandInterface[] =
 			DataManager.syncroniseRanks();
 		}
 	},
-
+	{
+		name: "op_updatelottery",
+		aliases: [],
+		category: CC.hidden,
+		description: "Operator command, resyncronise ranks.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_syncranks",
+		execute()
+		{
+			DataManager.activeLottery.updateMessage();
+		}
+	},
 	{
 		name: "op_listicons",
 		aliases: [],
