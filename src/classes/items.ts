@@ -1,4 +1,4 @@
-import { getTotalWeightForLevel, getAccFromLevelWeight, round, displayRound } from "../utils";
+import { getTotalWeightForLevel, getAccFromLevelWeight, displayRound } from "../utils";
 import { DataManager } from "./dataManager";
 
 export type _anyItem = DbItem | DbConsumableItem | DbEquipmentItem | DbMaterialItem;
@@ -47,7 +47,7 @@ export class DbItem
 export class DbEquipmentItem extends DbItem
 {
   slots: number[];
-  twoHand?: boolean;
+  twoHand?: boolean = false;
   type: number;
   levelRequirement: number;
 
@@ -88,6 +88,23 @@ export class DbEquipmentItem extends DbItem
   }
   public getType() { return DataManager.getItemType(this.type); }
   public getSlots() { return DataManager.getItemSlots(this.slots); }
+} 
+
+export class DbEasterEgg extends DbItem
+{
+  expPercentage: number;
+  coinsMin: number;
+  coinsMax: number;
+  itemDrops: {item: number; chance: number; minAmount: number; maxAmount: number}[];
+
+  constructor(dbObject: any)
+  {
+    super(dbObject);
+    this.expPercentage = dbObject.expPercentage;
+    this.coinsMin = dbObject.coinsMin;
+    this.coinsMax = dbObject.coinsMax;
+    this.itemDrops = dbObject.itemDrops;
+  }
 } 
 
 export class DbMaterialItem extends DbItem
@@ -169,6 +186,17 @@ export class MaterialItem extends Item
     super(id);
     this.amount = amount;
   }
+}
+
+export class EasterEgg extends Item
+{
+  amount: number;
+
+  constructor(id: number, amount: number)
+  {
+    super(id);
+    this.amount = amount;
+  }
 } 
 
 export class ConsumableItem extends Item
@@ -206,8 +234,17 @@ export class SerializedEquipmentItem extends SerializedItem
     super(id);
     this.bonusStats = bonusStats;
   }
-
 }
+export class SerializedEasterEggItem extends SerializedItem
+{
+  amount = 0;
+  constructor(id: number, amount?: number)
+  {
+    super(id);
+    if (amount) this.amount = amount;
+  }
+}
+
 export class SerializedMaterialItem extends SerializedItem
 {
   amount = 0;
@@ -217,6 +254,7 @@ export class SerializedMaterialItem extends SerializedItem
     if (amount) this.amount = amount;
   }
 }
+
 export class SerializedConsumableItem extends SerializedItem
 {
   amount = 0;

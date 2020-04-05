@@ -1,9 +1,9 @@
 import Discord, { Message } from "discord.js";
 import { User } from "./user";
 import cf from "../config.json";
-import { client } from "../RPGThunder";
 import { CronJob, CronTime } from "cron";
 import { DataManager } from "./dataManager";
+import { manager } from "../RPGThunder";
 
 export class Session
 {
@@ -30,7 +30,7 @@ export class Session
     async createChannel(channelTitle: string)
     {
         //Get the official server
-        const officialGuild = client.guilds.get(cf.official_server);
+        const officialGuild = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server);
         if (!officialGuild) return console.error("Session error: CreateChannel-> official guild not found.");
 
         //create session channel with category as parent.
@@ -38,8 +38,8 @@ export class Session
         if (!parentCategory) return console.error("Session error: CreateChannel-> parentCategory not found.");
 
         //if the channel exists delete it first.
-        const ctd = await officialGuild.channels.find(x => x.name.includes(this.discordUser.id.slice(0,4)));
-        if (ctd && ctd.deletable) await ctd.delete().catch(err => console.error(err));
+        const ctd = await officialGuild.channels.find((x: Discord.TextChannel) => x.name.includes(this.discordUser.id.slice(0,4)));
+        if (ctd && ctd.deletable) await ctd.delete().catch((err: any) => console.error(err));
 
         //Create a channel for play and add permissions for user.
         const newchannel = await officialGuild.createChannel(`${channelTitle}-#${this.discordUser.id.slice(0,4)}`, {type: "text", parent: parentCategory, rateLimitPerUser: 1});
@@ -50,7 +50,7 @@ export class Session
     async createChannelPermissions()
     {
         await this.sessionChannel.lockPermissions();
-        const guild = client.guilds.get(cf.official_server);
+        const guild = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server);
         if (!guild) return console.error("Failed to create session channel permissions: Guild not found.");
         try 
         {
@@ -103,6 +103,7 @@ export class Session
 
     async onInput(input: string)
     {
+        
         switch(input)
         {
             case "update":

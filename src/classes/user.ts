@@ -1,13 +1,14 @@
-import { DataManager } from "./dataManager";
+/* eslint-disable no-case-declarations */
 import Discord from 'discord.js';
-import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem, SerializedConsumableItem, SerializedMaterialItem, DbConsumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem } from "./items";
+import { DbMaterialItem, DbEquipmentItem, EquipmentItem, SerializedEquipmentItem, SerializedConsumableItem, SerializedMaterialItem, DbConsumableItem, ConsumableItem, MaterialItem, _anyItem, anyItem, DbEasterEgg, EasterEgg, SerializedEasterEggItem } from "./items";
 import cf from "../config.json";
-import { formatTime, clamp, randomIntFromInterval, sleep, colors } from "../utils";
+import { formatTime, clamp, randomIntFromInterval, colors } from "../utils";
 import { CronJob } from "cron";
-import { client } from "../RPGThunder";
 import { Class } from "./class";
 import { Actor } from "./actor";
+import { DataManager } from "./dataManager";
 import { UserAbility } from "./ability";
+import { manager } from "../RPGThunder";
 
 export interface UserConstructorParams
 {
@@ -23,7 +24,7 @@ export interface UserConstructorParams
     foundBosses?: number[];
     unlockedZones?: number[];
     currencies?: {currencyID: number; amount: number}[];
-    inventory?: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem)[];
+    inventory?: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem | SerializedEasterEggItem)[];
     equipment?: {slot: number; item: SerializedEquipmentItem}[];
     professions?: {id: number; skill: number}[];
     cooldowns?: {name: ""; date: Date}[];
@@ -125,6 +126,8 @@ export class User extends Actor
                 if (id instanceof DbEquipmentItem) this.inventory.push(new EquipmentItem(i.id,(i as SerializedEquipmentItem).bonusStats));
                 if (id instanceof DbConsumableItem) this.inventory.push(new ConsumableItem(i.id,(i as SerializedConsumableItem).amount, id.effects));
                 if (id instanceof DbMaterialItem) this.inventory.push(new MaterialItem(i.id,(i as SerializedMaterialItem).amount));
+                if (id instanceof DbEasterEgg) this.inventory.push(new EasterEgg(i.id,(i as SerializedEasterEggItem).amount));
+
             }
         }
         //intialize abilities
@@ -139,8 +142,8 @@ export class User extends Actor
     getZone() {return DataManager.zones.get(this.zone)!;}
     getUnlockedZones() {return DataManager.zones.filter(x => this.unlockedZones.includes(x._id));}
     getRequiredExp(level = this.level) {return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level  ** cf.exp_req_multiplier)-level)));}
-    getUser() { return client.users.get(this.userID)!; }
-    getName() { return client.users.get(this.userID)!.username; }
+    async getUser(): Promise<Discord.User> { return (await manager.fetchClientValues("users")).find((x: Discord.User) => x.id == this.userID)!; }
+    async getName() { return (await manager.fetchClientValues("users") as Discord.User[]).find(x => x.id == this.userID)!.username; }
     getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
     getCooldown(name: string)
     {
@@ -155,12 +158,12 @@ export class User extends Actor
     //#endregion GeneralGetters ------------------------------------------------------
 
     //#region GeneralSetters ------------------------------------------------------
-    setCooldown(name: string, duration: number, ignoreReduction = false)
+    async setCooldown(name: string, duration: number, ignoreReduction = false)
     {
         if (this.commandCooldowns.has(name)) return;
         const d = new Date();
         let reduction = this.getPatreonRank() ? this.getPatreonRank()!.cooldown_reduction : 0;
-        if (client.guilds.get(cf.official_server)?.members.get(this.userID)?.roles.has("651567406967291904")) reduction += 0.03;
+        if ((await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server)?.members.get(this.userID)?.roles.has("651567406967291904")) reduction += 0.03;
         if (ignoreReduction) d.setSeconds(d.getSeconds() + duration);
         else d.setSeconds(d.getSeconds() + (duration * (clamp(1 - reduction, 0, 1))));
         this.commandCooldowns.set(name, new CronJob(d, 
@@ -314,6 +317,53 @@ export class User extends Actor
             else (this.inventory.splice(this.inventory.indexOf(invi),1));
             msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__ ${amount ? `x${amount}` :""}`);
         }
+        if (invi instanceof EasterEgg)
+        {
+            const e = invi.getData();
+            if (e && e instanceof DbEasterEgg)
+            {
+                if (invi.amount > amount) invi.amount-= amount;
+                else (this.inventory.splice(this.inventory.indexOf(invi),1));
+                
+                //get random of the 3 possibilities
+                switch (randomIntFromInterval(1,3,true))
+                {
+                    case 1: //exp
+                        const exp = this.getRequiredExp() * (e.expPercentage / 100);
+                        this.gainExp(exp, msg);
+                        msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__\n\nYou have gained ${exp} exp!`);
+                    break;
+                    case 2: //coins
+                        const coins = randomIntFromInterval(e.coinsMin, e.coinsMax, true);
+                        this.getCurrency(1).value += coins;
+                        const curr = DataManager.getCurrency(1);
+                        msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__\n\nYou have received ${curr?.icon} ${coins} Coins!`);
+                    break;
+                    case 3: //item
+                        const itemDrops = e.itemDrops.slice();
+                        let rng = randomIntFromInterval(0,itemDrops.reduce((total, c) => total + c.chance, 0));
+                        itemDrops.sort((a,b) => b.chance - a.chance); //sort
+
+
+                        //get the item according to RNG
+                        while (itemDrops.length > 0 && rng > 0)
+                        {
+                            const d = itemDrops[0];
+                            if (rng <= d.chance) break;
+                            else rng -= d.chance;
+                            itemDrops.splice(0,1);
+                        }
+                        
+                        const drop = itemDrops[0];
+                        const dropAmount = randomIntFromInterval(drop.minAmount, drop.maxAmount, true);
+                        this.addItemToInventoryFromId(drop.item, dropAmount);
+                        msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__\n\n`+
+                        `You have received ${DataManager.getItem(drop.item)?.getDisplayString()} x${dropAmount}`);
+                    break;
+
+                }
+            }
+        }
     }
     applyEffect(e: {effect: string; [key: string]: any}) //TODO: change system
     {
@@ -331,6 +381,7 @@ export class User extends Actor
         if (itemData instanceof DbEquipmentItem) { for (let i = 0; i < amount; i++) this.addItemToInventory(new EquipmentItem(itemData._id));}
         else if (itemData instanceof DbMaterialItem) this.addItemToInventory(new MaterialItem(itemData._id,amount));
         else if (itemData instanceof DbConsumableItem) this.addItemToInventory(new ConsumableItem(itemData._id,amount,itemData.effects));
+        else if (itemData instanceof DbEasterEgg) this.addItemToInventory(new EasterEgg(itemData._id,amount));
     }
     removeItemFromInventoryFromId(id: number, amount = 1): void
     {
@@ -354,9 +405,9 @@ export class User extends Actor
     }
     addItemToInventory(item: EquipmentItem | ConsumableItem | MaterialItem): void
     {
-        if (item instanceof ConsumableItem || item instanceof MaterialItem)
+        if (item instanceof ConsumableItem || item instanceof MaterialItem || item instanceof EasterEgg)
         {
-            const i = this.inventory.find(x => Object.getPrototypeOf(item) == Object.getPrototypeOf(x) && x.id == item.id) as ConsumableItem | MaterialItem;
+            const i = this.inventory.find(x => Object.getPrototypeOf(item) == Object.getPrototypeOf(x) && x.id == item.id) as ConsumableItem | MaterialItem | EasterEgg;
             if (i) i.amount += item.amount;
             else this.inventory.push(item);
         }
@@ -448,13 +499,13 @@ export class User extends Actor
     //#endregion COMBAT METHODS -----------------------------------------------------------
 
     //#region EVENTS -----------------------------------------------------------
-    onLevel(msg: Discord.Message)
+    async onLevel(msg: Discord.Message)
     {
         //regenerate health
         this.hp = this.getStats().base.hp;
 
         //check for new abilities.
-        let msgText = `\`${this.getUser().username}\` has reached level ${this.level}!`;
+        let msgText = `\`${await this.getName()}\` has reached level ${this.level}!`;
         const unlockedAbilities = this.class.getSpellbook().filter(x => x.level == this.level);
         if (unlockedAbilities.length > 0) msgText += `\nYou have unlocked the following abilities:\n ${unlockedAbilities.map(x => `${x.ability.id} - ${x.ability.name}`).join("\n")}`;
         
@@ -510,7 +561,7 @@ export class User extends Actor
 
         this.macroProtection.lastQuestion = questionEmbed;
 
-        await this.getUser().send(questionEmbed).catch(() => execChannel.send(`\`${this.getUser().username}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
+        await (await this.getUser()).send(questionEmbed).catch(async () => execChannel.send(`\`${await this.getName()}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
     }
     //#endregion OTHERS -------------------------------------
 }
@@ -528,7 +579,7 @@ export class SerializedUser
     foundBosses: number[];
     unlockedZones: number[];
     currencies: {currencyID: number; amount: number}[] = []
-    inventory: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem)[] = []
+    inventory: (SerializedEquipmentItem | SerializedConsumableItem | SerializedMaterialItem | SerializedEasterEggItem)[] = []
     equipment: {slot: number; item: SerializedEquipmentItem | undefined}[] = []
     abilities: {slot: number; ability: number | undefined}[] = []
     cooldowns: {name: string; date: Date}[] = []
@@ -552,6 +603,7 @@ export class SerializedUser
             if (invEntry instanceof EquipmentItem) this.inventory.push(new SerializedEquipmentItem(invEntry.id,invEntry.craftingBonus));
             if (invEntry instanceof MaterialItem) this.inventory.push(new SerializedMaterialItem(invEntry.id,  Math.round(invEntry.amount)));
             if (invEntry instanceof ConsumableItem) this.inventory.push(new SerializedConsumableItem(invEntry.id,  Math.round(invEntry.amount)));
+            if (invEntry instanceof EasterEgg) this.inventory.push(new SerializedEasterEggItem(invEntry.id,  Math.round(invEntry.amount)));
         }
         for (const e of user.equipment) this.equipment.push({item: e[1].item ? new SerializedEquipmentItem(e[1].item.id, e[1].item?.craftingBonus): undefined, slot: e[0]});
         this.hp = user.hp;

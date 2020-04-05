@@ -1,7 +1,6 @@
 import Discord from "discord.js";
-import { commands, client } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
-import { randomIntFromInterval, CC, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp, formatTime, displayRound } from "../utils";
+import { randomIntFromInterval, CC, awaitConfirmMessage, colors, getItemAndAmountFromArgs, numberToIcon, clamp, formatTime, displayRound, easterEventReward } from "../utils";
 import { CommandInterface} from "../interfaces";
 import { User } from "../classes/user";
 import { DbMaterialItem, MaterialItem } from "../classes/items";
@@ -12,6 +11,7 @@ import { Zone } from "../classes/zone";
 import { ZoneBossSession } from "../classes/zoneBossSession";
 import { Ability, UserAbility } from "../classes/ability";
 import { Boss } from "../classes/boss";
+import {client, commands} from "../main";
 
 export const cmds: CommandInterface[] = 
 [
@@ -225,7 +225,7 @@ export const cmds: CommandInterface[] =
             else
             {
                 const embed = new Discord.RichEmbed()
-                .setColor(colors.green)
+                .setColor(user.hp/user.getStats().base.hp <= 0.25 ? colors.orangeRed : colors.green)
                 .setTitle(`⚔️ Exploration Success! ✅`)
                 .setDescription(
                 `\`${msg.author.username}\` explored **${zone.name}** and **killed a level ${enemy.level} ${enemy.name}**.\n`+
@@ -248,6 +248,12 @@ export const cmds: CommandInterface[] =
                     user.addItemToInventoryFromId(id.id, id.amount);
                     rewardString += `${i._id} - ${i.icon} __${i.name}__ ${id.amount ? `x${id.amount}` : ""}\n`;
                 }
+
+                //easter event
+                const easterRewardString = cf.event_easter_enabled ? easterEventReward(user) : "";
+                if (easterRewardString.length > 0) embed.addField("Extra", easterRewardString);
+                
+
                 if (rewardString.length > 0) embed.addField("**Rewards**",rewardString);
                 msg.channel.send(embed);
                 

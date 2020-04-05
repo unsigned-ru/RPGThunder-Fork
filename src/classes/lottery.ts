@@ -1,8 +1,8 @@
-import { client } from "../RPGThunder";
 import Discord from "discord.js";
 import { DataManager } from "./dataManager";
 import { constructCurrencyString } from "../utils";
 import cf from "../config.json";
+import { manager } from "../RPGThunder";
 
 export class Lottery
 {
@@ -33,13 +33,14 @@ export class Lottery
   public async updateMessage()
   {
     //get the message to update.
-    const message = (client.channels.get(cf.lottery_textChannel)) ? await ((client.channels.get(cf.lottery_textChannel)) as Discord.TextChannel).fetchMessage(DataManager.activeLottery.msgID) : undefined;
+    const fetchedChannels = await manager.fetchClientValues("channels");
+    const message = (fetchedChannels.find((x: Discord.Channel) => x.id == cf.lottery_textChannel)) ? await ((fetchedChannels.find((x: Discord.Channel) => x.id == cf.lottery_textChannel)) as Discord.TextChannel).fetchMessage(DataManager.activeLottery.msgID) : undefined;
     if (!message) return console.error(`Fatal Error: Failed to update lottery message due to not finding the message.`);
 
     //construct embed
     const embed = new Discord.RichEmbed()
     .setTitle(`Lottery #${DataManager.activeLottery.id} | Prize: ${constructCurrencyString(1,DataManager.activeLottery.getPrize())}`)
-    .setDescription(`**Top Entries:**\n${DataManager.activeLottery.tickets.keyArray().sort((a,b) => DataManager.activeLottery.tickets.get(b)!.tickets - DataManager.activeLottery.tickets.get(a)!.tickets).slice(0,15).map(x => `\`${client.users.get(x)?.username}\` - **${DataManager.activeLottery.tickets.get(x)?.tickets} tickets**`).join("\n")}`)
+    .setDescription(`**Top Entries:**\n${DataManager.activeLottery.tickets.keyArray().sort((a,b) => DataManager.activeLottery.tickets.get(b)!.tickets - DataManager.activeLottery.tickets.get(a)!.tickets).slice(0,15).map(async x => `\`${(await manager.fetchClientValues("users")).find((y: Discord.User) => y.id == x)?.username}\` - **${DataManager.activeLottery.tickets.get(x)?.tickets} tickets**`).join("\n")}`)
     .setTimestamp(DataManager.activeLottery.drawDate)
     .setFooter("Ends", 'http://159.89.133.235/DiscordBotImgs/logo.png')
     .setColor('#fcf403');

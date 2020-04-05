@@ -3,7 +3,7 @@ import cf from '../config.json';
 import { DataManager } from '../classes/dataManager.js';
 import { getServerPrefix, colors, sleep } from '../utils.js';
 import { executeGlobalCommand } from '../commands/adminCommands.js';
-import { commands, client } from '../RPGThunder.js';
+import { client, commands } from '../main';
 
 
 export const rateStack: Discord.Collection<string, Date> = new Discord.Collection();

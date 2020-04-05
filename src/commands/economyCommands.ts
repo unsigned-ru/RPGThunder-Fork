@@ -1,11 +1,11 @@
 import Discord from "discord.js";
-import { commands } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
 import { CC, clamp, getItemAndAmountFromArgs, constructWarningMessageForItem, awaitConfirmMessage, constructCurrencyString, filterItemArray, getCurrencyAndAmountFromArgs, colors } from "../utils";
-import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem, anyItem } from "../classes/items";
+import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem, anyItem, DbEasterEgg, EasterEgg } from "../classes/items";
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
 import cf from "../config.json";
+import { commands } from "../main";
 
 export const cmds: CommandInterface[] = 
 [
@@ -228,7 +228,7 @@ export const cmds: CommandInterface[] =
 		aliases: ['giftitem','senditem','gifti','sendi','givei'],
 		description: "Give an item to a player.",
 		usage: `[prefix]giveitem [itemID/itemName] [optional: amount] [@user]`,
-		execute(msg: Discord.Message, args, suser: User) 
+		async execute(msg: Discord.Message, args, suser: User) 
 		{	
 			//get mentioned user
 			if (!msg.mentions.users.first()) return msg.channel.send(`\`${msg.author.username}\`, please mention a user to send the item to.`);
@@ -241,9 +241,9 @@ export const cmds: CommandInterface[] =
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
 			if (item.soulbound) return msg.channel.send(`\`${msg.author.username}\`, that item is soulbound and untradable.`); 
 			//check if user has enough / has item
-			if ((item instanceof DbMaterialItem || item instanceof DbConsumableItem)) 
+			if ((item instanceof DbMaterialItem || item instanceof DbConsumableItem || item instanceof DbEasterEgg)) 
 			{
-				const invEntry = suser.inventory.find(x => x.id == item?._id) as ConsumableItem | MaterialItem | undefined;
+				const invEntry = suser.inventory.find(x => x.id == item?._id) as ConsumableItem | MaterialItem | EasterEgg | undefined;
 				if (!invEntry) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item ${item.getDisplayString()}__`);
 				if (amount > invEntry.amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item ${item.getDisplayString()}__ (sending: ${amount} | you own: ${invEntry.amount})`);
 				
@@ -264,7 +264,7 @@ export const cmds: CommandInterface[] =
 					ruser.addItemToInventory(invEntry);
 				}
 			}
-			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${ruser.getUser().username}\` ${item.getDisplayString()}__ x${amount}`);
+			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${await ruser.getName()}\` ${item.getDisplayString()} x${amount}`);
 		},
 	},
 	{
@@ -275,7 +275,7 @@ export const cmds: CommandInterface[] =
 		aliases: ['gift$','giftcurrency','sendcurrency','send$','givecurr','sendcurr','giftcurr'],
 		description: "Give currency to a player.",
 		usage: `[prefix]givecurrency [currencyName] [optional: amount] [@user]`,
-		execute(msg: Discord.Message, args, suser: User) 
+		async execute(msg: Discord.Message, args, suser: User) 
 		{	
 			//get mentioned user
 			if (!msg.mentions.users.first()) return msg.channel.send(`\`${msg.author.username}\`, please mention a user to send the item to.`);
@@ -295,7 +295,7 @@ export const cmds: CommandInterface[] =
 			suser.getCurrency(currency._id).value -= amount;
 			ruser.getCurrency(currency._id).value += amount;
 
-			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${ruser.getUser().username}\` ${constructCurrencyString(currency._id, amount)}`);
+			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${await ruser.getName()}\` ${constructCurrencyString(currency._id, amount)}`);
 		},
 	},
 	{

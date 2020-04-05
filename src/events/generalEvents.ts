@@ -1,12 +1,11 @@
-import {client} from '../RPGThunder';
-import { DataManager } from '../classes/dataManager';
 import { onMSGReceived } from './messageReceived';
 import { onMemberJoin } from './memberJoin';
 import Discord from 'discord.js';
 import cf from '../config.json';
+import { client } from '../main';
 
 //is called once the data is finished loading in.
-export async function SetupEvents()
+export async function setupEvents()
 {
     console.log("Setting up events...");
     client.on('message', onMSGReceived);
@@ -25,8 +24,5 @@ function onguildMemberUpdate(oldm: Discord.GuildMember, newm: Discord.GuildMembe
             newm.send(`✨ Thank you for boosting our server! ✨\n\n As a small reward you now have 3% cooldown reduction on all commands.`);
     }
 }
-//exports
-export function hpRegenTick() { for (const user of DataManager.users.values()) user.applyEffect({effect: "INSTANT_HEAL", amount: user.getStats().base.hp*0.021}); }
-export function updateBotStatus() { client.user.setActivity(`$help | ${DataManager.users.size} registered users on ${client.guilds.size} servers`,{type: "WATCHING"}); }
 
 

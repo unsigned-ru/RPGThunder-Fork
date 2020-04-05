@@ -1,10 +1,11 @@
-import { client } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
 import { randomIntFromInterval, constructCurrencyString } from "../utils";
+import Discord from 'discord.js';
+import { manager } from "../RPGThunder";
 
-export function onVote(userID: string)
+export async function onVote(userID: string)
 {
-    const u = client.users.get(userID);
+    const u = (await manager.fetchClientValues("users")).find((x: Discord.User) => x.id == userID);
     if (!u) return;
     const ud = DataManager.getUser(u.id);
     if (!ud) return u.send(`✨ Thank you for voting! ✨\n\nUnfortunately you could not receive a reward due to not being registered. Consider registering by using \`$register\``);

@@ -1,10 +1,10 @@
-import { commands } from "../RPGThunder";
 import { CommandInterface } from "../interfaces";
 import { CC, randomIntFromInterval } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import { User } from "../classes/user";
 import { BlackjackSesssion } from "../classes/blackjackSession";
 import { TextChannel } from "discord.js";
+import { commands } from "../main";
 
 export const cmds: CommandInterface[] = 
 [

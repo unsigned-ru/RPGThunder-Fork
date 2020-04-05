@@ -1,11 +1,11 @@
 import Discord from "discord.js";
-import { commands} from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
-import { round, CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon, displayRound } from "../utils";
-import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem } from "../classes/items";
+import { CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon, displayRound } from "../utils";
+import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem, EasterEgg } from "../classes/items";
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
 import cf from "../config.json";
+import { commands } from "../main";
 
 export const cmds: CommandInterface[] = 
 [
@@ -285,7 +285,7 @@ export const cmds: CommandInterface[] =
 				if (itemCounter >= maxItems) {pages.push(itemString); itemString = ""; itemCounter = 0;}
 				const itemdata = i.getData()!;
 				itemString += `${itemdata._id.toString().padEnd(3)} - ${itemdata.icon} __${itemdata.name}__`;
-				if (i instanceof ConsumableItem || i instanceof MaterialItem) itemString += ` x${i.amount}`;
+				if (i instanceof ConsumableItem || i instanceof MaterialItem || i instanceof EasterEgg) itemString += ` x${i.amount}`;
 				itemString += `\n[${itemdata.getQuality().icon}`;
 				if (i instanceof EquipmentItem) {const totalStats = i.getTotalStats(); itemString += `| 🗡️ ${displayRound(totalStats.atk)} | 🛡️ ${displayRound(totalStats.def)} | ⚡ ${displayRound(totalStats.acc)}`;}
 				else if (i instanceof ConsumableItem) itemString += ``; 

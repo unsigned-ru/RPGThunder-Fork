@@ -1,11 +1,11 @@
 import Discord from "discord.js";
-import { commands } from "../RPGThunder";
 import { DataManager } from "../classes/dataManager";
-import { CC, randomIntFromInterval, clamp, getItemAndAmountFromArgs, constructWarningMessageForItem, awaitConfirmMessage, filterItemArray, sortItemArray, createCraftedEquipment } from "../utils";
-import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, MaterialItem, EquipmentItem, ConsumableItem, _anyItem } from "../classes/items";
+import { CC, randomIntFromInterval, clamp, getItemAndAmountFromArgs, constructWarningMessageForItem, awaitConfirmMessage, filterItemArray, sortItemArray, createCraftedEquipment, easterEventReward } from "../utils";
+import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, _anyItem } from "../classes/items";
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
 import cf from "../config.json";
+import { commands } from "../main";
 
 export const cmds: CommandInterface[] = 
 [
@@ -172,12 +172,14 @@ export const cmds: CommandInterface[] =
 			const amount = Math.round(randomIntFromInterval(drop.min, drop.max));
 			const item = DataManager.getItem(drop.item)!;
 
-			if (item instanceof DbMaterialItem) user.addItemToInventory(new MaterialItem(item._id, amount));
-			else if (item instanceof DbConsumableItem) user.addItemToInventory(new ConsumableItem(item._id, amount, item.effects));
-			else if (item instanceof DbEquipmentItem) user.addItemToInventory(new EquipmentItem(item._id));
+			user.addItemToInventoryFromId(item._id, amount);
+
+			//easter event
+			const easterRewardString = cf.event_easter_enabled ? easterEventReward(user) : "";
+			
 
 			//update skill and send result message
-			msg.channel.send(`\`${msg.author.username}\` has mined in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(1,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(1)?.name} has increased to ${user.getProfession(1)?.skill}` : ""}`);
+			msg.channel.send(`\`${msg.author.username}\` has mined in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(1,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(1)?.name} has increased to ${user.getProfession(1)?.skill}` : ""} ${easterRewardString}`);
 		},
 	},
 	{
@@ -212,11 +214,12 @@ export const cmds: CommandInterface[] =
 			const amount = Math.round(randomIntFromInterval(drop.min, drop.max));
 			const item = DataManager.getItem(drop.item)!;
 
-			if (item instanceof DbMaterialItem) user.addItemToInventory(new MaterialItem(item._id, amount));
-			else if (item instanceof DbConsumableItem) user.addItemToInventory(new ConsumableItem(item._id, amount, item.effects));
-			else if (item instanceof DbEquipmentItem) user.addItemToInventory(new EquipmentItem(item._id));
+			user.addItemToInventoryFromId(item._id, amount);
 
-			msg.channel.send(`\`${msg.author.username}\` has harvested in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(2,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(2)?.name} has increased to ${user.getProfession(2)?.skill}` : ""}`);
+			//easter event
+			const easterRewardString = cf.event_easter_enabled ? easterEventReward(user) : "";
+
+			msg.channel.send(`\`${msg.author.username}\` has harvested in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(2,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(2)?.name} has increased to ${user.getProfession(2)?.skill}` : ""} ${easterRewardString}`);
 		}
 	},
 	{
@@ -232,7 +235,7 @@ export const cmds: CommandInterface[] =
 		{	
 			const zone = user.getZone();
 			const profSkill = zone.gathering.mining.skill;
-			if (profSkill.req > user.getProfession(3)!.skill) return msg.channel.send(`\`${msg.author.username}\`, you need a ${DataManager.getProfessionData(3)?.name} skill of ${profSkill.req} or higher to mine in this zone.`);
+			if (profSkill.req > user.getProfession(3)!.skill) return msg.channel.send(`\`${msg.author.username}\`, you need a ${DataManager.getProfessionData(3)?.name} skill of ${profSkill.req} or higher chop for wood in this zone.`);
 			const woodworkingDrops = zone.getWoodworkingDrops().slice();
 			if (woodworkingDrops.length == 0) return msg.channel.send(`\`${msg.author.username}\`, there is nothing to gather in this zone.`);
 
@@ -251,11 +254,12 @@ export const cmds: CommandInterface[] =
 			const amount = Math.round(randomIntFromInterval(drop.min, drop.max));
 			const item = DataManager.getItem(drop.item)!;
 
-			if (item instanceof DbMaterialItem) user.addItemToInventory(new MaterialItem(item._id, amount));
-			else if (item instanceof DbConsumableItem) user.addItemToInventory(new ConsumableItem(item._id, amount, item.effects));
-			else if (item instanceof DbEquipmentItem) user.addItemToInventory(new EquipmentItem(item._id));
+			user.addItemToInventoryFromId(item._id, amount);
 
-			msg.channel.send(`\`${msg.author.username}\` has chopped for wood in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(3,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(3)?.name} has increased to ${user.getProfession(3)?.skill}` : ""}`);
+			//easter event
+			const easterRewardString = cf.event_easter_enabled ? easterEventReward(user) : "";
+
+			msg.channel.send(`\`${msg.author.username}\` has chopped for wood in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(3,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(3)?.name} has increased to ${user.getProfession(3)?.skill}` : ""} ${easterRewardString}`);
 		}
 	},
 	{
@@ -271,13 +275,13 @@ export const cmds: CommandInterface[] =
 		{	
 			const zone = user.getZone();
 			const profSkill = zone.gathering.mining.skill;
-			if (profSkill.req > user.getProfession(4)!.skill) return msg.channel.send(`\`${msg.author.username}\`, you need a ${DataManager.getProfessionData(4)?.name} skill of ${profSkill.req} or higher to mine in this zone.`);
+			if (profSkill.req > user.getProfession(4)!.skill) return msg.channel.send(`\`${msg.author.username}\`, you need a ${DataManager.getProfessionData(4)?.name} skill of ${profSkill.req} or higher gather zone.`);
 			const fishingdrops = zone.getFishingDrops().slice();
 			if (fishingdrops.length == 0) return msg.channel.send(`\`${msg.author.username}\`, there is nothing to gather in this zone.`);
 
 			fishingdrops.sort((a,b) => b.chance - a.chance);
 
-			let rng = randomIntFromInterval(0,100);
+			let rng = randomIntFromInterval(0,fishingdrops.reduce((total, c) => total + c.chance, 0));
 			while (fishingdrops.length > 0 && rng > 0)
 			{
 				const d = fishingdrops[0];
@@ -290,11 +294,12 @@ export const cmds: CommandInterface[] =
 			const amount = Math.round(randomIntFromInterval(drop.min, drop.max));
 			const item = DataManager.getItem(drop.item)!;
 
-			if (item instanceof DbMaterialItem) user.addItemToInventory(new MaterialItem(item._id, amount));
-			else if (item instanceof DbConsumableItem) user.addItemToInventory(new ConsumableItem(item._id, amount, item.effects));
-			else if (item instanceof DbEquipmentItem) user.addItemToInventory(new EquipmentItem(item._id));
+			user.addItemToInventoryFromId(item._id, amount);
 
-			msg.channel.send(`\`${msg.author.username}\` has fished in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(4,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(4)?.name} has increased to ${user.getProfession(4)?.skill}` : ""}`);
+			//easter event
+			const easterRewardString = cf.event_easter_enabled ? easterEventReward(user) : "";
+
+			msg.channel.send(`\`${msg.author.username}\` has fished in ${zone.name} and received ${item.icon} __${item.name}__ x${amount}\n${user.gainProfessionSkill(4,1,profSkill.greenZone, profSkill.grayZone,true).skillgain != 0 ? `Their skill in ${DataManager.getProfessionData(4)?.name} has increased to ${user.getProfession(4)?.skill}` : ""} ${easterRewardString}`);
 		}
 	},
 ];

@@ -1,4 +1,3 @@
-
 import { BossDataInterface} from "../interfaces.js";
 import { DataManager } from "./dataManager.js";
 import { getTotalWeightForLevel, getAccFromLevelWeight, randomIntFromInterval } from "../utils.js";
@@ -70,7 +69,7 @@ export class Boss extends Actor
         if (randomIntFromInterval(0,100) < critChance) {dmg *= 1.5; crit = true; }
         return {dmg: dmg, miss: miss, crit: crit};
     }
-    getName() { return this.name;}
+    async getName() { return this.name;}
     getStats() 
     {
         return { 

@@ -1,7 +1,8 @@
 import { PatreonGet, get } from "../utils";
 import { DataManager } from "../classes/dataManager";
-import { client } from "../RPGThunder";
 import cf from '../config.json';
+import { manager } from "../RPGThunder";
+import Discord from 'discord.js';
 
 //Create is done only the first time a pledge happens.
 export async function patreonOnMemberCreate(data: any)
@@ -16,7 +17,7 @@ export async function patreonOnMemberCreate(data: any)
     {
         //check if the rank exists on our database or if the bot knows the user && the user is registered.
         const patreonRank = DataManager.getPatreonRank(entitledTiers[0].id);
-        const discorduser = client.users.get(discord.user_id);
+        const discorduser = (await manager.fetchClientValues("users")).find((x: Discord.User) => x.id == discord.user_id);
         if (!patreonRank || !discorduser) return;
 
         const useraccount = DataManager.getUser(discorduser.id);
@@ -30,7 +31,7 @@ export async function patreonOnMemberCreate(data: any)
         useraccount.patreonRank = patreonRank._id;
         
         //assign discord role if it exists and user is in the official server.
-        const officialServer = client.guilds.get(cf.official_server);
+        const officialServer = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server);
         if (officialServer && officialServer.members.has(useraccount.userID) && officialServer.roles.has(patreonRank.discordrole_id))
         officialServer.members.get(discorduser.id)?.addRole(patreonRank.discordrole_id);
 

@@ -1,12 +1,29 @@
 import Discord from "discord.js";
-import { commands } from "../RPGThunder";
-import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep } from "../utils";
+import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep, getItemDataEmbed, getCurrencyAndAmountFromArgs } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import { CommandInterface } from "../interfaces";
 import { rateStack } from "../events/messageReceived";
+import { commands } from "../main";
 
 export const cmds: CommandInterface[] = 
 [
+	{
+		name: "op_listitems",
+		aliases: [],
+		category: CC.hidden,
+		description: "Operator command, resyncronise ranks.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_listitems",
+		async execute(msg: Discord.Message, args: string[]) 
+		{
+			for (const i of DataManager.items.values()) 
+			{
+				msg.channel.send(getItemDataEmbed(i)).catch(err => console.log(err));
+				await sleep(2);
+			}
+		},
+	},
 	{
 		name: "op_syncranks",
 		aliases: ['op_sr'],
@@ -78,6 +95,29 @@ export const cmds: CommandInterface[] =
 			}
 		}
 	},
+
+	{
+		name: "op_givecurrency",
+		aliases: ['op_gc'],
+		category: CC.hidden,
+		description: "Operator command, give currency.",
+		executeWhileTravelling: true,
+		needOperator: true,
+		usage: "[prefix]op_givecurrency [currencyID/currencyName] [Amount] [@User]",
+		execute(msg, args, user)
+		{
+			if (!user) return;
+			let targetUser = msg.mentions.users.first();
+			if (targetUser) args.splice(args.indexOf(targetUser.toString()),1);
+			else targetUser = msg.author;
+
+			const {currency, amount, errormsg} = getCurrencyAndAmountFromArgs(args, user);
+			if (errormsg) return msg.channel.send(errormsg);
+
+			DataManager.getUser(targetUser.id)?.getCurrency(currency?._id!)!.value += amount; 
+		}
+	},
+
 	{
 		name: "op_unstuck",
 		aliases: [],

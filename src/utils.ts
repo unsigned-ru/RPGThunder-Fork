@@ -1,7 +1,7 @@
 import cf from './config.json';
 import Discord from 'discord.js';
 import { DataManager } from './classes/dataManager.js';
-import { _anyItem, DbEquipmentItem, MaterialItem, ConsumableItem, anyItem, DbMaterialItem, DbConsumableItem, EquipmentItem, DbItem } from './classes/items.js';
+import { _anyItem, DbEquipmentItem, MaterialItem, ConsumableItem, anyItem, DbMaterialItem, DbConsumableItem, EquipmentItem, DbItem, DbEasterEgg } from './classes/items.js';
 import { User } from './classes/user.js';
 import { CurrencyInterface } from './interfaces.js';
 import { Ability } from './classes/ability.js';
@@ -70,6 +70,7 @@ export const enum colors {
   red = "#ff0000",
   purple = "#5e03fc",
   black = "#000000",
+  orangeRed = "#ff5500",
 }
 
 export function formatTime(ms: number): string
@@ -447,4 +448,108 @@ export function get(obj: any, key: string) {
   return key.split(".").reduce(function(o, x) {
       return (typeof o == "undefined" || o === null) ? o : o[x];
   }, obj);
+}
+
+export function getItemDataEmbed(item: DbItem)
+{
+  const embed = new Discord.RichEmbed();
+  if (item instanceof DbEquipmentItem)
+  {
+    embed.setColor('#fcf403') //Yelow
+    .setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
+    .setDescription(item.description)
+
+    .addField("Info:",
+    `**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
+    `**Slot(s):** ${item.getSlots().map(x => x.name).join(" OR ")}\n`+
+    `**Type:** ${item.getType().name}\n`+
+    `${item.slots.includes(1) || item.slots.includes(2) ? `**TwoHand:** ${item.twoHand}\n` : ``}`+
+    `**Level Requirement:** ${item.levelRequirement}\n`+
+    `**Sellable: ** ${item.sellable}\n`+
+    `${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+    `**Soulbound: ** ${item.soulbound}\n`
+    ,true)
+  
+    .addField("Stats:",
+    `🗡️**ATK:** ${displayRound(item.stats.base.atk)}\n`+
+    `🛡️**DEF:** ${displayRound(item.stats.base.def)}\n`+
+    `⚡**ACC:** ${displayRound(item.stats.base.acc)}\n`,true)
+    .setTimestamp()
+    .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+  }
+  else if (item instanceof DbConsumableItem)
+  {
+    embed.setColor('#fcf403') //Yelow
+    .setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
+    .setDescription(item.description)
+    .addField("Info:",
+    `**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
+    `**Type:** Material\n`+
+    `**Effects:** ${item.getEffectsString().length==0 ? "None" : `\n${item.getEffectsString()}`}`+
+    `**Sellable: ** ${item.sellable}\n`+
+    `${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+    `**Soulbound: ** ${item.soulbound}\n`);
+  }
+  else if (item instanceof DbMaterialItem)
+  {
+    embed.setColor('#fcf403') //Yelow
+    .setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
+    .setDescription(item.description)
+    .addField("Info:",
+    `**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
+    `**Type:** Material\n`+
+    `**Sellable: ** ${item.sellable}\n`+
+    `${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+    `**Soulbound: ** ${item.soulbound}\n`);
+  }
+  else if (item instanceof DbEasterEgg)
+  {
+    embed.setColor('#fcf403') //Yelow
+    .setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
+    .setDescription(item.description)
+    .addField("Info:",
+    `**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
+    `**Type:** Easter Egg\n`+
+    `**Sellable: ** ${item.sellable}\n`+
+    `${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
+    `**Soulbound: ** ${item.soulbound}\n`);
+  }
+
+  return embed;
+}
+
+
+export function easterEventReward(user: User)
+{
+  let easterRewardString = "";
+  const rng = randomIntFromInterval(0,100);
+  if (rng <= 0.5)
+  {
+    const i = DataManager.getItem(632);
+    if(i)
+    {
+      user.addItemToInventoryFromId(i._id,1);
+      easterRewardString = `\nYou have received an event item: ${i.getDisplayString()}`;
+    }
+  }
+  else if (rng <= 2)
+  {
+    const i = DataManager.getItem(631);
+    if(i)
+    {
+      user.addItemToInventoryFromId(i._id,1);
+      easterRewardString = `\nYou have received an event item: ${i.getDisplayString()}`;
+    }
+  }
+  else if (rng <= 4)
+  {
+    const i = DataManager.getItem(630);
+    if(i)
+    {
+      user.addItemToInventoryFromId(i._id,1);
+      easterRewardString = `\nYou have received an event item: ${i.getDisplayString()}`;
+    }
+  }
+
+  return easterRewardString;
 }

@@ -1,7 +1,8 @@
-import { client } from "../RPGThunder";
 import { PatreonGet, get } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import cf from '../config.json';
+import { manager } from "../RPGThunder";
+import Discord from "discord.js";
 
 //update is done when membership is re-enabled or ended.
 export async function patreonOnMemberUpdate(data: any)
@@ -9,7 +10,7 @@ export async function patreonOnMemberUpdate(data: any)
     //get tiers and discord data from webhook and api 
     const active = data.attributes.patron_status == "active_patron";
     const entitledTiers = data.relationships.currently_entitled_tiers.data;
-    const officialServer = client.guilds.get(cf.official_server);
+    const officialServer = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server);
     
     if (active)
     {
@@ -22,7 +23,7 @@ export async function patreonOnMemberUpdate(data: any)
             
             //check if the rank exists on our database or if the bot knows the user && the user is registered.
             const patreonRank = DataManager.getPatreonRank(entitledTiers[0].id); 
-            const discorduser = client.users.get(discord.user_id);
+            const discorduser =  (await manager.fetchClientValues("users")).find((x: Discord.User) => x.id == discord.user_id);
             if (!patreonRank || !discorduser) return;
 
             const useraccount = DataManager.getUser(discorduser.id);
@@ -49,7 +50,7 @@ export async function patreonOnMemberUpdate(data: any)
         {
             //remove all patreonranks from user.
             const useraccount = DataManager.users.find(x => x.patreonMemberID == data.id);
-            const discorduser = useraccount.getUser();
+            const discorduser = await useraccount.getUser();
             if (!discorduser || !officialServer) return;
             officialServer.members.get(discorduser.id)?.removeRoles(DataManager.patreonRanks.map(x => x.discordrole_id));
             if (useraccount) {useraccount.patreonRank = undefined; useraccount.patreonMemberID = undefined;}

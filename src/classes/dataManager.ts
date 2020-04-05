@@ -3,8 +3,7 @@ import mongo from 'mongodb';
 import * as cf from "../config.json";
 import {CurrencyInterface, BossDataInterface, PatreonRankInterface} from '../interfaces';
 import { User, SerializedUser } from './user.js';
-import { DbMaterialItem, DbEquipmentItem, DbConsumableItem, _anyItem, ItemQualityInterface, ItemTypeInterface, ItemSlotInterface } from './items.js';
-import { client } from '../RPGThunder.js';
+import { DbMaterialItem, DbEquipmentItem, DbConsumableItem, _anyItem, ItemQualityInterface, ItemTypeInterface, ItemSlotInterface, DbEasterEgg as DbEasterEggItem } from './items.js';
 import { randomIntFromInterval, constructCurrencyString, PatreonGet, get, sleep } from '../utils.js';
 import { CronJob } from 'cron';
 import { Profession } from './profession.js';
@@ -14,6 +13,8 @@ import { Zone } from './zone.js';
 import {  EnemyTypeInterface, EnemyInterface } from './enemy.js';
 import { Session } from './session.js';
 import { Ability } from './ability.js';
+import { manager } from '../RPGThunder';
+
 
 export abstract class DataManager 
 {
@@ -109,6 +110,12 @@ export abstract class DataManager
                         this.items.set(mi._id, mi);
                         break;
                     }
+                    case "easteregg":
+                    {
+                        const mi = new DbEasterEggItem(i);
+                        this.items.set(mi._id, mi);
+                        break;
+                    }
                 }
             }
             await this.loadCharacterData(db);
@@ -145,7 +152,9 @@ export abstract class DataManager
                 if(!rank) continue;
                 newUser.patreonRank = rank._id;
                 newUser.patreonMemberID = d.id;
-                client.guilds.get(cf.official_server)?.members.get(user.id)?.addRole(rank.discordrole_id);
+                // console.logmanager.fetchClientValues("guilds").
+               
+                //.members.get(user.id)?.addRole(rank.discordrole_id);
             }
         }
         
@@ -225,6 +234,17 @@ export abstract class DataManager
     static getBossData(id: number): BossDataInterface | undefined { return this.bossdata.get(id); }
     static getEnemyType(id: number): EnemyTypeInterface | undefined { return this.enemyTypes.get(id); }
     static getPatreonRank(id: string) { return this.patreonRanks.get(id);}
+    static hpRegenTick() { for (const user of this.users.values()) user.applyEffect({effect: "INSTANT_HEAL", amount: user.getStats().base.hp*0.021}); }
+    static async updateBotStatus() { 
+        // console.log(await manager.fetchClientValues("user"));
+        // map(
+        //     async x => 
+        //     (await x.fetchClientValue('user'))
+        //     .setActivity(`$help | ${DataManager.users.size} registered users on 
+        //     ${(await manager.fetchClientValues("guilds.size")).reduce((total, add) => total + add, 0)}
+        //      servers`,{type: "WATCHING"}));
+    }
+
     static async drawLottery()
     {
         //one last update
@@ -238,14 +258,15 @@ export abstract class DataManager
         let winner = ticketCollection[randomIntFromInterval(0,ticketCollection.length-1,true)];
         
         //Check if the winner is still within the official server, and is mentionable. if not then lot a new random winner.
-        while (!client.users.get(winner) && ticketCollection.length > 0)
+        const clientusers = await manager.fetchClientValues("users");
+        while (!clientusers.find((x: Discord.User) => x.id == winner) && ticketCollection.length > 0)
         {
             ticketCollection = ticketCollection.filter(x => x != winner);
             winner = ticketCollection[randomIntFromInterval(0,ticketCollection.length-1,true)];
         }
-        const userWinner = client.users.get(winner);   
+        const userWinner = clientusers.find((x: Discord.User) => x.id == winner);   
 
-        const channel = (client.channels.get(cf.lottery_textChannel) as Discord.TextChannel);
+        const channel = ((await manager.fetchClientValues("channels")).find((x: Discord.Channel) => x.id == cf.lottery_textChannel) as Discord.TextChannel);
         if (userWinner)
         {
             //announce winner and message
@@ -366,8 +387,8 @@ export abstract class DataManager
             rankValuePairs.push({patreonID: d.id, discordID: discordID, tierID: tierID});
         }
         const rolesToRemove = DataManager.patreonRanks.map(x => x.discordrole_id);
-        const officialServer = client.guilds.get(cf.official_server)!;
-        for (const u of client.users.values())
+        const officialServer: Discord.Guild = (await manager.fetchClientValues("guilds")).find((x: Discord.Guild) => x.id == cf.official_server)!;
+        for (const u of (await manager.fetchClientValues("users")) as Discord.User[])
         {
             let shouldWait = false;
             //removing

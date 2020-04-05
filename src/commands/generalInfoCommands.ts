@@ -1,12 +1,12 @@
 import Discord from "discord.js";
-import { commands } from "../RPGThunder";
-import { groupArrayBy, CC, getServerPrefix, colors, displayRound } from "../utils";
-import { DbEquipmentItem, DbMaterialItem, DbConsumableItem, _anyItem } from "../classes/items";
+import { groupArrayBy, CC, getServerPrefix, colors, getItemDataEmbed } from "../utils";
+import { _anyItem } from "../classes/items";
 import { DataManager } from "../classes/dataManager";
 import { Class } from "../classes/class";
 import { CommandInterface } from "../interfaces";
 import { Ability } from "../classes/ability";
 import { InstantDamageEffect, InstantHealingEffect, DamageOverTimeDebuffEffect, HealingOverTimeBuffEffect, AbsorbBuffEffect, DamageReductionBuffEffect, InstantDrainLifeEffect, DamageImmunityBuffEffect } from "../classes/tb_effects";
+import { commands } from "../main";
 
 export const cmds: CommandInterface[] = 
 [
@@ -90,64 +90,8 @@ export const cmds: CommandInterface[] =
 			if(!isNaN(+args[0])) item = DataManager.getItem(+args[0]);
 			else item = DataManager.getItemByName(args.join(" "));
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, could not find an item with that id/name.`);
-			if (item instanceof DbEquipmentItem)
-			{
-				const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //Yelow
-				.setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
-				.setDescription(item.description)
 
-				.addField("Info:",
-				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
-				`**Slot(s):** ${item.getSlots().map(x => x.name).join(" OR ")}\n`+
-				`**Type:** ${item.getType().name}\n`+
-				`${item.slots.includes(1) || item.slots.includes(2) ? `**TwoHand:** ${item.twoHand}\n` : ``}`+
-				`**Level Requirement:** ${item.levelRequirement}\n`+
-				`**Sellable: ** ${item.sellable}\n`+
-				`${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
-				`**Soulbound: ** ${item.soulbound}\n`
-				,true)
-			
-				.addField("Stats:",
-				`🗡️**ATK:** ${displayRound(item.stats.base.atk)}\n`+
-				`🛡️**DEF:** ${displayRound(item.stats.base.def)}\n`+
-				`⚡**ACC:** ${displayRound(item.stats.base.acc)}\n`,true)
-				.setTimestamp()
-				.setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
-			
-				msg.channel.send(embed);
-			}
-			else if (item instanceof DbConsumableItem)
-			{
-				const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //Yelow
-				.setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
-				.setDescription(item.description)
-				.addField("Info:",
-				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
-				`**Type:** Material\n`+
-				`**Effects:** ${item.getEffectsString().length==0 ? "None" : `\n${item.getEffectsString()}`}`+
-				`**Sellable: ** ${item.sellable}\n`+
-				`${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
-				`**Soulbound: ** ${item.soulbound}\n`);
-
-				msg.channel.send(embed);
-			}
-			else if (item instanceof DbMaterialItem)
-			{
-				const embed = new Discord.RichEmbed()
-				.setColor('#fcf403') //Yelow
-				.setTitle(`Item #${item._id}: ${item.icon} ${item.name}`)
-				.setDescription(item.description)
-				.addField("Info:",
-				`**Quality:** ${item.getQuality().icon} ${item.getQuality().name}\n`+
-				`**Type:** Material\n`+
-				`**Sellable: ** ${item.sellable}\n`+
-				`${item.sellable ? `**Sell Price:** ${item.sellPrice}\n` : ""}`+
-				`**Soulbound: ** ${item.soulbound}\n`);
-
-				msg.channel.send(embed);
-			}
+			msg.channel.send(getItemDataEmbed(item)).catch(err => console.error(err));
 		},
 	},
 	{
