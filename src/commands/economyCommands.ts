@@ -234,6 +234,7 @@ export const cmds: CommandInterface[] =
 			if (!msg.mentions.users.first()) return msg.channel.send(`\`${msg.author.username}\`, please mention a user to send the item to.`);
 			const ruser = DataManager.users.get(msg.mentions.users.first()!.id);
 			if (!ruser) return msg.channel.send(`\`${msg.author.username}\`, receiver \`${msg.mentions.users.first()!.username}\` is not registered.`);
+			if (ruser.userID == msg.author.id) return msg.channel.send(`\`${msg.author.username}\`, you cannot send items to yourself.`);
 			args.splice(args.indexOf(msg.mentions.users.first.toString()),1);
 
 			//parse args amount and item
@@ -241,9 +242,9 @@ export const cmds: CommandInterface[] =
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
 			if (item.soulbound) return msg.channel.send(`\`${msg.author.username}\`, that item is soulbound and untradable.`); 
 			//check if user has enough / has item
-			if (item instanceof StackableItem) 
-			{
-				const invEntry = suser.inventory.find(x => x.id == item?._id) as StackableItem | undefined;
+			const invEntry = suser.inventory.find(x => x.id == item?._id);
+			if (invEntry instanceof StackableItem) 
+			{				
 				if (!invEntry) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item ${item.getDisplayString()}__`);
 				if (amount > invEntry.amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item ${item.getDisplayString()}__ (sending: ${amount} | you own: ${invEntry.amount})`);
 				
@@ -251,17 +252,18 @@ export const cmds: CommandInterface[] =
 				suser.removeItemFromInventoryFromId(invEntry.id, amount);
 				ruser.addItemToInventoryFromId(invEntry.id, amount);
 			}
-			if (item instanceof DbEquipmentItem)
+			if (invEntry instanceof EquipmentItem)
 			{
 				const invEntries = suser.inventory.filter(x => x.id == item?._id);
 				if (invEntries.length == 0) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item ${item.getDisplayString()}__`);
 				if (amount > invEntries.length) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item ${item.getDisplayString()}. (sending: ${amount} | you own: ${invEntries.length})`);
 
 				//delete from sender, add to receiver.
-				for (const invEntry of invEntries)
+				for (let i = 0; i < amount; i++) 
 				{
-					suser.removeEntryFromInventory(invEntry);
-					ruser.addItemToInventory(invEntry);
+					suser.removeEntryFromInventory(invEntries[0]);
+					ruser.addItemToInventory(invEntries[0]);
+					invEntries.splice(0,1);
 				}
 			}
 			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${await ruser.getName()}\` ${item.getDisplayString()} x${amount}`);

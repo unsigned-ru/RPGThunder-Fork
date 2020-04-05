@@ -137,7 +137,7 @@ export class ZoneBossSession extends Session
                 for (const bf of ubf[1].filter(x => x instanceof HealingOverTimeBuff) as HealingOverTimeBuff[]) 
                 {
                     ubf[0].takeHealing(bf.healing, true);
-                    this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]]));
+                    this.combatLog.push(await parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]]));
                 }
             }
 

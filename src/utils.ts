@@ -1,7 +1,7 @@
 import cf from './config.json';
 import Discord from 'discord.js';
 import { DataManager } from './classes/dataManager.js';
-import { _anyItem, DbEquipmentItem, MaterialItem, ConsumableItem, anyItem, DbMaterialItem, DbConsumableItem, EquipmentItem, DbItem, DbEasterEgg } from './classes/items.js';
+import { _anyItem, DbEquipmentItem, MaterialItem, ConsumableItem, anyItem, DbMaterialItem, DbConsumableItem, EquipmentItem, DbItem, DbEasterEgg, StackableItem, Item } from './classes/items.js';
 import { User } from './classes/user.js';
 import { CurrencyInterface } from './interfaces.js';
 import { Ability } from './classes/ability.js';
@@ -96,9 +96,8 @@ export function getItemAndAmountFromArgs(args: string[], user?: User)
     if (!isNaN(+args[args.length -1])) amount = Math.floor(clamp(+args[args.length -1], 0, Infinity));
     else if (item && args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full") && user) 
     {
-      const ti = (user.inventory.find(x => x.id == item?._id) as MaterialItem | ConsumableItem | undefined);
-      if (ti) amount = ti.amount; 
-     
+      const ti = user.inventory.find(x => x.id == item?._id);
+      if (ti instanceof StackableItem)  amount = ti.amount;     
     }
     if (!item) errormessage = `Could not find a item with id: \`${args[0]}\``;
   } 
@@ -114,7 +113,7 @@ export function getItemAndAmountFromArgs(args: string[], user?: User)
       full = true;
     }
     item = DataManager.getItemByName(args.join(" ").toLowerCase()); 
-    if (full && item && user) amount = (user.inventory.find(x => x.id == item?._id) as MaterialItem | ConsumableItem).amount;
+    if (full && item && user) amount = (user.inventory.find(x => x.id == item?._id) as StackableItem).amount;
     if (!item) errormessage = `Could not find a item with name: \`${args.join(" ")}\``;
   }
   if (!amount) amount = 1;
@@ -309,7 +308,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
           {
             return a._id - b._id;
           }
-          if ((a instanceof ConsumableItem || a instanceof EquipmentItem || a instanceof MaterialItem) && (b instanceof ConsumableItem || b instanceof  EquipmentItem || b instanceof MaterialItem))
+          if ((a instanceof Item) && (b instanceof Item))
           {
             return a.id - b.id;
           }
@@ -365,7 +364,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
           {
             return b.quality - a.quality;
           }
-          if ((a instanceof ConsumableItem || a instanceof EquipmentItem || a instanceof MaterialItem) && (b instanceof ConsumableItem || b instanceof  EquipmentItem || b instanceof MaterialItem))
+          if (a instanceof Item && b instanceof Item)
           {
             return b.getData()!.quality - a.getData()!.quality;
           }
@@ -375,7 +374,7 @@ export function sortItemArray(sortmethod: string, array: (_anyItem | anyItem)[])
       case "amount":
         array.sort(function(a,b)
         {
-          if ((a instanceof ConsumableItem || a instanceof MaterialItem) && (b instanceof ConsumableItem || b instanceof MaterialItem))
+          if (a instanceof StackableItem && b instanceof StackableItem)
           {
             return b.amount - a.amount;
           }
@@ -411,9 +410,9 @@ export function constructAbilityDataString(a: Ability, level?: number)
   return `[`+rva.join(` | `)+`]`; 
 }
 
-export function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): string
+export async function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): Promise<string>
 {
-  cls = cls.replace(`{user}`, `\`${user.getName()}\``);
+  cls = cls.replace(`{user}`, `\`${await user.getName()}\``);
   cls = cls.replace(`{targets}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
   cls = cls.replace(`{target}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
   return cls;

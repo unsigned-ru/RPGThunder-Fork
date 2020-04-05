@@ -46,7 +46,7 @@ export class User extends Actor
     unlockedZones: number[] = [1];
 
     currencies: Discord.Collection<number, {value:  number}> = new Discord.Collection();
-    inventory: (ConsumableItem | EquipmentItem | MaterialItem)[] = [];
+    inventory: (ConsumableItem | EquipmentItem | MaterialItem | EasterEgg)[] = [];
     equipment: Discord.Collection<number, {item: EquipmentItem | undefined}> = new Discord.Collection();
     commandCooldowns: Discord.Collection<string, CronJob> = new Discord.Collection();
     professions: Discord.Collection<number, {skill: number}> = new Discord.Collection();
@@ -394,11 +394,11 @@ export class User extends Actor
             else this.inventory.splice(this.inventory.indexOf(invEntry),1);
         }
     }
-    removeEntryFromInventory(item: EquipmentItem | ConsumableItem | MaterialItem): void
+    removeEntryFromInventory(item: EquipmentItem | ConsumableItem | MaterialItem | EasterEgg): void
     {
         this.inventory.splice(this.inventory.indexOf(item),1);
     }
-    addItemToInventory(item: EquipmentItem | ConsumableItem | MaterialItem): void
+    addItemToInventory(item: EquipmentItem | ConsumableItem | MaterialItem | EasterEgg): void
     {
         if (item instanceof StackableItem)
         {

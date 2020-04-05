@@ -1,8 +1,8 @@
 import { getTotalWeightForLevel, getAccFromLevelWeight, displayRound } from "../utils";
 import { DataManager } from "./dataManager";
 
-export type _anyItem = DbItem | DbConsumableItem | DbEquipmentItem | DbMaterialItem;
-export type anyItem = ConsumableItem | EquipmentItem | MaterialItem; 
+export type _anyItem = DbItem | DbConsumableItem | DbEquipmentItem | DbMaterialItem | DbEasterEgg;
+export type anyItem = ConsumableItem | EquipmentItem | MaterialItem | EasterEgg; 
 
 export class DbItem
 {
