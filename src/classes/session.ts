@@ -42,20 +42,19 @@ export class Session
         if (ctd && ctd.deletable) await ctd.delete().catch((err: any) => console.error(err));
 
         //Create a channel for play and add permissions for user.
-        const newchannel = await officialGuild.channels.create(`${channelTitle}-#${this.discordUser.id.slice(0,4)}`, {type: "text", parent: parentCategory, rateLimitPerUser: 1});
+        const newchannel = await officialGuild.channels.create(`${channelTitle}-#${this.discordUser.id.slice(0,4)}`, {type: "text", parent: parentCategory, rateLimitPerUser: 1, permissionOverwrites: parentCategory.permissionOverwrites});
         this.sessionChannel = newchannel as Discord.TextChannel;
         await this.createChannelPermissions();
         this.finishedSettingUp = true;
     }
     async createChannelPermissions()
     {
-        await this.sessionChannel.lockPermissions();
-        const guild = client.guilds.cache.find((x: Discord.Guild) => x.id == cf.official_server);
+        const guild = client.guilds.cache.get(cf.official_server);
         if (!guild) return console.error("Failed to create session channel permissions: Guild not found.");
         try 
         {
             const member = await guild.members.fetch(this.user.userID);
-            await this.sessionChannel.overwritePermissions([{id: member, allow: ["VIEW_CHANNEL", "READ_MESSAGE_HISTORY", "SEND_MESSAGES"]}]);
+            await this.sessionChannel.updateOverwrite(member, {VIEW_CHANNEL: true, READ_MESSAGE_HISTORY: true, SEND_MESSAGES: true});
         }
         catch(err) {console.error(err);}
     }

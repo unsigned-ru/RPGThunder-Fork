@@ -69,7 +69,7 @@ export class Boss extends Actor
         if (randomIntFromInterval(0,100) < critChance) {dmg *= 1.5; crit = true; }
         return {dmg: dmg, miss: miss, crit: crit};
     }
-    async getName() { return this.name;}
+    getName() { return this.name;}
     getStats() 
     {
         return { 

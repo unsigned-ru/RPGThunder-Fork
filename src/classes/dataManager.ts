@@ -125,7 +125,6 @@ export abstract class DataManager
             for (const prefix of (await serverPrefixesCollection.findOne({_id: 1})).prefixes) this.serverPrefixes.set(prefix.serverID, prefix.prefix);
 
             await mongoClient.close();
-            console.log(this.users);
             console.log("Finished initializing data");
         }
         catch(err)
@@ -155,9 +154,10 @@ export abstract class DataManager
                 if(!rank) continue;
                 newUser.patreonRank = rank._id;
                 newUser.patreonMemberID = d.id;
-                // console.logmanager.fetchClientValues("guilds").
-               
-                //.members.get(user.id)?.addRole(rank.discordrole_id);
+
+                //get official guild & assign rank if user has a active patreon subscription.
+                const g = client.guilds.cache.get(cf.official_server);
+                if (g && g.members.cache.has(user.id)) g.members.cache.get(user.id)?.roles.add(rank.discordrole_id);
             }
         }
         

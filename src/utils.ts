@@ -410,9 +410,9 @@ export function constructAbilityDataString(a: Ability, level?: number)
   return `[`+rva.join(` | `)+`]`; 
 }
 
-export async function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): Promise<string>
+export function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): string
 {
-  cls = cls.replace(`{user}`, `\`${await user.getName()}\``);
+  cls = cls.replace(`{user}`, `\`${user.getName}\``);
   cls = cls.replace(`{targets}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
   cls = cls.replace(`{target}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
   return cls;

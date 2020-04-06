@@ -266,7 +266,7 @@ export const cmds: CommandInterface[] =
 					invEntries.splice(0,1);
 				}
 			}
-			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${await ruser.getName()}\` ${item.getDisplayString()} x${amount}`);
+			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${ruser.getName()}\` ${item.getDisplayString()} x${amount}`);
 		},
 	},
 	{
@@ -297,7 +297,7 @@ export const cmds: CommandInterface[] =
 			suser.getCurrency(currency._id).value -= amount;
 			ruser.getCurrency(currency._id).value += amount;
 
-			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${await ruser.getName()}\` ${constructCurrencyString(currency._id, amount)}`);
+			msg.channel.send(`\`${msg.author.username}\` has sucessfully sent \`${ruser.getName()}\` ${constructCurrencyString(currency._id, amount)}`);
 		},
 	},
 	{

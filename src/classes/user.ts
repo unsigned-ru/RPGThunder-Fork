@@ -143,7 +143,7 @@ export class User extends Actor
     getUnlockedZones() {return DataManager.zones.filter(x => this.unlockedZones.includes(x._id));}
     getRequiredExp(level = this.level) {return Math.round(cf.exp_req_base_exp + (cf.exp_req_base_exp * ((level  ** cf.exp_req_multiplier)-level)));}
     async getUser(): Promise<Discord.User> { return client.users.cache.find((x: Discord.User) => x.id == this.userID)!; }
-    async getName() { return  client.users.cache.find(x => x.id == this.userID)!.username; }
+    getName() { return client.users.cache.find(x => x.id == this.userID)!.username; }
     getHealthPercentage() { return this.hp / this.getStats().base.hp * 100; }
     getCooldown(name: string)
     {
@@ -241,7 +241,7 @@ export class User extends Actor
                 itemSelectEmbed.addField("**Options**", optionString);
                 msg.channel.send(itemSelectEmbed);
                 //await response and check it
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, {time: 30000, maxProcessed: 1})).first()?.content;
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, {time: 30000, max: 1})).first()?.content;
                 if (!rr || isNaN(+rr) || +rr - 1 < 0 || +rr > finv.length) return resolve(undefined);
                 return resolve(finv[+rr - 1]);
             })
@@ -265,7 +265,7 @@ export class User extends Actor
                 slotSelectEmbed.addField("**Possible slots**", slotString);
                 msg.channel.send(slotSelectEmbed);
                 //await response and check it
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, {time: 30000, maxProcessed: 1})).first()?.content;
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, {time: 30000, max: 1})).first()?.content;
                 if (!rr || isNaN(+rr) || !item.slots.includes(+rr)) return resolve(-1);
                 return resolve(+rr);
             })
@@ -313,7 +313,7 @@ export class User extends Actor
         {
             if (invi.amount < amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item: ${item._id} - ${item.icon} __${item.name}__. You only own ${invi.amount}.`);
             for (let i=0; i < amount; i++) for (const e of invi.effects) this.applyEffect(e);
-            if (invi.amount > amount) invi.amount-= amount;
+            if (invi.amount > amount) invi.amount -= amount;
             else (this.inventory.splice(this.inventory.indexOf(invi),1));
             msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__ ${amount ? `x${amount}` :""}`);
         }
@@ -322,7 +322,7 @@ export class User extends Actor
             const e = invi.getData();
             if (e && e instanceof DbEasterEgg)
             {
-                if (invi.amount > amount) invi.amount-= amount;
+                if (invi.amount > amount) invi.amount -= 1;
                 else (this.inventory.splice(this.inventory.indexOf(invi),1));
                 
                 //get random of the 3 possibilities
@@ -360,7 +360,6 @@ export class User extends Actor
                         msg.channel.send(`\`${msg.author.username}\`, has sucessfully used: ${item._id} - ${item.icon} __${item.name}__\n\n`+
                         `You have received ${DataManager.getItem(drop.item)?.getDisplayString()} x${dropAmount}`);
                     break;
-
                 }
             }
         }
@@ -500,7 +499,7 @@ export class User extends Actor
         this.hp = this.getStats().base.hp;
 
         //check for new abilities.
-        let msgText = `\`${await this.getName()}\` has reached level ${this.level}!`;
+        let msgText = `\`${this.getName()}\` has reached level ${this.level}!`;
         const unlockedAbilities = this.class.getSpellbook().filter(x => x.level == this.level);
         if (unlockedAbilities.length > 0) msgText += `\nYou have unlocked the following abilities:\n ${unlockedAbilities.map(x => `${x.ability.id} - ${x.ability.name}`).join("\n")}`;
         
@@ -556,7 +555,7 @@ export class User extends Actor
 
         this.macroProtection.lastQuestion = questionEmbed;
 
-        await (await this.getUser()).send(questionEmbed).catch(async () => execChannel.send(`\`${await this.getName()}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
+        await (await this.getUser()).send(questionEmbed).catch(async () => execChannel.send(`\`${this.getName()}\`, I do not have permission to message you.\nPlease go to your settings and enable the following:\n\`Settings --> Privacy & Safety --> Enable 'Allow direct messages from server members'\``));
     }
     //#endregion OTHERS -------------------------------------
 }

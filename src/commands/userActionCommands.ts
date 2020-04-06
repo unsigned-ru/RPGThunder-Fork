@@ -39,7 +39,7 @@ export const cmds: CommandInterface[] =
 
             try
             {
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id,{time: 100000, maxProcessed: 1})).first();
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id,{time: 100000, max: 1})).first();
                 if (!rr || !rr.content) return;
 
                 const selectedClass = DataManager.classes.find(x => rr.content.toLowerCase().includes(x.name.toLowerCase()));
@@ -142,7 +142,7 @@ export const cmds: CommandInterface[] =
             user.reaction.isPending = true;
             try 
             {
-                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, maxProcessed: 1 })).first();
+                const rr = (await msg.channel.awaitMessages((m: Discord.Message) => m.author.id == msg.author.id, { time: 30000, max: 1 })).first();
                 user.reaction.isPending = false;
                 if (!rr || !rr.content ||isNaN(+rr.content)) return msg.channel.send(`\`${msg.author.username}\`, wrong input. Exptected a number, please try again.`);
     

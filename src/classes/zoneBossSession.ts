@@ -137,7 +137,7 @@ export class ZoneBossSession extends Session
                 for (const bf of ubf[1].filter(x => x instanceof HealingOverTimeBuff) as HealingOverTimeBuff[]) 
                 {
                     ubf[0].takeHealing(bf.healing, true);
-                    this.combatLog.push(await parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]]));
+                    this.combatLog.push(parseComblatLogString(bf.combatLogTick,ubf[0],[ubf[0]]));
                 }
             }
 
@@ -314,6 +314,7 @@ export class ZoneBossSession extends Session
         .setTimestamp()
         .setThumbnail(this.boss.portraitURL)
         .setFooter("RPG Thunder", 'http://159.89.133.235/DiscordBotImgs/logo.png');
+        
         const bossHealthPercentage = this.boss.getHealthPercentage();
         const bossHealthBar = "<:healthBar:674948947684622337>".repeat(Math.ceil(bossHealthPercentage/(20/3))) + "<:emptyBar:674948948087013376>".repeat(15 - Math.ceil(bossHealthPercentage/(20/3))); 
         

@@ -16,7 +16,7 @@ export abstract class Actor
     }
 
     abstract getStats(): StatObjectInterface; 
-    abstract async getName(): Promise<string>; 
+    abstract getName(): string; 
     abstract dealDamage(baseHitChance: number): {dmg: number; miss: boolean; crit: boolean};
     /**
      * 
