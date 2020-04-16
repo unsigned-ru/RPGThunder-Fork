@@ -1,6 +1,6 @@
 import { Ability } from "./ability";
 import { Actor } from "./actor";
-import { parseComblatLogString, round, randomIntFromInterval, clamp, displayRound } from "../utils";
+import { parseComblatLogString, randomIntFromInterval, clamp, displayRound } from "../utils";
 import Discord from 'discord.js';
 
 export abstract class BaseEffect

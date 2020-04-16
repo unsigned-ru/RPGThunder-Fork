@@ -31,7 +31,6 @@ export function getAccFromLevelWeight(lvl: number, weight: number, multiplier = 
 {
   return weight / ((((((8.5 * lvl)+1) / (lvl *10)) - 0.85) * (0.5 * ((cf.stats.base.atk + ((lvl-1) * cf.stats.increase.atk) * multiplier)))) - ((((8.5 * lvl) / (lvl *10)) - 0.85) * (0.5 * (cf.stats.base.atk + ((lvl-1) * cf.stats.increase.atk) * multiplier))));
 }
-export function round(n: number){ return +n.toFixed(2); }
 
 export function displayRound(n: number)
 {
@@ -90,31 +89,33 @@ export function getItemAndAmountFromArgs(args: string[], user?: User)
   let item: _anyItem |undefined;
   let amount = 1;
   let errormessage;
+  let nargs = args.slice(); 
+
   if (!isNaN(+args[0]))
   {
-    item = DataManager.getItem(+args.splice(0, 1)[0]);
-    if (!isNaN(+args[args.length -1])) amount = Math.floor(clamp(+args[args.length -1], 0, Infinity));
-    else if (item && args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full") && user) 
+    item = DataManager.getItem(+nargs.splice(0, 1)[0]);
+    if (!isNaN(+nargs[nargs.length -1])) amount = Math.floor(clamp(+nargs[nargs.length -1], 0, Infinity));
+    else if (item && nargs[nargs.length -1] && (nargs[nargs.length -1].toLowerCase() == "all" || nargs[nargs.length -1].toLowerCase() == "full") && user) 
     {
       const ti = user.inventory.find(x => x.id == item?._id);
       if (ti instanceof StackableItem)  amount = ti.amount;     
     }
-    if (!item) errormessage = `Could not find a item with id: \`${args[0]}\``;
+    if (!item) errormessage = `Could not find a item with id: \`${nargs[0]}\``;
   } 
   else 
   { 
     let full = false;
-    args = args.map(x => x.trim());
-    if (!isNaN(+args[args.length-1])) amount = +args.splice(args.length-1,1);
-    else if (args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full"))
+    nargs = nargs.map(x => x.trim());
+    if (!isNaN(+nargs[nargs.length-1])) amount =  Math.floor(clamp(+nargs.splice(nargs.length-1,1), 0, Infinity));
+    else if (nargs[nargs.length -1] && (nargs[nargs.length -1].toLowerCase() == "all" || nargs[nargs.length -1].toLowerCase() == "full"))
     {
       //full or all is passed, enable boolean
-      args.splice(args.length -1,1);
+      nargs.splice(nargs.length -1,1);
       full = true;
     }
-    item = DataManager.getItemByName(args.join(" ").toLowerCase()); 
+    item = DataManager.getItemByName(nargs.join(" ").toLowerCase()); 
     if (full && item && user) amount = (user.inventory.find(x => x.id == item?._id) as StackableItem).amount;
-    if (!item) errormessage = `Could not find a item with name: \`${args.join(" ")}\``;
+    if (!item) errormessage = `Could not find a item with name: \`${nargs.join(" ")}\``;
   }
   if (!amount) amount = 1;
   return {item: item, amount: amount, errormsg: errormessage};
@@ -138,7 +139,7 @@ export function getCurrencyAndAmountFromArgs(args: string[], user: User)
   { 
     let full = false;
     args = args.map(x => x.trim());
-    if (!isNaN(+args[args.length-1])) amount = +args.splice(args.length-1,1);
+    if (!isNaN(+args[args.length-1])) amount = Math.round(clamp(+args.splice(args.length-1,1), 0, Infinity));
     else if (args[args.length -1] && (args[args.length -1].toLowerCase() == "all" || args[args.length -1].toLowerCase() == "full"))
     {
       //full or all is mentioned, enable boolean
@@ -163,7 +164,7 @@ export function constructWarningMessageForItem(item: _anyItem, user: User)
 export function constructCurrencyString(currency: number, amount: number)
 {
   const cd = DataManager.getCurrency(currency);
-  return `${cd?.icon} ${round(amount)} ${cd?.name}`;
+  return `${cd?.icon} ${displayRound(amount)} ${cd?.name}`;
 }
 export async function awaitConfirmMessage(title: string, description: string, msg: Discord.Message, user: User, thumbnail?: string, fields?: {name: string; value: string; inline: boolean}[]): Promise<boolean>
 {
@@ -412,7 +413,7 @@ export function constructAbilityDataString(a: Ability, level?: number)
 
 export function parseComblatLogString(cls: string, user: Actor, targets: Actor[]): string
 {
-  cls = cls.replace(`{user}`, `\`${user.getName}\``);
+  cls = cls.replace(`{user}`, `\`${user.getName()}\``);
   cls = cls.replace(`{targets}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
   cls = cls.replace(`{target}`, `\`${targets.map(x => x.getName()).slice(0,5).join(", ")}${targets.length > 5 ? "...": ""}\``);
   return cls;

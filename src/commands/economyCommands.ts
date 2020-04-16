@@ -240,12 +240,14 @@ export const cmds: CommandInterface[] =
 			//parse args amount and item
 			const {item, amount, errormsg} = getItemAndAmountFromArgs(args,suser);
 			if (!item) return msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`);
-			if (item.soulbound) return msg.channel.send(`\`${msg.author.username}\`, that item is soulbound and untradable.`); 
+			if (item.soulbound) return msg.channel.send(`\`${msg.author.username}\`, that item is soulbound and untradable.`);
+
 			//check if user has enough / has item
 			const invEntry = suser.inventory.find(x => x.id == item?._id);
+			if (!invEntry) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item ${item.getDisplayString()}__`);
+			
 			if (invEntry instanceof StackableItem) 
 			{				
-				if (!invEntry) return msg.channel.send(`\`${msg.author.username}\`, you do not own the item ${item.getDisplayString()}__`);
 				if (amount > invEntry.amount) return msg.channel.send(`\`${msg.author.username}\`, you do not own enough of the item ${item.getDisplayString()}__ (sending: ${amount} | you own: ${invEntry.amount})`);
 				
 				//delete from sender, add to receiver.

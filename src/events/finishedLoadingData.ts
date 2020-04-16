@@ -1,9 +1,9 @@
 import { CronJob } from "cron";
 import cf from '../config.json';
 import { DataManager } from "../classes/dataManager";
-import { initializeWebhooks } from "../webhooks/webhooks.js";
 import DBL from "dblapi.js";
 import { client } from "../RPGThunder";
+import { initializeWebhooks } from "../webhooks/webhooks";
 
 export async function onFinishedLoadingDataAndReady(this: any)
 {

@@ -189,7 +189,22 @@ export class User extends Actor
             else { this.exp += amount; amount = 0; }
         }
     }
-    gainProfessionSkill(id: number, skill: number, greenZone: number, grayZone: number, isGathering = false)
+
+    gainDirectProfessionSkill(id: number, skill: number): {skillgain: number; newRecipes: _anyItem[]}
+    {
+        const prof = this.getProfession(id);
+        const pd = DataManager.getProfessionData(id);
+        if (!prof || !pd) return {skillgain: 0, newRecipes: []}; 
+
+        //filter to recipes we don't have then filter to recipes we have when adding skill
+        const newRecipes = pd.recipes.filter(x => x.skill_req > prof!.skill).filter(x => x.skill_req <= prof!.skill + skill).map(x => DataManager.getItem(x.item_id)!);
+
+        //increase skill and return
+        prof.skill = clamp(prof.skill + skill, 0, pd.maxSkill);
+        return {skillgain: skill, newRecipes: newRecipes};
+    }
+
+    gainProfessionSkill(id: number, skill: number, greenZone: number, grayZone: number, isGathering = false): {skillgain: number; newRecipes: _anyItem[]}
     {
         const prof = this.getProfession(id);
         const pd = DataManager.getProfessionData(id);
@@ -322,6 +337,7 @@ export class User extends Actor
             const e = invi.getData();
             if (e && e instanceof DbEasterEgg)
             {
+                amount = 1;
                 if (invi.amount > amount) invi.amount -= 1;
                 else (this.inventory.splice(this.inventory.indexOf(invi),1));
                 

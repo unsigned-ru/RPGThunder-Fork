@@ -158,6 +158,9 @@ export class BlackjackSesssion extends Session
                 return resolve(true);
             }
 
+            //add exp
+			this.user.gainDirectProfessionSkill(10, this.bet * cf.gamblingExpPerCoin);
+
             this.user.getCurrency(1).value += this.bet;
             await this.sessionChannel?.send(`You have won and earned ${constructCurrencyString(1,this.bet)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.\n**Please type \`exit\` when you are finished looking at the results.**`);
             await this.broadcastChannel.send(`\`${this.discordUser.username}\` has won their blackjack session and earned ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
@@ -171,6 +174,8 @@ export class BlackjackSesssion extends Session
         {
             await this.updateLiveMessage(this.createBoardEmbed("push.", colors.yellow));
 
+            //add exp
+			this.user.gainDirectProfessionSkill(10, this.bet * cf.gamblingExpPerCoin);
             await this.sessionChannel?.send(`The game ended in a push (tie/draw).\n**Please type \`exit\` when you are finished looking at the results.**`);
             await this.broadcastChannel.send(`\`${this.discordUser.username}\` their blackjack session ended in a push (tie/draw).\nThey did not win/lose any coins.`);
             return resolve(true);
@@ -182,6 +187,8 @@ export class BlackjackSesssion extends Session
         {
             await this.updateLiveMessage(this.createBoardEmbed("you lost.", colors.red));
             this.user.getCurrency(1).value -= this.bet;
+            //add exp
+			this.user.gainDirectProfessionSkill(10, this.bet * cf.gamblingExpPerCoin);
             await this.sessionChannel?.send(`You have lost your game of ${constructCurrencyString(1,this.bet)}.\nYour new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.\n**Please type \`exit\` when you are finished looking at the results.**`);
             await this.broadcastChannel.send(`\`${this.discordUser.username}\` has lost their blackjack session of ${constructCurrencyString(1,this.bet)}.\nTheir new balance is: ${constructCurrencyString(1,this.user.getCurrency(1).value)}.`);
             return resolve(true);

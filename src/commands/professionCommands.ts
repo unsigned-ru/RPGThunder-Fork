@@ -227,7 +227,7 @@ export const cmds: CommandInterface[] =
 		category: CC.Professions,
 		executeWhileTravelling: false,
 		mustBeRegistered: true,
-		aliases: [],
+		aliases: ['ch'],
 		description: 'Chop for wood in your current zone.',
 		usage: `[prefix]chop`,
 		cooldown: {name: "mine/chop/fish/harvest", duration: 60},

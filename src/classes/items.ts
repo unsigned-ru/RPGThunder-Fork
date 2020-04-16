@@ -47,7 +47,7 @@ export class DbItem
 export class DbEquipmentItem extends DbItem
 {
   slots: number[];
-  twoHand?: boolean = false;
+  twoHand = false;
   type: number;
   levelRequirement: number;
 

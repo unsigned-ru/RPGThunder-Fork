@@ -1,6 +1,6 @@
 import Discord from "discord.js";
 import { DataManager } from "../classes/dataManager";
-import { CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon, displayRound } from "../utils";
+import { CC, clamp, filterItemArray, sortItemArray, constructAbilityDataString, colors, numberToIcon, displayRound} from "../utils";
 import { DbEquipmentItem, MaterialItem, EquipmentItem, ConsumableItem, anyItem, EasterEgg } from "../classes/items";
 import { User } from "../classes/user";
 import { CommandInterface } from "../interfaces";
@@ -150,7 +150,7 @@ export const cmds: CommandInterface[] =
 			for (const p of user.professions)
 			{
 				const pd = DataManager.getProfessionData(p[0]);
-				professionStrings.push(`${pd?.icon} **${pd?.name}** [${p[1].skill}/${pd?.maxSkill}]`);
+				professionStrings.push(`${pd?.icon} **${pd?.name}** [${displayRound(p[1].skill)}/${displayRound(pd!.maxSkill)}]`);
 			}
 			embed.setDescription(professionStrings.join("\n"))
 			.setTimestamp()

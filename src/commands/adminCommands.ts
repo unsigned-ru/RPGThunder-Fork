@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep, getItemDataEmbed, getCurrencyAndAmountFromArgs } from "../utils";
+import { CC, getServerPrefix, getItemAndAmountFromArgs, sleep, getItemDataEmbed } from "../utils";
 import { DataManager } from "../classes/dataManager";
 import { CommandInterface } from "../interfaces";
 import { rateStack } from "../events/messageReceived";
@@ -92,19 +92,23 @@ export const cmds: CommandInterface[] =
 		usage: "[prefix]op_giveitem [ItemID/Name] [Amount] [@User]",
 		execute(msg, args)
 		{
-			let targetUser = msg.mentions.users.first();
-			if (targetUser) args.splice(args.indexOf(targetUser.toString()),1);
-			else targetUser = msg.author;
+			let targetUsers = msg.mentions.members;
+			if (!targetUsers) targetUsers = new Discord.Collection([[msg.author.id, msg.member!]]);
 
-			const pargs = args.join(" ").split(",").map(x => x.trim().split(" "));
+			const pargs = args.filter(arg => !arg.startsWith('<@') && !arg.endsWith('>')).map(x => x.trim()).join(" ").split(",").map(x => x.split(" "));
 
-			for (const parg of pargs)
+			for (const u of targetUsers.values())
 			{
-				const {item,amount,errormsg} = getItemAndAmountFromArgs(parg);
-				if (errormsg) { msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`); continue; }
+				for (const parg of pargs)
+				{
+					const {item,amount,errormsg} = getItemAndAmountFromArgs(parg);
+					if (errormsg) { msg.channel.send(`\`${msg.author.username}\`, ${errormsg}`); continue; }
 
-				DataManager.getUser(targetUser.id)?.addItemToInventoryFromId(item!._id, amount);
+					const uac = DataManager.getUser(u.id);
+					if (uac) uac.addItemToInventoryFromId(item!._id, amount);
+				}
 			}
+			
 		}
 	},
 
@@ -118,15 +122,11 @@ export const cmds: CommandInterface[] =
 		usage: "[prefix]op_givecurrency [currencyID/currencyName] [Amount] [@User]",
 		execute(msg, args, user)
 		{
-			if (!user) return;
-			let targetUser = msg.mentions.users.first();
-			if (targetUser) args.splice(args.indexOf(targetUser.toString()),1);
-			else targetUser = msg.author;
-
-			const {currency, amount, errormsg} = getCurrencyAndAmountFromArgs(args, user);
-			if (errormsg) return msg.channel.send(errormsg);
-
-			DataManager.getUser(targetUser.id)?.getCurrency(currency?._id!)!.value += amount; 
+			if (isNaN(+args[0]) && isNaN(+args[1])) return;
+			let targetUsers = msg.mentions.members;
+			if (!targetUsers) targetUsers = new Discord.Collection([[msg.author.id, msg.member!]]);
+			
+			for (const u of targetUsers.values()) DataManager.getUser(u.id)?.getCurrency(+args[0])!.value += +args[1];
 		}
 	},
 
